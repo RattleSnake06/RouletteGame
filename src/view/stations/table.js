@@ -2,8 +2,11 @@ import * as THREE from 'three';
 import { PACKAGES } from '../../core/economy.js';
 import { format } from '../../core/num.js';
 import { canAfford, costOf } from '../../core/run.js';
+import { SANS } from '../../ui/fonts.js';
+import { rng } from '../../ui/marks.js';
 import { CHIP, createChipMesh } from '../chips.js';
 import { FeltCanvas, SPOTS, betAt, numbersFor } from '../felt.js';
+import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from '../ink.js';
 
 // The Table: a baize lectern at the wheel's rim where the player stands
 // (design doc 8.1). Local frame: +z points at the player, x to their right,
@@ -17,23 +20,37 @@ const TRAY = { x0: 0.27, z: 0.262, step: 0.052 };
 const CARD = { w: 0.17, h: 0.24 };
 const CARD_ORDER = ['long', 'short', 'sitout'];
 
-function paperCard(draw) {
+// Night cards are black card stock lettered in the HUD's hand: bone words, a
+// blood swipe under the number that matters (design doc 8.4).
+function darkCard(draw, seed) {
+  const W = 360;
+  const H = 508;
   const canvas = document.createElement('canvas');
-  canvas.width = 360;
-  canvas.height = 508;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#b9ab8c';
-  ctx.fillRect(0, 0, 360, 508);
-  // Foxing and grime so the card looks handled.
-  for (let i = 0; i < 900; i++) {
-    ctx.fillStyle = `rgba(${90 + Math.random() * 40}, ${60 + Math.random() * 30}, 30, ${Math.random() * 0.05})`;
-    ctx.fillRect(Math.random() * 360, Math.random() * 508, 2 + Math.random() * 6, 2 + Math.random() * 6);
+  const r = rng(seed);
+  const g = ctx.createRadialGradient(W / 2, H * 0.45, 40, W / 2, H / 2, H * 0.62);
+  g.addColorStop(0, '#2a221d');
+  g.addColorStop(1, '#0f0c0a');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  // Fibres and handling marks, so it reads as card and not as a screen.
+  for (let i = 0; i < 700; i++) {
+    ctx.fillStyle = `rgba(237, 229, 211, ${r() * 0.035})`;
+    ctx.fillRect(r() * W, r() * H, 1 + r() * 14, 1);
   }
-  ctx.strokeStyle = '#6e1216';
-  ctx.lineWidth = 6;
-  ctx.strokeRect(14, 14, 332, 480);
-  ctx.lineWidth = 2;
-  ctx.strokeRect(24, 24, 312, 460);
+  for (let i = 0; i < 220; i++) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${r() * 0.25})`;
+    ctx.fillRect(r() * W, r() * H, 2 + r() * 5, 2 + r() * 5);
+  }
+  // A frame scratched in by hand, corners overshooting.
+  ctx.globalAlpha = 0.4;
+  paintScratch(ctx, 18, 24, W - 16, 20, 3, seed + 1, INK.boneDim, { bow: 0.01 });
+  paintScratch(ctx, W - 22, 14, W - 18, H - 16, 3, seed + 2, INK.boneDim, { bow: 0.01 });
+  paintScratch(ctx, W - 14, H - 22, 16, H - 20, 3, seed + 3, INK.boneDim, { bow: 0.01 });
+  paintScratch(ctx, 22, H - 14, 20, 16, 3, seed + 4, INK.boneDim, { bow: 0.01 });
+  ctx.globalAlpha = 1;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   draw(ctx);
@@ -43,51 +60,55 @@ function paperCard(draw) {
   return tex;
 }
 
-const INK = '#2a1410';
-const OX = '#6e1216';
-const serif = (px) => `italic ${px}px "IM Fell English", Georgia, serif`;
-const sans = (weight, px) => `${weight} ${px}px Oswald, "Arial Narrow", sans-serif`;
+/** The key that picks a card, ringed in chalk in its corner. */
+function drawKey(ctx, key, seed) {
+  ctx.font = typedFont(26);
+  ctx.fillStyle = INK.boneDim;
+  ctx.fillText(key, 306, 58);
+  paintLoop(ctx, 306, 56, 22, 20, seed, INK.boneDim, 2.4);
+}
 
 function drawNightCard(ctx, { id, cost, affordable, key }) {
   const pkg = PACKAGES[id];
-  ctx.fillStyle = OX;
-  ctx.font = sans(600, 46);
-  ctx.fillText(pkg.name.toUpperCase(), 180, 92);
-  ctx.fillStyle = INK;
-  ctx.font = sans(600, 132);
-  ctx.fillText(String(pkg.spins), 180, 222);
-  ctx.font = sans(500, 34);
-  ctx.fillText(pkg.spins === 1 ? 'SPIN' : 'SPINS', 180, 306);
-  ctx.font = serif(30);
+  const seed = 300 + key * 7;
+  drawKey(ctx, String(key), seed);
+  scrawlText(ctx, pkg.name, 180, 104, 38, INK.bone, { maxWidth: 300 });
+  paintSwipe(ctx, 76, 176, 210, 96, seed + 1, INK.bloodDeep, { slope: -0.06 });
+  scrawlText(ctx, String(pkg.spins), 186, 226, 112, INK.bone);
+  ctx.font = typedFont(30);
+  ctx.fillStyle = INK.boneDim;
+  ctx.fillText(pkg.spins === 1 ? 'spin' : 'spins', 180, 318);
+  ctx.font = typedFont(23);
   const bonus = id === 'short' ? '+1 token' : id === 'sitout' ? '+3 tokens when the debt is paid' : 'the most spins';
-  wrapText(ctx, bonus, 180, 362, 280, 34);
-  ctx.font = sans(600, 40);
-  ctx.fillStyle = OX;
-  ctx.fillText(cost === 0 ? 'FREE' : `COSTS ${cost}`, 180, 440);
-  ctx.fillStyle = 'rgba(42,20,16,0.6)';
-  ctx.font = sans(500, 24);
-  ctx.fillText(`[${key}]`, 312, 52);
+  wrapText(ctx, bonus, 180, 366, 270, 30);
+  if (cost === '0') {
+    scrawlText(ctx, 'free', 180, 446, 36, INK.bone);
+  } else {
+    ctx.font = typedFont(24);
+    ctx.fillStyle = INK.boneDim;
+    ctx.textAlign = 'right';
+    ctx.fillText('costs', 164, 450);
+    ctx.textAlign = 'left';
+    scrawlText(ctx, cost, 178, 444, 38, INK.blood);
+    ctx.textAlign = 'center';
+  }
   if (!affordable) {
-    ctx.fillStyle = 'rgba(30, 20, 15, 0.55)';
+    ctx.fillStyle = 'rgba(5, 4, 4, 0.8)';
     ctx.fillRect(0, 0, 360, 508);
-    ctx.fillStyle = '#f0e6d0';
-    ctx.font = sans(600, 34);
-    ctx.fillText('NOT ENOUGH', 180, 236);
-    ctx.fillText('COINS', 180, 276);
+    paintScratch(ctx, 70, 270, 300, 180, 7, seed + 9, INK.blood, { bow: 0.03 });
+    scrawlText(ctx, 'not enough', 180, 330, 32, INK.bone);
+    scrawlText(ctx, 'coins', 180, 376, 32, INK.bone);
   }
 }
 
 function drawEndCard(ctx, { line }) {
-  ctx.fillStyle = OX;
-  ctx.font = sans(600, 56);
-  ctx.fillText('END THE', 180, 150);
-  ctx.fillText('NIGHT', 180, 212);
-  ctx.fillStyle = INK;
-  ctx.font = serif(30);
-  wrapText(ctx, line, 180, 300, 280, 36);
-  ctx.fillStyle = 'rgba(42,20,16,0.6)';
-  ctx.font = sans(500, 24);
-  ctx.fillText('[E]', 312, 52);
+  drawKey(ctx, 'E', 391);
+  scrawlText(ctx, 'End the', 180, 150, 46, INK.bone);
+  paintSwipe(ctx, 74, 186, 216, 70, 393, INK.bloodDeep, { slope: -0.05 });
+  scrawlText(ctx, 'night', 182, 216, 54, INK.bone);
+  ctx.fillStyle = INK.boneDim;
+  ctx.font = typedFont(25);
+  wrapText(ctx, line, 180, 318, 270, 34);
 }
 
 function wrapText(ctx, text, x, y, maxW, lineH) {
@@ -111,7 +132,7 @@ function drawMarquee(ctx, history, w, h) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#8a7a5c';
-  ctx.font = sans(500, 26);
+  ctx.font = typedFont(25);
   ctx.fillText('LAST NUMBERS', w / 2, 34);
   ctx.fillStyle = 'rgba(138,122,92,0.4)';
   ctx.fillRect(24, 58, w - 48, 2);
@@ -121,7 +142,7 @@ function drawMarquee(ctx, history, w, h) {
     const size = i === 0 ? 76 : 50;
     const x = r.color === 'green' ? w / 2 : r.color === 'red' ? w * 0.72 : w * 0.28;
     const color = r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
-    ctx.font = sans(600, size);
+    ctx.font = `600 ${size}px ${SANS}`;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = i === 0 ? 18 : 8;
@@ -377,6 +398,13 @@ export function createTable({ materials, interaction, callbacks }) {
     }
   }
 
+  /** Centre of a bet's spot on the felt, in world space (for the bet note). */
+  function spotWorldPosition(betId, out = new THREE.Vector3()) {
+    if (!SPOTS.has(betId)) return null;
+    group.updateMatrixWorld();
+    return group.localToWorld(out.copy(spotLocal(betId)));
+  }
+
   function chipWorldPosition(id, out = new THREE.Vector3()) {
     const c = chips.get(id);
     return c ? c.mesh.getWorldPosition(out) : null;
@@ -466,8 +494,9 @@ export function createTable({ materials, interaction, callbacks }) {
       card.affordable = canAfford(state, id);
       setCardTexture(
         card,
-        paperCard((ctx) =>
-          drawNightCard(ctx, { id, cost: format(costOf(state, id)), affordable: card.affordable, key: i + 1 }),
+        darkCard(
+          (ctx) => drawNightCard(ctx, { id, cost: format(costOf(state, id)), affordable: card.affordable, key: i + 1 }),
+          101 + i,
         ),
       );
       showCard(card);
@@ -479,7 +508,7 @@ export function createTable({ materials, interaction, callbacks }) {
   }
 
   function showEndCard(line) {
-    setCardTexture(endCard, paperCard((ctx) => drawEndCard(ctx, { line })));
+    setCardTexture(endCard, darkCard((ctx) => drawEndCard(ctx, { line }), 117));
     showCard(endCard);
   }
 
@@ -530,6 +559,7 @@ export function createTable({ materials, interaction, callbacks }) {
     felt,
     syncChips,
     chipWorldPosition,
+    spotWorldPosition,
     glowChip,
     flashResult,
     updateMarquee,

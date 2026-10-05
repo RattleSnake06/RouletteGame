@@ -1,12 +1,10 @@
-import '@fontsource/oswald/latin-500.css';
-import '@fontsource/oswald/latin-600.css';
-import '@fontsource/im-fell-english/latin-400-italic.css';
 import './style.css';
 import * as THREE from 'three';
 import { WheelAudio } from './audio/audio.js';
 import { Game } from './game.js';
 import { createInput } from './input/actions.js';
 import { loadSettings, platform, saveSettings } from './platform/index.js';
+import { loadFonts } from './ui/fonts.js';
 import { createHud } from './ui/hud.js';
 import { BallAnimator } from './view/ball.js';
 import { CameraDirector } from './view/camera.js';
@@ -29,11 +27,7 @@ function introPower(t) {
 }
 
 async function init() {
-  await Promise.all([
-    document.fonts.load('600 64px Oswald'),
-    document.fonts.load('500 64px Oswald'),
-    document.fonts.load('italic 20px "IM Fell English"'),
-  ]).catch(() => {});
+  await loadFonts();
 
   const canvas = document.getElementById('scene');
   const stage = createStage(canvas);
@@ -60,7 +54,6 @@ async function init() {
       onChoose: (id) => game.choosePackage(id),
       onEndNight: () => game.requestEndNight(),
       onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
-      onHoverMove: (ev) => game.onHoverMove(ev),
     },
   });
   table.group.position.copy(layout.tablePos);

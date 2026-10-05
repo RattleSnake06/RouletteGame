@@ -665,15 +665,51 @@ bounces, never the result.
 
 ### 8.4 HUD and diegetic UI
 
-- **Flat HUD:** top-left coins in hand and spins left; top-right tokens; top-centre
-  the last payout ("+376"); a small debt line ("OWED 666 · 2 NIGHTS"). Chunky
-  type in boxes, as in Clover Pit's corners.
+- **Scratched into the wall:** the HUD has no boxes, panels or cards. Values are
+  scratched or brushed straight onto the dark, the way a prisoner marks a cell
+  wall, and a soot halo does the job a box used to do.
+  - *Lettering:* a scrawl face (Rock Salt, thickened with a same-colour stroke,
+    with Mansalva's 1 and comma patched in so "1,552" never reads "l552") for
+    values and titles; a typewriter face (Special Elite) for labels and small
+    print. Oswald stays on the casino's own hardware: felt, chips, counters,
+    marquee.
+  - *Colour means something:* bone is what you own, blood red is debt and danger
+    (at most one loud red mark at a time), brass is tokens.
+  - *Top-left:* coins as a big bone figure on a blood swipe, and under it the
+    night's spins as a prisoner's tally: gates of five for the spins left, spent
+    ones ghosted and struck through in red ("5 of 7 left"). The tally turns red at
+    two spins left. When coins change, the old total shows small and struck out,
+    then fades.
+  - *Top-centre:* "DEBT 2 · NIGHT" with past nights struck and tonight ringed in
+    red chalk; below it banked / owed ("64 / 180", owed in red) over a thin ink
+    meter. When banked covers the debt, the owed figure is struck off. At the Cage
+    this cluster fades, since the Cage's own sign carries it.
+  - *Top-right:* tokens, smaller than the debt, with a scratched brass hexagon.
+  - *Payout:* "+376" lands on a dragged swipe under the debt (a second swipe for a
+    win worth half the hand or more); a miss is a small dim "nothing".
+  - *Flavour lines* ("Rien ne va plus.", "17 red") are brushed low on the screen
+    on a smear of soot, like a subtitle, so the wheel and ball track stay clear.
+    They never share the screen with the payout.
+  - *Attention:* clusters rest a little under full strength and flare when their
+    value changes; during the spin they sink so the wheel owns the screen.
+  - *Navigation:* a gouged arrow, the place ("Cage", "Table") and its key in a
+    chalk loop; keyboard and pad focus is a bone scratch under the word.
+  - The marks are seeded procedural SVG (`ui/marks.js`), baked once to images: no
+    SVG filter runs while the HUD animates, and every animation has a reduced
+    motion fallback.
 - **Everything else lives on objects:** prices on the Cabinet's tags, debt on the
   Cage, odds on the placard, probabilities on the chalkboard, the Devil's chance
   on the 666 counter, multipliers on the brass plaques.
-- **Tooltips:** hover any object, talisman, chip or felt number for a card
-  describing it.
-- **Menus:** pause, settings, run summary, Almanac.
+- **Tooltips:** hover any object, talisman, chip or felt number for a note
+  scrawled beside it, with a scratch leading back to the thing it describes
+  (anchored to the object, not the pointer).
+- **Menus:** pause, settings, run summary, Almanac. These are written on the
+  dark too: the room falls away behind a soot veil, the title is scrawled (a paid
+  debt is struck out with "paid" after it), figures sit in a ledger with nicked
+  leaders, the main action rides a swipe of paint, and toggles show their current
+  state ringed in chalk.
+- **Cards and signs in the room** are lettered in the same hand: the night cards
+  are black card stock with bone words and a blood swipe under the spin count.
 
 ### 8.5 Art direction
 

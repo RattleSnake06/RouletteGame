@@ -2,15 +2,23 @@
 :root {
   color-scheme: dark;
   --bg: #000;
-  --ink: #e6dcc6;
-  --ink-dim: #b7aa8e;
-  --ink-glow: rgba(0, 0, 0, 0.95);
-  --panel: rgba(8, 6, 5, 0.82);
-  --rule: #d8c79c;
-  --brass: #c9a15a;
-  --red: #e2393f;
-  --hud-font: Oswald, 'Arial Narrow', sans-serif;
-  --lore-font: 'IM Fell English', Georgia, serif;
+  --bone: #ede5d3;
+  --bone-dim: #b3a993;
+  --bone-faint: rgba(237, 229, 211, 0.4);
+  --blood: #dc2a33;
+  --blood-deep: #8e1219;
+  --brass: #c49a52;
+  --green: #45c27a;
+  --scrawl: Scrawl, 'Rock Salt', cursive;
+  --typed: 'Special Elite', 'Courier New', monospace;
+  /* One design pixel: 1px at 1280×800, scaling with the smaller side so the
+     whole composition grows as one on the Deck, at 1080p and ultrawide. */
+  --u: clamp(0.72px, min(0.078125vw, 0.125vh), 2.4px);
+  /* Text sits on darkness, never on a panel: a soot halo does a box's job. */
+  --halo: 0 0 2px #000, 0 2px 3px rgba(0, 0, 0, 0.95), 0 0 22px rgba(0, 0, 0, 0.9);
+  /* Bristle streaks cut out of the big numerals: the reference's dry brush,
+     as a static mask (no filter runs when a number changes). */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='160'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.55' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 -9 0 0 0 6.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 html,
@@ -29,14 +37,59 @@ body {
   outline: none;
 }
 
-/* ---- HUD ---------------------------------------------------------------- */
+/* ---- Lettering ------------------------------------------------------------ */
+
+.scrawl {
+  font-family: var(--scrawl);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--bone);
+  text-shadow: var(--halo);
+  white-space: nowrap;
+}
+
+/* Thicken Rock Salt's nib into a loaded brush: a stroke of the same colour,
+   painted under the fill. */
+.fat {
+  -webkit-text-stroke: 0.045em currentColor;
+  paint-order: stroke fill;
+}
+
+/* Masks clip to the border box and Rock Salt overhangs its line box, so a
+   masked figure carries padding, taken back with negative margins. */
+.grain {
+  padding: 0.34em 0.2em 0.32em;
+  margin: -0.34em -0.2em -0.32em;
+  -webkit-mask-image: var(--grain);
+  mask-image: var(--grain);
+  -webkit-mask-size: 300px 160px;
+  mask-size: 300px 160px;
+}
+
+.typed {
+  font-family: var(--typed);
+  color: var(--bone-dim);
+  text-shadow: var(--halo);
+  letter-spacing: 0.06em;
+}
+
+img.mark {
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Author display rules would otherwise beat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+/* ---- HUD ------------------------------------------------------------------ */
 
 .hud {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  color: var(--ink);
-  font-family: var(--hud-font);
   user-select: none;
   opacity: 0;
   transition: opacity 1.2s ease;
@@ -46,227 +99,757 @@ body {
   opacity: 1;
 }
 
-.hud-box {
+/* Clusters rest a little under full strength and flare when their value
+   changes. During the spin they sink so the wheel owns the screen. */
+.hud-coins,
+.hud-debt,
+.hud-tokens {
   position: absolute;
-  top: 16px;
-  background: var(--panel);
-  border: 2px solid var(--rule);
-  padding: 8px 14px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.6s ease;
 }
 
-.hud-left {
-  left: 16px;
+.hud-coins.flare,
+.hud-debt.flare,
+.hud-tokens.flare {
+  opacity: 1 !important;
+  transition-duration: 0.12s;
 }
 
-.hud-right {
-  right: 16px;
+/* Soot pooled where the marks live: local to each cluster, never a veil. */
+.hud-coins::before,
+.hud-debt::before,
+.hud-tokens::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.45) 55%, transparent);
+  transition: opacity 1s ease;
 }
 
-.hud-row {
+.hud.last-night .hud-coins::before,
+.hud.last-night .hud-debt::before {
+  background: radial-gradient(closest-side, rgba(10, 0, 0, 0.88), rgba(24, 0, 0, 0.5) 55%, transparent);
+}
+
+/* Coins and the night's tally, top-left. */
+.hud-coins {
+  left: calc(30 * var(--u));
+  top: calc(20 * var(--u));
+  font-size: calc(70 * var(--u));
+  transform: rotate(-2.2deg);
+  transform-origin: left top;
+}
+
+.hud-coins::before {
+  inset: -0.9em -1.4em -0.8em -1.2em;
+}
+
+.coins-row {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: clamp(20px, 2.4vw, 30px);
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
+  gap: 0.12em;
+  height: 1.05em;
 }
 
-.hud-spins {
-  font-size: clamp(14px, 1.5vw, 19px);
-  color: var(--ink-dim);
+.coins-row > :not(.coins-swipe) {
+  position: relative;
 }
 
-.hud-spins span {
-  color: var(--ink);
+.coins-swipe {
+  position: absolute;
+  left: 0.44em;
+  top: 50%;
+  translate: 0 -38%;
+  opacity: 0.95;
 }
 
-.ico {
-  width: 1em;
-  height: 1em;
+.coin-glyph {
   flex: none;
 }
 
-.hud-center {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  max-width: calc(100% - 340px);
-}
-
-.hud-debt {
-  font-size: clamp(12px, 1.25vw, 16px);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  color: var(--ink-dim);
-  text-shadow: 0 0 10px var(--ink-glow);
+.coins-num {
+  letter-spacing: 0.03em;
   white-space: nowrap;
 }
 
-.hud-payout {
-  background: var(--panel);
-  border: 2px solid var(--rule);
-  padding: 4px 18px;
-  font-size: clamp(26px, 3.4vw, 46px);
-  font-weight: 600;
+.coins-was {
+  position: absolute;
+  left: 0.75em;
+  top: -0.42em;
+  font-size: 0.34em;
+  color: var(--bone-dim);
   opacity: 0;
-  transform: translateY(-6px) scale(0.9);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  font-variant-numeric: tabular-nums;
+}
+
+.coins-was span {
+  position: relative;
+}
+
+.coins-was .was-strike {
+  position: absolute;
+  left: -0.15em;
+  top: 0.16em;
+  height: auto !important;
+}
+
+.coins-was.show {
+  animation: was 1.7s ease-out forwards;
+}
+
+@keyframes was {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+  12%,
+  70% {
+    opacity: 0.9;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.3em);
+  }
+}
+
+.coins-was.show .was-strike {
+  animation: drag 0.26s 0.25s ease-in both;
+}
+
+.tally-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6em;
+  margin: 0.26em 0 0 0.1em;
+  font-size: calc(17 * var(--u));
+  min-height: 1.4em;
+}
+
+.tally-label {
+  padding-bottom: 0.15em;
+  white-space: nowrap;
+  font-size: 1.05em;
+}
+
+.tally-label b {
+  font-weight: 400;
+  font-size: 1.45em;
+  margin-right: 0.15em;
+  -webkit-text-stroke: 0.04em currentColor;
+  paint-order: stroke fill;
+}
+
+.hud-coins.bump .coins-swipe {
+  animation: drag 0.22s ease-out both;
+}
+
+.hud-coins.bump .coins-num {
+  animation: jolt 0.18s steps(3) both;
+}
+
+/* The debt, top-centre: compact and dark so the wheel stays a shape behind. */
+.hud-debt {
+  top: calc(12 * var(--u));
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.9;
+}
+
+.hud-debt::before {
+  inset: -1em -2.4em -1.4em;
+}
+
+.debt-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  white-space: nowrap;
+  font-size: calc(16 * var(--u));
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+
+.debt-head .gash {
+  opacity: 0.7;
+}
+
+.nights {
+  display: flex;
+  align-items: center;
+  gap: 0.05em;
+  letter-spacing: 0;
+}
+
+/* Each night is a typed numeral with its mark laid over it in one cell. */
+.nights .n {
+  display: inline-grid;
+  place-items: center;
+  width: 1.9em;
+  height: 1.7em;
+  font-size: 1.3em;
+}
+
+.nights .n > * {
+  grid-area: 1 / 1;
+}
+
+.nights .done .digit {
+  color: var(--bone-faint);
+}
+
+.nights .now .digit {
+  color: var(--bone);
+}
+
+.nights .later .digit {
+  color: var(--bone-faint);
+  opacity: 0.8;
+}
+
+.owed {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.1em;
+  margin-top: 0.05em;
+  font-size: calc(38 * var(--u));
+}
+
+.owed .cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.owed .v {
+  padding-top: 0.18em;
+}
+
+.owed .due {
+  color: var(--blood);
+}
+
+.owed .k {
+  font-size: 0.36em;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-top: 0.3em;
+}
+
+.owed .slash {
+  margin: 0.2em 0.1em 0;
+  font-size: 1em;
+}
+
+.owed-strike {
+  position: absolute;
+  left: 50%;
+  top: 0.32em;
+  translate: -50% 0;
+  height: auto !important;
+  display: none !important;
+}
+
+/* Banked covers the debt: the owed figure is struck off in bone. */
+.covered .owed .due {
+  color: var(--bone-dim);
+}
+
+.covered .owed-strike {
+  display: block !important;
+}
+
+.meter {
+  position: relative;
+  width: 7.4em;
+  margin-top: 0.35em;
+  font-size: calc(30 * var(--u));
+}
+
+.meter img {
+  width: 100% !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+
+.meter-fill {
+  position: absolute;
+  inset: 0;
+  transition: clip-path 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Tokens, top-right: below the debt in the order of things. */
+.hud-tokens {
+  right: calc(32 * var(--u));
+  top: calc(22 * var(--u));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: calc(36 * var(--u));
+  transform: rotate(1.6deg);
+  transform-origin: right top;
+  opacity: 0.78;
+}
+
+.hud-tokens::before {
+  inset: -0.9em -1em -1em -1.4em;
+}
+
+.tokens-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.tokens-num {
+  letter-spacing: 0.04em;
+}
+
+.hud-tokens .k {
+  font-size: calc(15 * var(--u));
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin: 0.5em 0.2em 0 0;
+}
+
+.hud.spinning .hud-coins {
+  opacity: 0.9;
+}
+
+.hud.spinning .hud-debt,
+.hud.spinning .hud-tokens {
+  opacity: 0.5;
+}
+
+.hud.at-cage .hud-debt {
+  opacity: 0;
+}
+
+/* Payout: a swipe dragged across, the figure landing on it with a thunk. */
+.hud-payout {
+  position: absolute;
+  left: 50%;
+  top: calc(158 * var(--u));
+  translate: -50% 0;
+  rotate: -3.5deg;
+  display: grid;
+  place-items: center;
+  font-size: calc(76 * var(--u));
+  opacity: 0;
+}
+
+.hud-payout > * {
+  grid-area: 1 / 1;
+}
+
+.hud-payout .second {
+  display: none;
+  translate: 0.4em 0.32em;
+  rotate: 4deg;
+  opacity: 0.8;
+}
+
+.hud-payout.big .second {
+  display: block;
+}
+
+.hud-payout.big {
+  font-size: calc(96 * var(--u));
+}
+
+.hud-payout.miss {
+  font-size: calc(34 * var(--u));
+}
+
+.hud-payout.miss img {
+  display: none;
+}
+
+.hud-payout.miss .v {
+  color: var(--bone-dim);
+  -webkit-text-stroke: 0.02em currentColor;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .hud-payout.show {
   opacity: 1;
-  transform: none;
 }
 
-.hud-payout.miss {
-  color: var(--ink-dim);
-  font-size: clamp(18px, 2vw, 26px);
+.hud-payout.show .payout-swipe {
+  animation: drag 0.18s ease-out both;
 }
 
+.hud-payout.show .second {
+  animation: drag 0.2s 0.12s ease-out both;
+}
+
+.hud-payout.show .v {
+  animation: thunk 0.22s 0.1s ease-out both;
+}
+
+.hud-payout.show.out {
+  animation: fade-down 0.5s ease-in forwards;
+}
+
+/* Flavour: brushed across the room on a smear of soot, then lifted away. */
+/* Low on the screen, like a subtitle: in the wide shot the wheel fills the
+   middle and the ball track must stay clear. */
+.hud-flavor {
+  position: absolute;
+  left: 50%;
+  bottom: calc(92 * var(--u));
+  translate: -50% 0;
+  rotate: -1.5deg;
+  display: grid;
+  place-items: center;
+  font-size: calc(50 * var(--u));
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.hud-flavor > * {
+  grid-area: 1 / 1;
+}
+
+.hud-flavor .smear {
+  width: calc(100% + 3em) !important;
+  height: 3em !important;
+  margin: 0 !important;
+  opacity: 0.95;
+}
+
+.hud-flavor .words {
+  padding: 0.25em 0.1em;
+}
+
+.hud-flavor .bone {
+  color: var(--bone);
+}
+
+.hud-flavor .blood {
+  color: var(--blood);
+}
+
+.hud-flavor .green {
+  color: var(--green);
+}
+
+.hud-flavor .dim {
+  color: var(--bone-dim);
+}
+
+.hud-flavor.show {
+  opacity: 1;
+  transition-duration: 0.1s;
+}
+
+.hud-flavor.show .words {
+  animation: drag 0.45s steps(12) both;
+}
+
+/* Navigation: a gouged arrow, the place, and its key in a chalk loop. */
 .hud-nav {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
-  pointer-events: auto;
-  background: var(--panel);
-  color: var(--ink);
-  border: 2px solid var(--rule);
-  font: 600 15px var(--hud-font);
-  letter-spacing: 0.12em;
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.3em 0.4em;
+  font-size: calc(26 * var(--u));
+  background: none;
+  border: 0;
+  color: inherit;
   cursor: pointer;
-  opacity: 0.55;
+  pointer-events: auto;
+  opacity: 0.8;
   transition: opacity 0.2s;
 }
 
-.hud-nav:hover,
-.hud-nav:focus-visible {
-  opacity: 1;
+.hud-nav-left {
+  left: calc(14 * var(--u));
+  transform: translateY(-50%) rotate(-4deg);
 }
 
-.hud-nav:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
+.hud-nav-right {
+  right: calc(14 * var(--u));
+  transform: translateY(-50%) rotate(3deg);
 }
 
 .hud-nav[hidden] {
   display: none;
 }
 
-.hud-nav-left {
-  left: 16px;
+.hud-nav .word-wrap {
+  position: relative;
+  padding-top: 0.2em;
 }
 
-.hud-nav-right {
-  right: 16px;
+.hud-nav .key {
+  display: grid;
+  place-items: center;
 }
 
-.hud-hint,
-.hud-flavor,
-.hud-toast {
+.hud-nav .key > * {
+  grid-area: 1 / 1;
+}
+
+.hud-nav .key .typed {
+  font-size: 0.62em;
+  color: var(--bone);
+  letter-spacing: 0;
+}
+
+.hud-nav .arrow {
+  transition: translate 0.15s;
+}
+
+.focus-mark {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--lore-font);
-  font-style: italic;
-  text-align: center;
-  text-shadow: 0 0 14px var(--ink-glow), 0 0 4px var(--ink-glow);
+  bottom: -0.2em;
+  translate: -50% 0;
   opacity: 0;
-  transition: opacity 0.6s ease;
-  max-width: calc(100% - 32px);
+  transition: opacity 0.15s;
 }
 
-.hud-hint {
-  bottom: 4vh;
-  font-size: clamp(15px, 1.5vw, 21px);
-  letter-spacing: 0.04em;
+.hud-nav:hover,
+.hud-nav:focus-visible {
+  opacity: 1;
+  outline: none;
 }
 
-.hud-hint.show {
-  opacity: 0.8;
+.hud-nav-left:hover .arrow,
+.hud-nav-left:focus-visible .arrow {
+  translate: -0.15em 0;
 }
 
-.hud-flavor {
-  top: 40%;
-  font-size: clamp(26px, 4vw, 54px);
-  letter-spacing: 0.06em;
-  transition: opacity 0.5s ease;
+.hud-nav-right:hover .arrow,
+.hud-nav-right:focus-visible .arrow {
+  translate: 0.15em 0;
 }
 
-.hud-flavor.show {
-  opacity: 0.9;
-}
-
-.hud-toast {
-  top: 22%;
-  font-size: clamp(16px, 1.7vw, 22px);
-}
-
-.hud-toast.show {
-  opacity: 0.85;
-}
-
-.hud-tooltip {
-  position: absolute;
-  background: var(--panel);
-  border: 1px solid var(--rule);
-  padding: 6px 10px;
-  font-size: 15px;
-  letter-spacing: 0.04em;
-  opacity: 0;
-  transition: opacity 0.12s;
-  white-space: nowrap;
-}
-
-.hud-tooltip.show {
+/* Keyboard and pad focus: a bone scratch under the word, never a box. */
+.hud-nav:focus-visible .focus-mark {
   opacity: 1;
 }
 
-.hud-tooltip b {
-  font-weight: 600;
+/* The bet note: scrawled beside the spot, with a scratch leading to it. The
+   container sits on the spot itself; the note hangs up and to the right. */
+.hud-note {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
 }
 
-.hud-tooltip .odds {
-  color: var(--brass);
-  margin-left: 8px;
+.hud-note.show {
+  opacity: 1;
 }
 
+.hud-note .leader {
+  position: absolute;
+  left: calc(4 * var(--u));
+  bottom: calc(2 * var(--u));
+  font-size: calc(100 * var(--u));
+  opacity: 0.9;
+}
+
+.note-body {
+  position: absolute;
+  left: calc(52 * var(--u));
+  bottom: calc(22 * var(--u));
+  padding: 0.2em 0.3em;
+  font-size: calc(25 * var(--u));
+  rotate: -3deg;
+  white-space: nowrap;
+}
+
+.hud-note.flip .leader {
+  left: auto;
+  right: calc(4 * var(--u));
+  scale: -1 1;
+}
+
+.hud-note.flip .note-body {
+  left: auto;
+  right: calc(52 * var(--u));
+}
+
+.note-body::before {
+  content: '';
+  position: absolute;
+  inset: -0.9em -1.4em -0.9em -1.2em;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.6) 55%, transparent);
+}
+
+.note-body .what {
+  padding-top: 0.15em;
+}
+
+.note-body .pays {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  margin: 0.3em 0 0 0.7em;
+}
+
+.note-body .pays .typed {
+  font-size: 0.62em;
+}
+
+.note-body .odds {
+  font-size: 1.1em;
+}
+
+/* Toast: a typed line; a refusal gets a red scratch under it. */
+.hud-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(76 * var(--u));
+  translate: -50% 0;
+  max-width: calc(100% - 32px);
+  font-size: calc(18 * var(--u));
+  color: var(--bone);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.hud-toast span {
+  position: relative;
+}
+
+.hud-toast .deny-line {
+  display: none;
+  width: 100% !important;
+  height: 0.6em !important;
+  margin: 0.05em 0 0 !important;
+}
+
+.hud-toast.deny .deny-line {
+  display: block;
+}
+
+.hud-toast.show {
+  opacity: 1;
+  transition-duration: 0.12s;
+}
+
+.hud-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(26 * var(--u));
+  translate: -50% 0;
+  max-width: calc(100% - 32px);
+  font-size: calc(17 * var(--u));
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.hud-hint.show {
+  opacity: 0.92;
+}
+
+.hud-hint .key {
+  position: relative;
+  display: inline-block;
+  margin: 0 0.15em;
+}
+
+.hud-hint .key .scrawl {
+  font-size: 1.1em;
+  color: var(--bone);
+}
+
+.hud-hint .key .underline {
+  position: absolute;
+  left: 50%;
+  bottom: -0.55em;
+  translate: -50% 0;
+}
+
+/* Winnings rising off the chips that won them. */
 .hud-popup {
   position: absolute;
-  transform: translate(-50%, -50%);
-  font-weight: 600;
-  font-size: clamp(20px, 2.2vw, 30px);
-  color: #ffe9b8;
-  text-shadow: 0 0 10px rgba(255, 200, 110, 0.8), 0 2px 0 #000;
+  translate: -50% -50%;
+  font-size: calc(30 * var(--u));
+  color: var(--bone);
   animation: popup-rise 1.3s ease-out forwards;
-  font-variant-numeric: tabular-nums;
 }
 
 @keyframes popup-rise {
   0% {
     opacity: 0;
-    transform: translate(-50%, -30%) scale(0.7);
+    transform: translateY(20%) scale(0.7);
   }
   15% {
     opacity: 1;
-    transform: translate(-50%, -60%) scale(1.1);
+    transform: translateY(-10%) scale(1.1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -260%) scale(1);
+    transform: translateY(-210%) scale(1);
   }
 }
 
-/* ---- Modals ------------------------------------------------------------- */
+/* ---- Motion --------------------------------------------------------------- */
+
+@keyframes drag {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 -5% 0 0);
+  }
+}
+
+@keyframes thunk {
+  0% {
+    opacity: 0;
+    transform: scale(1.3) rotate(-3deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes fade-down {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes jolt {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translate(1px, -2px) rotate(-1deg);
+  }
+  60% {
+    transform: translate(-1px, 1px);
+  }
+}
+
+/* ---- Modals: written on the dark, no card ---------------------------------- */
 
 .modal-backdrop {
   position: fixed;
@@ -274,117 +857,290 @@ body {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.55);
+  /* Darkest at the centre, so the felt and pockets never show through the words. */
+  background: radial-gradient(ellipse 52% 62% at 50% 50%, rgba(0, 0, 0, 0.97), rgba(0, 0, 0, 0.9) 62%, rgba(0, 0, 0, 0.76));
   opacity: 0;
   transition: opacity 0.25s ease;
   z-index: 10;
+  --u: clamp(0.72px, min(0.078125vw, 0.125vh), 2.4px);
 }
 
 .modal-backdrop.show {
   opacity: 1;
 }
 
+.modal-backdrop .wall {
+  position: absolute;
+  opacity: 0.055;
+  font-size: calc(1 * var(--u));
+}
+
+.modal-backdrop .wall-l {
+  left: 4%;
+  top: 14%;
+}
+
+.modal-backdrop .wall-r {
+  right: 4%;
+  top: 22%;
+}
+
 .modal-card {
-  width: min(460px, 100%);
-  background: #0d0a08;
-  border: 2px solid var(--rule);
-  box-shadow: 0 0 0 4px #000, 0 20px 60px rgba(0, 0, 0, 0.8);
-  padding: 22px 24px 18px;
-  color: var(--ink);
-  font-family: var(--lore-font);
+  position: relative;
+  width: min(calc(820 * var(--u)), 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.modal-kicker {
+  font-size: calc(14 * var(--u));
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--bone-faint);
+  margin-bottom: 0.4em;
 }
 
 .modal-title {
-  margin: 0 0 10px;
-  font: 600 clamp(24px, 3vw, 32px) var(--hud-font);
-  letter-spacing: 0.08em;
+  margin: 0 0 0.25em;
+  font-weight: 400;
+  font-size: calc(62 * var(--u));
+  line-height: 1;
   text-wrap: balance;
 }
 
-.collected .modal-title {
-  color: var(--red);
+.modal-title .main {
+  position: relative;
+  display: inline-block;
+  padding-top: 0.3em;
+  white-space: normal;
 }
 
-.modal-body {
-  font-size: 18px;
-  line-height: 1.45;
-  color: var(--ink-dim);
+.modal-title .title-strike {
+  position: absolute;
+  left: -0.2em;
+  top: 0.55em;
 }
 
-.modal-body p {
-  margin: 0 0 10px;
+.modal-title .after {
+  display: inline-block;
+  color: var(--blood);
+  font-size: 0.85em;
+  transform: rotate(-8deg) translateY(-0.05em);
 }
 
-.modal-body dl {
+.collected .modal-title .main {
+  color: var(--blood);
+}
+
+.modal-line {
+  max-width: 34em;
+  margin: 0.6em 0 0;
+  font-size: calc(19 * var(--u));
+  line-height: 1.5;
+}
+
+.modal-line b {
+  color: var(--bone);
+  font-weight: 400;
+}
+
+.modal-ledger {
+  width: min(calc(480 * var(--u)), 100%);
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4px 16px;
-  margin: 12px 0;
-  font-family: var(--hud-font);
-  font-size: 16px;
-  letter-spacing: 0.06em;
-  color: var(--ink);
+  grid-template-columns: auto 1fr auto;
+  align-items: end;
+  column-gap: 0.6em;
+  row-gap: 0.55em;
+  margin-top: 1.1em;
+  font-size: calc(18 * var(--u));
 }
 
-.modal-body dt {
-  color: var(--ink-dim);
+.modal-ledger .k {
+  text-align: left;
+  padding-bottom: 0.25em;
 }
 
-.modal-body dd {
-  margin: 0;
+.modal-ledger .dots {
+  width: 100% !important;
+  height: 0.6em !important;
+  margin: 0 0 0.5em !important;
+}
+
+.modal-ledger .v {
+  font-size: 1.35em;
+  line-height: 0.9;
   text-align: right;
-  font-variant-numeric: tabular-nums;
+  min-width: 2em;
+}
+
+.modal-ledger .v.seed {
+  font-family: var(--typed);
+  font-size: 1em;
+  letter-spacing: 0.08em;
+  -webkit-text-stroke: 0;
+}
+
+.modal-ledger .v.tok {
+  color: var(--brass);
+}
+
+.modal-ledger .rule {
+  grid-column: 1 / -1;
+  width: 100% !important;
+  height: auto !important;
+  margin: 0.3em 0 0 !important;
+}
+
+.modal-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  background: none;
+  border: 0;
+  padding: 0.35em 0.2em;
+  color: inherit;
+  cursor: pointer;
+}
+
+.modal-btn:focus-visible {
+  outline: none;
+}
+
+.modal-btn .focus-mark {
+  bottom: -0.05em;
+  width: calc(100% + 0.4em) !important;
+  height: 0.5em !important;
+  margin: 0 !important;
+}
+
+/* Focus is a bone scratch under the words, distinct from the primary's swipe. */
+.modal-btn:focus-visible .focus-mark {
+  opacity: 1;
+}
+
+.modal-btn .label {
+  padding-top: 0.2em;
+  transition: color 0.15s;
+}
+
+.modal-btn:hover .label {
+  color: #fff;
+}
+
+.modal-primary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: calc(34 * var(--u));
+}
+
+.modal-btn.primary {
+  display: grid;
+  place-items: center;
+  font-size: calc(44 * var(--u));
+}
+
+.modal-btn.primary > * {
+  grid-area: 1 / 1;
+}
+
+.modal-btn.primary .focus-mark {
+  align-self: end;
+  translate: -50% 0.25em;
+}
+
+.modal-btn.primary .swipe {
+  translate: 0 0.1em;
+  opacity: 0.92;
+}
+
+.keyhint {
+  font-size: calc(12 * var(--u));
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--bone-faint);
+  margin-top: 0.4em;
 }
 
 .modal-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 16px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em 0.9em;
+  margin-top: calc(26 * var(--u));
+  font-size: calc(22 * var(--u));
 }
 
-.modal-btn {
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--ink-dim);
-  font: 500 15px var(--hud-font);
-  letter-spacing: 0.1em;
-  padding: 9px 14px;
-  cursor: pointer;
+.modal-actions .gash {
+  opacity: 0.55;
+  font-size: 1em;
 }
 
-.modal-btn.primary {
-  background: var(--brass);
-  border-color: var(--brass);
-  color: #1a1006;
-  font-weight: 600;
+.modal-btn.danger .label {
+  color: var(--blood);
 }
 
-.modal-btn:hover {
-  filter: brightness(1.15);
+/* A toggle shows its current state, ringed in red chalk. */
+.modal-btn .opt {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding-top: 0.2em;
 }
 
-.modal-btn:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+.modal-btn .opt > * {
+  grid-area: 1 / 1;
 }
+
+.modal-btn .opt .loop {
+  translate: 0 0.1em;
+}
+
+/* ---- Reduced motion ---------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .hud-popup {
-    animation-duration: 0.01s;
+  .hud *,
+  .hud *::before,
+  .modal-backdrop,
+  .modal-backdrop * {
+    animation-duration: 0.01s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01s !important;
+  }
+
+  /* These would end invisible: hold them still instead, until their timers
+     take them away. */
+  .hud .hud-popup {
+    animation: none !important;
+  }
+
+  .hud .coins-was.show {
+    animation: none !important;
+    opacity: 0.9;
   }
 }
 
-/* Narrow screens: the debt line drops below the corner boxes. */
+/* ---- Narrow screens: the debt drops below the corners ------------------------ */
+
 @media (max-width: 640px) {
-  .hud-center {
-    top: 92px;
-    max-width: calc(100% - 32px);
+  .hud-debt {
+    top: calc(118 * var(--u));
   }
 
-  .hud-debt {
-    white-space: normal;
-    text-align: center;
+  .hud-payout {
+    top: calc(250 * var(--u));
+  }
+
+  .hud-coins {
+    font-size: calc(58 * var(--u));
+  }
+
+  /* The hint wraps here; the toast sits clear above it. */
+  .hud-toast {
+    bottom: calc(150 * var(--u));
   }
 }

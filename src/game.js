@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BET_KINDS, getBet } from './core/bets.js';
 import { ECONOMY } from './core/economy.js';
-import { add, format, gt, gte, isBig, sub } from './core/num.js';
+import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
 import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
@@ -68,7 +68,7 @@ export class Game {
     const rejected = events.find((e) => e.type === 'rejected');
     if (rejected) {
       this.audio.deny();
-      this.hud.toast(rejected.reason);
+      this.hud.toast(rejected.reason, 1800, 'deny');
       return null;
     }
     this.state = state;
@@ -84,7 +84,7 @@ export class Game {
     this.table.updateMarquee(s.history);
     this.hud.setCoins(s.coins);
     this.hud.setTokens(s.tokens);
-    this.hud.setSpins(s.spinsLeft);
+    this.syncSpins();
     if (s.phase === PHASE.ROUND_START && !this.busy) this.table.showPackages(s);
     else this.table.hidePackages();
     if (s.phase === PHASE.NIGHT_OVER && !this.busy) this.table.showEndCard(this.endCardLine());
@@ -92,10 +92,22 @@ export class Game {
     this.syncStatus();
   }
 
-  /** HUD debt line, the Cage's counters, hints and navigation. */
+  /** The night's tally: spins left of the night's allowance. */
+  syncSpins() {
+    const s = this.state;
+    const total = s.phase === PHASE.ROUND_START ? 0 : (s.spinsTonight ?? s.spinsLeft);
+    const note = s.phase === PHASE.ROUND_START ? 'choose a night' : s.phase === PHASE.NIGHT_OVER ? 'sat out' : '';
+    this.hud.setDread({
+      lowSpins: s.phase === PHASE.BETTING && total > 2 && s.spinsLeft <= 2,
+      lastNight: isFinalNight(s) && s.phase !== PHASE.GAME_OVER,
+    });
+    this.hud.setSpins(s.spinsLeft, total, { note });
+  }
+
+  /** HUD debt, the Cage's counters, hints and navigation. */
   syncStatus() {
     const s = this.state;
-    this.hud.setDebt(`DEBT ${s.debt} · OWED ${format(owed(s))} · NIGHT ${s.round} OF ${ECONOMY.roundsPerDebt}`);
+    this.hud.setDebt({ debt: s.debt, banked: s.deposited, owed: owed(s), round: s.round, rounds: ECONOMY.roundsPerDebt });
     const keep = this.keepAmount();
     this.cage.sync({
       owed: owed(s),
@@ -132,17 +144,17 @@ export class Game {
     if (this.busy) hint = '';
     else if (s.phase === PHASE.GAME_OVER) hint = '';
     else if (this.view === 'cage') hint = 'Banked coins count toward the debt. They cannot come back out.';
-    else if (s.phase === PHASE.ROUND_START) hint = 'Choose how to spend the night: click a card, or press 1, 2 or 3.';
+    else if (s.phase === PHASE.ROUND_START) hint = 'Choose how to spend the night: click a card, or press [1], [2] or [3].';
     else if (s.phase === PHASE.BETTING && chipsOnTable(s).length === 0) hint = 'Click the felt to place a chip.';
-    else if (s.phase === PHASE.BETTING) hint = 'Fling the wheel, or press Space to spin.';
-    else if (s.phase === PHASE.NIGHT_OVER) hint = 'The night is over. Bank your coins at the Cage, then end the night.';
+    else if (s.phase === PHASE.BETTING) hint = 'Fling the wheel, or press [Space] to spin.';
+    else if (s.phase === PHASE.NIGHT_OVER) hint = 'The night is over. Bank your coins at the Cage, then press [E] to end the night.';
     this.hud.setHint(hint);
   }
 
   updateNav() {
     if (this.busy) this.hud.setNav(null, null);
-    else if (this.view === 'table') this.hud.setNav('◀ CAGE', null);
-    else this.hud.setNav(null, 'TABLE ▶');
+    else if (this.view === 'table') this.hud.setNav('Cage', null);
+    else this.hud.setNav(null, 'Table');
   }
 
   setLocked(locked) {
@@ -157,6 +169,7 @@ export class Game {
     if (view === this.view && this.director.current === view) return;
     this.view = view;
     this.hud.tooltip(null);
+    this.hud.setView(view);
     this.director.goTo(view, { duration: 0.6 });
     if (!this.busy) this.lighting.set(view === 'cage' ? 'cage' : 'table');
     this.updateHint();
@@ -197,19 +210,15 @@ export class Game {
     }
   }
 
+  /** The bet note sits beside the spot itself, not the pointer. */
   onHoverBet(betId, ev) {
     if (!betId) {
       this.hud.tooltip(null);
       return;
     }
     const bet = getBet(betId);
-    this.hud.tooltip(`<b>${bet.label}</b><span class="odds">pays ${BET_KINDS[bet.kind].odds}×</span>`, ev.clientX, ev.clientY);
-  }
-
-  onHoverMove(ev) {
-    if (this.hud.refs.tooltip.classList.contains('show')) {
-      this.hud.tooltip(this.hud.refs.tooltip.innerHTML, ev.clientX, ev.clientY);
-    }
+    const anchor = this.screenPosition(this.table.spotWorldPosition(betId)) ?? { x: ev.clientX, y: ev.clientY };
+    this.hud.tooltip({ label: bet.label, pays: BET_KINDS[bet.kind].odds }, anchor);
   }
 
   // ---- Nights ---------------------------------------------------------------
@@ -221,6 +230,7 @@ export class Game {
     this.audio.card();
     const ev = events[0];
     if (ev.tokens) this.hud.toast(`+${ev.tokens} token`);
+    if (!isZero(ev.cost)) this.hud.strikeCoins();
     this.hud.setCoins(this.state.coins, { animate: true });
     this.syncAll();
   }
@@ -233,6 +243,7 @@ export class Game {
     if (this.busy || !gt(amount, 0)) return;
     if (this.dispatch({ type: 'deposit', amount })) {
       this.audio.bank();
+      this.hud.strikeCoins();
       this.hud.setCoins(this.state.coins, { animate: true });
       this.hud.toast(`Banked ${format(amount)}`);
       this.syncStatus();
@@ -257,13 +268,14 @@ export class Game {
       const couldCover = gte(add(s.deposited, s.coins), due);
       if (couldCover) {
         showModal({
-          title: 'The Cage collects tonight',
-          body: `<p>You owe ${format(due)} and have banked ${format(s.deposited)}. You still hold ${format(s.coins)} coins.</p>`,
+          kicker: 'The Cage',
+          title: 'Collects tonight',
+          lines: [`You owe <b>${format(due)}</b> and have banked <b>${format(s.deposited)}</b>. You still hold <b>${format(s.coins)}</b> coins.`],
           actions: [
-            { label: 'NOT YET' },
-            { label: 'END ANYWAY', onClick: () => this.endNight() },
+            { label: 'Not yet' },
+            { label: 'End anyway', danger: true, onClick: () => this.endNight() },
             {
-              label: 'BANK ALL AND END',
+              label: 'Bank all and end',
               primary: true,
               onClick: () => {
                 this.bank(this.state.coins);
@@ -274,9 +286,10 @@ export class Game {
         });
       } else {
         showModal({
+          kicker: 'The Cage',
           title: 'You cannot cover the debt',
-          body: `<p>You owe ${format(due)}. Even with every coin you hold, you are ${format(sub(due, add(s.deposited, s.coins)))} short.</p>`,
-          actions: [{ label: 'NOT YET' }, { label: 'END THE NIGHT', primary: true, onClick: () => this.endNight() }],
+          lines: [`You owe <b>${format(due)}</b>. Even with every coin you hold, you are <b>${format(sub(due, add(s.deposited, s.coins)))}</b> short.`],
+          actions: [{ label: 'Not yet' }, { label: 'End the night', primary: true, onClick: () => this.endNight() }],
         });
       }
       return;
@@ -302,15 +315,18 @@ export class Game {
       this.audio.debtPaid();
       this.table.hidePackages();
       showModal({
-        title: `Debt ${paid.debt} paid`,
-        body: `
-          <p>The Cage takes its ${format(paid.owed)}. Debt ${paid.debt + 1} is ${format(owed(this.state))}.</p>
-          <dl>
-            <dt>Left in the Cage</dt><dd>${format(paid.surplus)}</dd>
-            <dt>Tokens</dt><dd>+${paid.rewardTokens}${paid.satOut ? ` (${paid.satOut} night${paid.satOut > 1 ? 's' : ''} sat out)` : ''}</dd>
-            <dt>Coins for the next nights</dt><dd>+${format(paid.rewardCoins)}</dd>
-          </dl>`,
-        actions: [{ label: 'CONTINUE', primary: true, onClick: () => this.syncAll() }],
+        className: 'paid',
+        kicker: 'The Cage',
+        title: `Debt ${paid.debt}`,
+        struck: true,
+        after: 'paid',
+        lines: [`The Cage takes its <b>${format(paid.owed)}</b>. Debt ${paid.debt + 1} is <b>${format(owed(this.state))}</b>.`],
+        ledger: [
+          ['Left in the Cage', format(paid.surplus)],
+          [paid.satOut ? `Tokens (${paid.satOut} night${paid.satOut > 1 ? 's' : ''} sat out)` : 'Tokens', `+${paid.rewardTokens}`, 'tok'],
+          ['Coins for the next nights', `+${format(paid.rewardCoins)}`],
+        ],
+        actions: [{ label: 'Continue', primary: true, onClick: () => this.syncAll() }],
       });
       this.hud.setCoins(this.state.coins, { animate: true });
     } else {
@@ -333,16 +349,16 @@ export class Game {
     const o = s.outcome;
     showModal({
       className: 'collected',
+      kicker: 'The House',
       title: 'Collected',
-      body: `
-        <p>You owed ${format(o.owed)} and had ${format(o.deposited)} in the Cage. The House took the rest.</p>
-        <dl>
-          <dt>Debts paid</dt><dd>${s.stats.debtsPaid}</dd>
-          <dt>Spins</dt><dd>${s.stats.spins}</dd>
-          <dt>Best spin</dt><dd>${format(s.stats.bestSpin)}</dd>
-          <dt>Seed</dt><dd>${s.seed}</dd>
-        </dl>`,
-      actions: [{ label: 'BEGIN AGAIN', primary: true, onClick: () => this.newRun() }],
+      lines: [`You owed <b>${format(o.owed)}</b> and had <b>${format(o.deposited)}</b> in the Cage. The House took the rest.`],
+      ledger: [
+        ['Debts paid', String(s.stats.debtsPaid)],
+        ['Spins', String(s.stats.spins)],
+        ['Best spin', format(s.stats.bestSpin)],
+        ['Seed', s.seed, 'seed'],
+      ],
+      actions: [{ label: 'Begin again', primary: true, onClick: () => this.newRun() }],
     });
   }
 
@@ -386,11 +402,19 @@ export class Game {
     }
     const { result } = events.find((e) => e.type === 'spin');
     const fast = this.settings.fast;
-    this.hud.setSpins(this.state.spinsLeft);
+    this.syncSpins();
     this.updateHint();
     this.updateNav();
-    this.hud.flavor('Rien ne va plus.', 1300);
+    this.hud.setMode('spin');
+    this.hud.flavor(
+      [
+        ['Rien ne va ', 'bone'],
+        ['plus.', 'blood'],
+      ],
+      1300,
+    );
     this.spin.boost(3.4);
+    this.hud.setView('table');
     if (!fast) {
       this.view = 'table';
       this.director.goTo('wide', { duration: 1.0, onProgress: (e) => e > 0.3 && this.stage.setFigureGhost(false) });
@@ -407,7 +431,13 @@ export class Game {
     this.audio.settle();
     this.table.flashResult(result.number);
     this.table.updateMarquee(this.state.history);
-    this.hud.flavor(`${result.number} ${result.color}`, 1300);
+    this.hud.flavor(
+      [
+        [`${result.number} `, result.color === 'red' ? 'blood' : result.color === 'green' ? 'green' : 'bone'],
+        [result.color, 'dim'],
+      ],
+      1300,
+    );
     await wait(fast ? 0.2 : 0.6);
     // Attention returns to the felt; the wheel fades back into the dark slowly.
     this.lighting.set('table');
@@ -416,6 +446,7 @@ export class Game {
     }
 
     let running = coinsBefore;
+    if (!result.miss) this.hud.strikeCoins();
     for (const [i, w] of result.wins.entries()) {
       this.table.glowChip(w.chipId);
       this.audio.coin(i);
@@ -425,11 +456,13 @@ export class Game {
       this.hud.setCoins(running, { animate: true });
       await wait(fast ? 0.08 : 0.22);
     }
+    this.hud.setMode('play');
     if (result.miss) {
       this.audio.miss();
       this.hud.showPayout('nothing', 'miss');
     } else {
-      this.hud.showPayout(`+${format(result.total)}`);
+      // A win worth half the hand or more gets the bigger swipe.
+      this.hud.showPayout(`+${format(result.total)}`, gte(add(result.total, result.total), coinsBefore) ? 'big' : 'win');
     }
     this.hud.setCoins(this.state.coins, { animate: !isBig(this.state.coins) });
 
@@ -474,14 +507,15 @@ export class Game {
     }
     const s = this.state;
     const close = showModal({
+      className: 'pause',
+      kicker: `Debt ${s.debt} · night ${s.round} · seed ${s.seed}`,
       title: 'Paused',
-      body: `<p>Debt ${s.debt}, night ${s.round}. Seed ${s.seed}.</p>
-        <p>Space spins · A/D turn · 1/2/3 choose a night · E ends the night · F fast spins · M sound</p>`,
+      lines: ['Space spins · A/D turn · 1/2/3 choose a night · E ends the night · F fast spins · M sound'],
       actions: [
-        { label: 'ABANDON RUN', onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
-        { label: this.settings.fast ? 'FAST SPINS: ON' : 'FAST SPINS: OFF', onClick: () => ((this.menuClose = null), this.toggleFast()) },
-        { label: this.settings.muted ? 'SOUND: OFF' : 'SOUND: ON', onClick: () => ((this.menuClose = null), this.toggleMute()) },
-        { label: 'RESUME', primary: true, onClick: () => (this.menuClose = null) },
+        { label: 'Resume', primary: true, onClick: () => (this.menuClose = null) },
+        { label: 'Abandon run', danger: true, onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
+        { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
+        { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
       ],
     });
     this.menuClose = close;
@@ -490,10 +524,10 @@ export class Game {
   confirmAbandon() {
     showModal({
       title: 'Abandon this run?',
-      body: '<p>The run ends here and a new one begins. There is no undo.</p>',
+      lines: ['The run ends here and a new one begins. There is no undo.'],
       actions: [
-        { label: 'KEEP PLAYING', primary: true },
-        { label: 'ABANDON', onClick: () => this.newRun() },
+        { label: 'Keep playing', primary: true },
+        { label: 'Abandon', danger: true, onClick: () => this.newRun() },
       ],
     });
   }

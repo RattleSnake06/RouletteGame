@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ECONOMY } from '../../core/economy.js';
 import { format } from '../../core/num.js';
+import { scrawlText, typedFont } from '../ink.js';
 
 // The Cage: a brass teller's cage where coins are banked against the debt
 // (design doc 5.1, 8.1). Local frame: +z faces the player.
@@ -156,16 +157,14 @@ export function createCage({ materials, interaction, callbacks }) {
     ctx.strokeStyle = '#a8864c';
     ctx.lineWidth = 6;
     ctx.strokeRect(14, 14, canvas.width - 28, canvas.height - 28);
-    ctx.fillStyle = '#c8a462';
-    ctx.font = sans(600, 46);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText('THE CAGE', canvas.width / 2, 74);
+    scrawlText(ctx, 'The Cage', canvas.width / 2, 84, 50, '#d9b878');
     drawCounter(ctx, 60, 160, 'OWED', format(owed), 7, 56, 80);
     drawCounter(ctx, 560, 160, 'BANKED', format(deposited), 7, 56, 80);
     drawCounter(ctx, 60, 330, 'NIGHT', `${round}/${ECONOMY.roundsPerDebt}`, 3, 56, 80);
     ctx.fillStyle = '#b89a66';
-    ctx.font = 'italic 34px "IM Fell English", Georgia, serif';
+    ctx.font = typedFont(30);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.fillText(`Banked coins earn ${Math.round(ECONOMY.interestRate * 100)}%`, 340, 360);

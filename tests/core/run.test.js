@@ -37,6 +37,7 @@ describe('run state machine', () => {
     expect(state.phase).toBe(PHASE.BETTING);
     ({ state } = play(state, ...spins(7)));
     expect(state.spinsLeft).toBe(0);
+    expect(state.spinsTonight).toBe(7);
     expect(state.phase).toBe(PHASE.NIGHT_OVER);
     expect(act(state, { type: 'spin' }).events[0].type).toBe('rejected');
   });

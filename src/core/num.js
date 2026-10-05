@@ -78,6 +78,13 @@ export function toNumber(a) {
   return typeof a === 'number' ? a : a.toNumber();
 }
 
+/** a / b as a plain number, e.g. how much of a debt is banked. For display, not rules. */
+export function ratio(a, b) {
+  if (isZero(b)) return 0;
+  if (typeof a === 'number' && typeof b === 'number') return a / b;
+  return toDec(a).div(toDec(b)).toNumber();
+}
+
 const SUFFIXES = ['', 'K', 'M', 'B', 'T'];
 
 /**

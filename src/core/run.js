@@ -36,6 +36,7 @@ export function createRun({ seed }) {
     debt: 1,
     round: 1,
     spinsLeft: 0,
+    spinsTonight: 0, // the night's full allowance, for the HUD's tally
     satOut: 0,
     coins: ECONOMY.startCoins,
     deposited: 0,
@@ -97,6 +98,7 @@ const HANDLERS = {
     s.coins = sub(s.coins, cost);
     s.tokens += pkg.tokens;
     s.spinsLeft = pkg.spins;
+    s.spinsTonight = pkg.spins;
     if (pkg.spins === 0) {
       s.satOut += 1;
       s.phase = PHASE.NIGHT_OVER;

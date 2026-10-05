@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { add, deserialize, floor, format, gte, isBig, lt, mul, num, serialize, sub } from '../../src/core/num.js';
+import { add, deserialize, floor, format, gte, isBig, lt, mul, num, ratio, serialize, sub } from '../../src/core/num.js';
 
 describe('money values', () => {
   it('stays exact in the everyday range', () => {
@@ -36,5 +36,12 @@ describe('money values', () => {
     const back = deserialize(JSON.parse(JSON.stringify(serialize(big))));
     expect(back.exponent).toBe(300);
     expect(back.mantissa).toBeCloseTo(1.5, 10);
+  });
+
+  it('gives display ratios for plain and big values', () => {
+    expect(ratio(64, 180)).toBeCloseTo(0.3556, 4);
+    expect(ratio(5, 0)).toBe(0);
+    expect(ratio(num('3e500'), num('6e500'))).toBeCloseTo(0.5, 10);
+    expect(ratio(10, num('1e400'))).toBe(0);
   });
 });
