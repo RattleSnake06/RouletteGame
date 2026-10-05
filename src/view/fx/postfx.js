@@ -11,7 +11,7 @@ const FilmShader = {
     tDiffuse: { value: null },
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(1, 1) },
-    uGrain: { value: 0.05 },
+    uGrain: { value: 0.06 },
     uVignette: { value: 1.0 },
     uFade: { value: 0 },
   },
@@ -55,8 +55,8 @@ const FilmShader = {
       col = mix(vec3(l), col, 0.9);
 
       // Heavy vignette, like peering in from the dark.
-      float v = smoothstep(0.95, 0.18, length(d * vec2(1.05, 1.25)));
-      col *= mix(1.0, mix(0.18, 1.0, v), uVignette);
+      float v = smoothstep(0.9, 0.12, length(d * vec2(1.05, 1.25)));
+      col *= mix(1.0, mix(0.08, 1.0, v), uVignette);
 
       // Film grain, stronger in the mids.
       float g = hash(vUv * uResolution + fract(uTime * 7.31) * 517.0) - 0.5;

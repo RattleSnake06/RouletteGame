@@ -42,12 +42,12 @@ export function createStage(canvas) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 0.84;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x020303);
-  scene.fog = new THREE.FogExp2(0x030505, 0.028);
+  scene.fog = new THREE.FogExp2(0x020303, 0.034);
   const camera = new THREE.PerspectiveCamera(WIDE_FOV, 1, 0.05, 200);
 
   const envMap = createEnvMap(renderer);

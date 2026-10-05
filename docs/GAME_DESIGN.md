@@ -678,6 +678,16 @@ bounces, never the result.
 ### 8.5 Art direction
 
 - Keep what works: one bulb, deep blacks, procedural grime, grain, vignette.
+- **Light follows attention.** The hall is dark; light is spent where the player
+  should look.
+  - *At the table* (choosing a night, placing chips): the wheel's bulb burns at a
+    faint glow, so the wheel is a silhouette with a few brass glints. A hanging lamp
+    over the table lights the felt and cards in a warm pool.
+  - *During a spin*: the bulb clunks on with a stutter and floods the wheel, and the
+    table lamp sinks to an ember.
+  - *Payout*: back at the table, the wheel sinks slowly into the dark again.
+  - *At the Cage*: the wheel stays dark, the table lamp half-lit, the Cage under
+    its own green banker's lamp.
 - Add an **optional low-resolution "crunch" filter**: a lower internal render
   resolution, ordered dithering and a reduced palette, for Clover Pit's lo-fi
   texture. It can be the default or an option (see open decisions).

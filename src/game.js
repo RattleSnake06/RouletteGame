@@ -53,6 +53,7 @@ export class Game {
     this.save();
     this.power = 1;
     this.busy = false;
+    this.lighting.set('table');
     this.setLocked(false);
     this.syncAll();
     this.turnTo('table');
@@ -157,6 +158,7 @@ export class Game {
     this.view = view;
     this.hud.tooltip(null);
     this.director.goTo(view, { duration: 0.6 });
+    if (!this.busy) this.lighting.set(view === 'cage' ? 'cage' : 'table');
     this.updateHint();
     this.updateNav();
   }
@@ -398,6 +400,8 @@ export class Game {
       this.director.goTo('table', { duration: 0.4 });
     }
 
+    // The wheel's bulb comes on hard for the spin; the table lamp sinks.
+    if (this.lighting.set('spin')) this.audio.clunk();
     await this.ball.launch(result.pocketIndex);
 
     this.audio.settle();
@@ -405,6 +409,8 @@ export class Game {
     this.table.updateMarquee(this.state.history);
     this.hud.flavor(`${result.number} ${result.color}`, 1300);
     await wait(fast ? 0.2 : 0.6);
+    // Attention returns to the felt; the wheel fades back into the dark slowly.
+    this.lighting.set('table');
     if (!fast) {
       await this.director.goTo('table', { duration: 0.8, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
     }

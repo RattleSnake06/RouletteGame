@@ -181,6 +181,13 @@ export class WheelAudio {
     this._burst({ freq: 300, q: 0.5, gain: 0.25, decay: 1.6, type: 'lowpass' });
   }
 
+  /** The wheel's bulb switching on: a relay clunk and the filament's hum. */
+  clunk() {
+    this._burst({ freq: 900, q: 1.5, gain: 0.35, decay: 0.06 });
+    this._tone({ freq: 95, to: 60, gain: 0.3, decay: 0.25, type: 'triangle' });
+    this._tone({ freq: 120, gain: 0.05, decay: 1.2, type: 'sawtooth', at: 0.04 });
+  }
+
   /** A refused action. */
   deny() {
     this._tone({ freq: 160, gain: 0.08, decay: 0.12, type: 'square' });

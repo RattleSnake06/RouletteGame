@@ -11,6 +11,7 @@ import { createHud } from './ui/hud.js';
 import { BallAnimator } from './view/ball.js';
 import { CameraDirector } from './view/camera.js';
 import { Interaction } from './view/interaction.js';
+import { LightingDirector } from './view/lighting.js';
 import { createStage } from './view/stage.js';
 import { createCage } from './view/stations/cage.js';
 import { createTable } from './view/stations/table.js';
@@ -101,7 +102,8 @@ async function init() {
     onRoll: (level) => audio.roll(level),
   });
 
-  game = new Game({ stage, table, cage, ball, spin, director, hud, audio, platform, settings });
+  const lighting = new LightingDirector('intro');
+  game = new Game({ stage, table, cage, ball, spin, director, hud, audio, platform, settings, lighting });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -155,6 +157,8 @@ async function init() {
       duration: 1.8,
       onProgress: (e) => e > 0.75 && stage.setFigureGhost(true),
     });
+    // The establishing shot shows the wheel lit; at the table it sinks into the dark.
+    lighting.set(game.view === 'cage' ? 'cage' : 'table');
   }, 1700);
   setTimeout(() => hud.root.classList.add('show'), 1400);
 
@@ -188,13 +192,18 @@ async function init() {
     audio.update(spin.speed);
 
     stage.figure.update(t);
-    table.update(dt);
+    table.update(dt, t);
     cage.update(dt);
     hud.update(dt);
 
     power += (game.power - power) * (1 - Math.exp(-dt * 2.5));
-    const level = room.update(t, dt, introPower(t) * power);
-    wheel.lensMat.emissiveIntensity = 2.4 * level;
+    const light = lighting.update(dt);
+    const hall = introPower(t) * power;
+    const level = room.update(t, dt, hall, light.wheel);
+    wheel.setLightLevel(level);
+    table.setLampLevel(light.lamp * hall);
+    // The turret's cap keeps a faint glint even when the bulb is low.
+    wheel.lensMat.emissiveIntensity = 2.4 * Math.max(level, 0.16 * hall);
 
     if (director.current === 'wide') director.parallax.lerp(spin.pointer, 1 - Math.exp(-dt * 1.5));
     director.update(dt, t);
@@ -206,7 +215,7 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, director, interaction };
+  window.__roulette = { game, stage, spin, ball, table, cage, director, interaction, lighting };
   if (import.meta.env.DEV) {
     window.__roulette.debug = {
       /** Add coins to the hand, e.g. to try later debts before items exist. */

@@ -223,6 +223,41 @@ export function createTable({ materials, interaction, callbacks }) {
   }
   updateMarquee([]);
 
+  // ---- Hanging lamp -------------------------------------------------------
+  // A lone shade on a long cord over the felt: the only warm light at the
+  // table. Out of frame in first person, visible over the figure in the wide shot.
+  const LAMP_Y = 1.78;
+  const lampGroup = new THREE.Group();
+  lampGroup.position.set(0, LAMP_Y, 0.02);
+  const shadeMat = new THREE.MeshStandardMaterial({ color: 0x1a1612, metalness: 0.6, roughness: 0.45, side: THREE.DoubleSide });
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.19, 0.15, 24, 1, true), shadeMat);
+  shade.castShadow = false;
+  const bulbMat = new THREE.MeshStandardMaterial({ color: 0xfff0d0, emissive: 0xffc985, emissiveIntensity: 3 });
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), bulbMat);
+  bulb.position.y = -0.06;
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 6, 6), shadeMat);
+  cord.position.y = 3.07; // reaches up into the dark
+  lampGroup.add(shade, bulb, cord);
+  group.add(lampGroup);
+
+  const LAMP_INTENSITY = 4.2;
+  const lamp = new THREE.SpotLight(0xffd6a0, LAMP_INTENSITY, 2.6, THREE.MathUtils.degToRad(40), 0.6, 2);
+  lamp.position.set(0, LAMP_Y - 0.07, 0.02);
+  lamp.target.position.set(0, TOP_Y, 0.09);
+  lamp.castShadow = true;
+  lamp.shadow.mapSize.set(1024, 1024);
+  lamp.shadow.camera.near = 0.2;
+  lamp.shadow.camera.far = 3;
+  lamp.shadow.bias = -0.0004;
+  lamp.shadow.radius = 4;
+  group.add(lamp, lamp.target);
+  let lampLevel = 1;
+
+  /** 0..1: how bright the hanging lamp burns (it fades while the ball flies). */
+  function setLampLevel(level) {
+    lampLevel = level;
+  }
+
   // ---- Coordinate helpers -------------------------------------------------
   const feltPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -FELT_Y);
   const tmp = new THREE.Vector3();
@@ -453,7 +488,11 @@ export function createTable({ materials, interaction, callbacks }) {
   }
 
   // ---- Per-frame ----------------------------------------------------------
-  function update(dt) {
+  function update(dt, t = 0) {
+    // An old bulb never burns quite steady.
+    const waver = 1 + Math.sin(t * 7.3) * 0.015 + Math.sin(t * 17.1) * 0.01;
+    lamp.intensity = LAMP_INTENSITY * lampLevel * waver;
+    bulbMat.emissiveIntensity = 0.3 + 2.7 * lampLevel * waver;
     const k = 1 - Math.exp(-dt * 16);
     for (const c of chips.values()) {
       c.mesh.position.lerp(c.target, k);
@@ -499,6 +538,7 @@ export function createTable({ materials, interaction, callbacks }) {
     showEndCard,
     hideEndCard,
     setLocked,
+    setLampLevel,
     update,
     get isDragging() {
       return !!dragging;

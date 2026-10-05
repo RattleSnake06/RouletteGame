@@ -406,5 +406,22 @@ export function createWheel({ envMap }) {
     blurRing.visible = t > 0.001;
   }
 
-  return { group: wheel, rotor, ball, lensMat, setSpeed, materials: { mahogany, brass, darkMetal, silver } };
+  // Polished metal reflects its surroundings whatever the lights do, so its
+  // reflections dim with the wheel's bulb or the wheel never sinks into the dark.
+  const reflective = [brass, darkMetal, silver, pocketMetal, ball.material].map((m) => [m, m.envMapIntensity]);
+  function setLightLevel(level) {
+    const k = 0.12 + 0.88 * Math.min(1, level);
+    for (const [m, base] of reflective) m.envMapIntensity = base * k;
+  }
+
+  return {
+    group: wheel,
+    rotor,
+    ball,
+    lensMat,
+    setSpeed,
+    setLightLevel,
+    // Stations get their own copies, so dimming the wheel never dims them.
+    materials: { mahogany, brass: brass.clone(), darkMetal: darkMetal.clone(), silver: silver.clone() },
+  };
 }

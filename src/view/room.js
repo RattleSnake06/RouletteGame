@@ -185,7 +185,7 @@ export function createRoom({ renderer }) {
   room.add(right);
 
   // ---- Lights -------------------------------------------------------------
-  const key = new THREE.SpotLight(0xf3efe6, 1900, 0, THREE.MathUtils.degToRad(24), 0.45, 2);
+  const key = new THREE.SpotLight(0xf3efe6, 1550, 0, THREE.MathUtils.degToRad(24), 0.45, 2);
   key.position.copy(LIGHT_POS);
   key.target.position.copy(LIGHT_TARGET);
   key.castShadow = true;
@@ -204,13 +204,13 @@ export function createRoom({ renderer }) {
   room.add(halo, halo.target);
 
   // A whisper of light on the far boards so the room has walls.
-  const wallWash = new THREE.SpotLight(0x8fa3a3, 220, 0, THREE.MathUtils.degToRad(38), 1, 2);
+  const wallWash = new THREE.SpotLight(0x8fa3a3, 110, 0, THREE.MathUtils.degToRad(38), 1, 2);
   wallWash.position.set(1, 13, 3);
   wallWash.target.position.set(-7, 2, -15);
   room.add(wallWash, wallWash.target);
 
   // Barely-there cool fill so the darkness keeps some shape.
-  const fill = new THREE.HemisphereLight(0x3a4a4c, 0x0b0d0d, 0.25);
+  const fill = new THREE.HemisphereLight(0x3a4a4c, 0x0b0d0d, 0.13);
   room.add(fill);
 
   // ---- Light shaft ----------------------------------------------------------
@@ -284,11 +284,18 @@ export function createRoom({ renderer }) {
   const baseKey = key.intensity;
   const baseHalo = halo.intensity;
   const baseBeam = beamMat.uniforms.uIntensity.value;
+  const baseWash = wallWash.intensity;
+  const baseFill = fill.intensity;
   let nextGlitch = 6 + Math.random() * 10;
   let glitchT = -1;
 
-  // Returns the current light level (0..1+) so other glowing bits can follow.
-  function update(t, dt, power = 1) {
+  /**
+   * `power` dims the whole hall (the bulb stuttering on, the Cage collecting);
+   * `wheel` is how much light the wheel's bulb gives right now, low while the
+   * player is at the table and full while the ball is in flight.
+   * Returns the bulb's current level so other glowing bits can follow.
+   */
+  function update(t, dt, power = 1, wheel = 1) {
     beamMat.uniforms.uTime.value = t;
     dustMat.uniforms.uTime.value = t;
     let level = 1 + Math.sin(t * 9.1) * 0.008 + Math.sin(t * 23.7) * 0.006;
@@ -306,11 +313,15 @@ export function createRoom({ renderer }) {
         nextGlitch = t + 7 + Math.random() * 14;
       }
     }
-    level *= power;
+    level *= power * wheel;
     key.intensity = baseKey * level;
     halo.intensity = baseHalo * level;
-    beamMat.uniforms.uIntensity.value = baseBeam * level;
-    dustMat.uniforms.uIntensity.value = 0.4 * level;
+    // The shaft and the dust only show in a strong light; at a glow they vanish.
+    const haze = level * level;
+    beamMat.uniforms.uIntensity.value = baseBeam * haze;
+    dustMat.uniforms.uIntensity.value = 0.4 * haze;
+    wallWash.intensity = baseWash * power * (0.2 + 0.8 * wheel);
+    fill.intensity = baseFill * power * (0.3 + 0.7 * wheel);
     return level;
   }
 

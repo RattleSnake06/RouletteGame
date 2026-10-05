@@ -7,7 +7,7 @@ export function createFigure() {
 
   // The emissive terms stand in for light bouncing up off the bright floor,
   // which keeps the side facing away from the bulb from going black.
-  const shirt = new THREE.MeshStandardMaterial({ color: 0xd8d4ca, emissive: 0x3a3936, roughness: 0.92 });
+  const shirt = new THREE.MeshStandardMaterial({ color: 0xd8d4ca, emissive: 0x201f1d, roughness: 0.92 });
   const jeans = new THREE.MeshStandardMaterial({ color: 0x34405a, emissive: 0x0b0f18, roughness: 0.88 });
   const skin = new THREE.MeshStandardMaterial({ color: 0xa87b60, emissive: 0x1c130d, roughness: 0.7 });
   const hair = new THREE.MeshStandardMaterial({ color: 0x1b1410, emissive: 0x050403, roughness: 0.95 });
