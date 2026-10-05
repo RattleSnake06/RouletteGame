@@ -1,7 +1,7 @@
-# Roulette Roguelike
+# Rien Ne Va Plus
 
-A giant roulette wheel alone in a dark room, under a single bulb. This is the
-first step: a wheel you can grab and spin with the mouse.
+A roulette roguelike. A giant roulette wheel alone in a dark room, under a
+single bulb. This is the first step: a wheel you can grab and spin with the mouse.
 
 The plan for the full game is in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md).
 

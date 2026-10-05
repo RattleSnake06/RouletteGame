@@ -1,6 +1,7 @@
-# Roulette Roguelike: Game Design Plan
+# Rien Ne Va Plus: Game Design Plan
 
-Working title. Name candidates are listed under [Open decisions](#12-open-decisions).
+*Rien ne va plus* is the croupier's call when betting closes: "no more bets".
+Decisions made so far are listed under [Decisions](#12-decisions).
 
 Status: plan only. The spinnable wheel scene exists; nothing below is built yet.
 Every number here is a first draft meant to be tuned with the balance simulator
@@ -19,7 +20,7 @@ described in [9.8](#98-testing-and-the-balance-simulator).
 9. [Technical plan](#9-technical-plan)
 10. [Roadmap](#10-roadmap)
 11. [Risks](#11-risks)
-12. [Open decisions](#12-open-decisions)
+12. [Decisions](#12-decisions)
 
 ---
 
@@ -741,7 +742,10 @@ src/
     fx/             postfx (current), payout popups, sparks
   ui/               HUD, tooltips, menus
   audio/            current audio.js, then samples and records
+  input/            actions mapped from mouse, keyboard, later gamepad (9.10)
+  platform/         saves, achievements, window: web and Electron adapters (9.10)
 sim/                headless balance simulator (Node)
+desktop/            Electron shell and Steamworks glue (Phase 9)
 tests/              vitest
 ```
 
@@ -831,8 +835,34 @@ screen.
     Worker with OffscreenCanvas and cache the results.
   - Target 60 fps on integrated graphics, with a quality setting for shadows and
     render scale.
-- **Platform:** web first. A desktop wrapper (Tauri or Electron) is possible later
-  if you want Steam.
+- **Platform:** see 9.10.
+
+### 9.10 Steam
+
+The game ships on Steam. It is developed and tested in the browser, then wrapped
+as a desktop app. Building it in from the start costs little; retrofitting it
+late is expensive.
+
+- **Wrapper: Electron**, not Tauri. Tauri uses the system webview, which on Linux
+  (including Steam Deck) is WebKitGTK, whose WebGL performance and consistency are
+  poor. Electron ships its own Chromium, so the game renders the same everywhere.
+- **Steamworks: steamworks.js** (a Node addon for Electron) for achievements, Steam
+  Cloud and the overlay. The overlay needs its documented Electron workaround.
+- **Platform adapter from Phase 1.** The core never touches storage or platform
+  APIs directly. A small `platform/` layer provides save and load (localStorage
+  on the web, files in the user-data folder on desktop, which Steam Auto-Cloud
+  syncs), achievements (no-op on the web), and fullscreen and resolution.
+- **Input actions from Phase 1.** Code against actions ("place chip", "spin",
+  "turn left", "open tooltip"), not raw mouse events, so gamepad and Steam Input
+  can be added without rewrites. Anything shown on hover must also be reachable
+  by gamepad focus.
+- **Steam Deck as a target device:** 1280×800, gamepad only, a 7-inch screen.
+  Plan a Deck quality preset that holds a steady frame rate, and a minimum HUD
+  and tooltip text size that stays legible there.
+- **Achievements** map onto Almanac unlocks (7.4), so they are designed once.
+- **Store side:** a Steam Direct fee per app, a store page with capsule art,
+  screenshots and a trailer, and a release build pipeline. All of it comes after
+  the game is fun (Phase 9).
 
 ---
 
@@ -851,6 +881,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
 | **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, performance, touch, optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
+| **9. Steam** | Electron build; steamworks.js (achievements, Cloud saves, overlay); full gamepad and Steam Input; Steam Deck preset and testing; store page and release pipeline | The game runs and saves through Steam on Windows and Steam Deck, playable start to finish on a gamepad |
 
 ### Phase 1 breakdown
 
@@ -869,6 +900,8 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
    counters and a deposit interaction.
 7. Camera anchors (table ↔ Cage) and the lift to the wide shot during spins.
 8. Flat HUD, run-over screen, restart. A Playwright smoke test of a full debt.
+9. From the first line: route input through `input/` actions and saves through
+   `platform/`, even though only the web adapter exists yet (9.10).
 
 ---
 
@@ -886,20 +919,13 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 
 ---
 
-## 12. Open decisions
+## 12. Decisions
 
-These shape the build. Each has a recommendation.
-
-1. **Camera.** First-person at the table with a third-person cinematic for spins
-   (recommended: Clover Pit's intimacy plus our giant-wheel shot), or third-person
-   throughout?
-2. **What a chip is.** Chips as owned bets with a coin cost per spin
-   (recommended: it keeps Clover Pit's spin economy and avoids martingale
-   exploits), or classic wagers staked from your coins?
-3. **Look.** Keep the current render with an optional crunch filter
-   (recommended), or commit fully to Clover Pit's low-resolution PS1 style?
-4. **Leans.** Telegraphed one spin early (recommended: it creates a betting
-   decision), or a mid-spin surprise like Clover Pit?
-5. **Name.** Candidates: *Rien Ne Va Plus*, *House Edge*, *Zero*, *666 Pockets*.
-6. **Platform.** Web only (recommended for now), or plan for a desktop and Steam
-   build?
+| # | Question | Decision |
+|---|---|---|
+| 1 | Camera | **First person at the table, cutting to the third-person wide shot during spins.** (8.2) |
+| 2 | What a chip is | **Owned bets, with a coin cost per spin.** (5.3) |
+| 3 | Look | **Keep the current render, with an optional low-resolution crunch filter.** (8.5) |
+| 4 | Leans | *Not yet decided.* Building with the recommendation: **telegraphed one spin early.** (5.6) |
+| 5 | Name | **Rien Ne Va Plus.** |
+| 6 | Platform | **Plan for Steam.** Developed in the browser, shipped as an Electron app. (9.10) |
