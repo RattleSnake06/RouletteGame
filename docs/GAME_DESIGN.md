@@ -210,7 +210,12 @@ at the next debt's spin cost.
 3 × 36/37 ≈ 2.9 coins per spin, against a spin cost of 1. Three long nights are
 21 spins, about +40 net, plus Leans and interest. With 10 starting coins that
 lands near 60 when nothing goes wrong, so a first talisman or a good Lean decides
-it. That is the intended tension; the simulator will confirm it.
+it. That is the intended tension.
+
+**Phase 1 simulator result** (no items, Leans or Devil): about 31% of runs pay
+debt 1, about 1% pay debt 2, none reach debt 3. Debt 2 charges 2 per spin
+against about 2.9 coins of income, so only multipliers can carry a run. The
+numbers stay as drafted until Phase 2–3 give the simulator something to tune.
 
 ### 5.3 The table: chips and bets
 
@@ -654,8 +659,8 @@ each with its own small light source:
 | +0.12 s per hop | Nudge hops: spark and tick on each. |
 | then | Camera returns. Winning chips glow, payouts pop per chip in rail order, triggering talismans shake and flash, and the total rolls into the coin counter. |
 
-Normal spins take 4–6 seconds. Fast mode (hold Space) takes about 2 seconds and
-skips the camera move. Fling strength is cosmetic only: it changes the number of
+Normal spins take 4–6 seconds. Fast mode (toggle with F, or hold Space to hurry
+a spin) takes about 2 seconds and skips the camera move. Fling strength is cosmetic only: it changes the number of
 bounces, never the result.
 
 ### 8.4 HUD and diegetic UI
@@ -762,6 +767,7 @@ RUN_START → DEBT_START → ROUND_START (choose package)
 ### 9.4 Randomness
 
 - One **run seed**, shown in the run summary so runs can be shared and replayed.
+  A `?seed=XXXX-XXXX` link starts that seed, but never replaces a run in progress.
 - **Separate streams** derived from it: `wheel`, `devil`, `lean`, `cabinet`,
   `fortunes`, `misc`. Restocking the Cabinet never changes your next spin.
 - Save after each resolution so reloading cannot re-roll a spin.
@@ -873,7 +879,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | Phase | Builds | Done when |
 |---|---|---|
 | **0. Wheel** (done) | Room, wheel, mouse spin | ✓ |
-| **1. Core loop** | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
+| **1. Core loop** (done) | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
 | **2. Builds** | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
 | **3. Luck and risk** | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |

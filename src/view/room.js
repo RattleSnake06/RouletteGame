@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createFloorTextures, createRadialTexture, createWallTexture } from '../textures.js';
+import { createFloorTextures, createRadialTexture, createWallTexture } from './textures.js';
 
 export const LIGHT_POS = new THREE.Vector3(2.4, 14, 0.2);
 export const LIGHT_TARGET = new THREE.Vector3(-0.7, 0, 3.0);

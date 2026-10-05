@@ -33,22 +33,39 @@ roadmap.
 - The core returns ordered events; `view/` and `ui/` only play them back. The
   view never decides outcomes.
 - Talismans, fortunes, records and the rest are data objects with hooks in
-  `src/core/content/`.
-- Until Phase 1 lands, the existing scene code lives in `src/scene/`,
-  `src/spin.js`, `src/audio.js`, `src/postfx.js` and `src/textures.js`. It moves
-  under `src/view/` as part of Phase 1.
+  `src/core/content/` (from Phase 2).
+- Money is a plain number below 1e15 and a break_infinity Decimal above it.
+  Always use the helpers in `core/num.js` (`add`, `mul`, `gte`, `format`…),
+  never `+` or `<` on money.
+- `src/game.js` is the only place that calls `act()`. Station callbacks and
+  input actions go through it.
+
+## Status
+
+Phase 1 (core loop) is done. Next is Phase 2: talismans, the Curio Cabinet,
+tokens and the Bell. Without items the economy cannot carry a run past debt 1;
+that is expected (see `npm run sim`).
 
 ## Commands
 
-- `npm run dev` starts the dev server (http://localhost:5173).
+- `npm run dev` starts the dev server (http://localhost:5173). `?seed=XXXX-XXXX`
+  starts a seeded run when none is in progress.
 - `npm run build` writes a static build to `dist/`.
-- Phase 1 adds `npm test` (vitest) and `npm run sim` (balance simulator).
+- `npm test` runs the core unit tests (vitest). Keep them green.
+- `npm run sim` runs the balance simulator. Re-run it after any economy change.
+- `npm run smoke` plays a debt end to end in headless Chromium; set
+  `CHROME_PATH` (in the cloud container: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
+- In the dev build, `window.__roulette.debug.addCoins(n)` tops up coins for
+  testing later debts.
 
 ## Conventions
 
 - ES modules, 2-space indentation, single quotes. Comments explain why, not what.
-- No image or audio files so far: textures are procedural (`src/textures.js`) and
-  sound is synthesised (`src/audio.js`). Keep it that way unless agreed otherwise.
+- No image or audio files so far: textures are procedural (`src/view/textures.js`)
+  and sound is synthesised (`src/audio/audio.js`). Keep it that way unless agreed
+  otherwise.
 - Check visual changes with a real render, not just a build. Headless Chromium
   works with `--use-angle=swiftshader`. Software WebGL runs at about 1–4 fps, so
-  anything timed per frame (intro fade, spin physics) looks slow there.
+  anything timed per frame (camera moves, the ball) runs in slow motion there:
+  cut the camera with `director.goTo(name, { cut: true })` for screenshots, and
+  wait for `!director.tween` before clicking objects.

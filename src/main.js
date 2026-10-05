@@ -1,214 +1,222 @@
+import '@fontsource/oswald/latin-500.css';
 import '@fontsource/oswald/latin-600.css';
 import '@fontsource/im-fell-english/latin-400-italic.css';
 import './style.css';
 import * as THREE from 'three';
-import { createEnvMap, createRoom } from './scene/room.js';
-import { createWheel, DIM, POCKETS, SLICE, pocketAngle } from './scene/wheel.js';
-import { createFigure } from './scene/figure.js';
-import { createPostFX } from './postfx.js';
-import { SpinController } from './spin.js';
-import { WheelAudio } from './audio.js';
+import { WheelAudio } from './audio/audio.js';
+import { Game } from './game.js';
+import { createInput } from './input/actions.js';
+import { loadSettings, platform, saveSettings } from './platform/index.js';
+import { createHud } from './ui/hud.js';
+import { BallAnimator } from './view/ball.js';
+import { CameraDirector } from './view/camera.js';
+import { Interaction } from './view/interaction.js';
+import { createStage } from './view/stage.js';
+import { createCage } from './view/stations/cage.js';
+import { createTable } from './view/stations/table.js';
+import { DIM, SLICE, pocketAngle } from './view/wheel.js';
+import { SpinController } from './view/wheelSpin.js';
 
-const canvas = document.getElementById('scene');
-const hint = document.getElementById('hint');
-const toast = document.getElementById('toast');
-
-// Framing matched to the reference shot: low three-quarter view, wheel
-// right of centre, the figure at its front-left.
-const REF_ASPECT = 1376 / 752;
-const BASE_FOV = 30;
-const CAM_POS = new THREE.Vector3(0.45, 6.75, 14.1);
-const CAM_TARGET = new THREE.Vector3(-1.6, -0.35, 0.9);
-const WHEEL_FOCUS = new THREE.Vector3(0, 0.6, 0.6);
-const FIGURE_POS = new THREE.Vector3(-3.0, 0, 5.25);
-
-const deg = THREE.MathUtils.degToRad;
-const hfovOf = (vfov, aspect) => 2 * Math.atan(Math.tan(vfov / 2) * aspect);
-const vfovOf = (hfov, aspect) => 2 * Math.atan(Math.tan(hfov / 2) / aspect);
+// The bulb stutters on when the hall first appears.
+function introPower(t) {
+  if (t < 0.2) return 0;
+  if (t < 0.27) return 0.8;
+  if (t < 0.42) return 0.05;
+  if (t < 0.48) return 0.6;
+  if (t < 0.6) return 0.15;
+  return Math.min(1, 0.85 + (t - 0.6) * 0.5);
+}
 
 async function init() {
   await Promise.all([
     document.fonts.load('600 64px Oswald'),
+    document.fonts.load('500 64px Oswald'),
     document.fonts.load('italic 20px "IM Fell English"'),
   ]).catch(() => {});
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-  let pixelRatio = Math.min(window.devicePixelRatio, 2);
-  renderer.setPixelRatio(pixelRatio);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const canvas = document.getElementById('scene');
+  const stage = createStage(canvas);
+  const { scene, camera, renderer, post, wheel, room, layout } = stage;
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020303);
-  scene.fog = new THREE.FogExp2(0x030505, 0.028);
-
-  const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 200);
-
-  const envMap = createEnvMap(renderer);
-  const room = createRoom({ renderer });
-  scene.add(room.group);
-
-  const wheel = createWheel({ envMap });
-  scene.add(wheel.group);
-
-  const figure = createFigure();
-  figure.group.position.copy(FIGURE_POS);
-  figure.group.rotation.y = Math.atan2(-FIGURE_POS.x, -FIGURE_POS.z) + 0.12;
-  scene.add(figure.group);
-
-  // Starting pose from the reference: green zero at the back, ball resting
-  // on the right-hand side.
-  const startAngle = deg(80) - pocketAngle(0);
-  const ballWorld = deg(-12);
-  let ballIndex = 0;
-  let best = Infinity;
-  for (let i = 0; i < POCKETS; i++) {
-    let d = pocketAngle(i) + startAngle - ballWorld;
-    d = Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
-    if (d < best) {
-      best = d;
-      ballIndex = i;
-    }
-  }
-  wheel.setBallPocket(ballIndex);
-
-  const post = createPostFX(renderer, scene, camera);
+  const settings = loadSettings({ muted: false, fast: false });
   const audio = new WheelAudio();
+  audio.muted = settings.muted;
+  const hud = createHud();
+  const interaction = new Interaction(canvas, camera);
+  const director = new CameraDirector(camera);
+  director.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let hintDismissed = false;
+  let game = null; // station callbacks fire only after boot
+
+  const table = createTable({
+    materials: wheel.materials,
+    interaction,
+    callbacks: {
+      onClickBet: (betId) => game.onClickBet(betId),
+      onPlace: (chipId, betId) => game.placeChip(chipId, betId),
+      onRemove: (chipId) => game.removeChip(chipId),
+      onChipClicked: (chipId) => game.state.placements[chipId] && game.removeChip(chipId),
+      onChoose: (id) => game.choosePackage(id),
+      onEndNight: () => game.requestEndNight(),
+      onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
+      onHoverMove: (ev) => game.onHoverMove(ev),
+    },
+  });
+  table.group.position.copy(layout.tablePos);
+  table.group.rotation.y = layout.tableYaw;
+  scene.add(table.group);
+
+  const cage = createCage({
+    materials: wheel.materials,
+    interaction,
+    callbacks: {
+      onBankAll: () => game.bankAll(),
+      onBankKeep: () => game.bankKeep(),
+      onEndNight: () => game.requestEndNight(),
+    },
+  });
+  cage.group.position.copy(layout.cagePos);
+  cage.group.rotation.y = layout.cageYaw;
+  scene.add(cage.group);
+
+  let ball = null;
   const spin = new SpinController({
     camera,
     dom: canvas,
     planeY: DIM.numberY,
     grabRadius: DIM.radius + 0.1,
+    canGrab: (ev) => !interaction.consumed.has(ev) && game && !game.busy && !ball.flying,
     onGrab: () => audio.start(),
-    onRelease: (v) => {
-      if (!hintDismissed && Math.abs(v) > 1.5) {
-        hintDismissed = true;
-        hint.classList.remove('show');
-      }
-    },
+    onRelease: (v) => Math.abs(v) > 2.2 && game.requestSpin(),
   });
-  spin.angle = startAngle;
+  // Green zero at the back of the wheel, as in the reference shot.
+  spin.angle = THREE.MathUtils.degToRad(80) - pocketAngle(0);
+  interaction.fallbackCursor = (ev) =>
+    spin.dragging ? 'grabbing' : game && !game.busy && spin.grabbableAt(ev) ? 'grab' : 'default';
 
-  // ---- Camera framing ---------------------------------------------------
-  const camBase = new THREE.Vector3();
-  const camLook = new THREE.Vector3();
-  function frame() {
-    const w = Math.max(1, canvas.clientWidth || window.innerWidth);
-    const h = Math.max(1, canvas.clientHeight || window.innerHeight);
-    const aspect = w / h;
-    // Wide screens get the reference composition; narrower ones tighten
-    // around the wheel so it stays big enough to grab.
-    const t = THREE.MathUtils.clamp((aspect - 0.75) / (REF_ASPECT - 0.75), 0, 1);
-    const refH = hfovOf(deg(BASE_FOV), REF_ASPECT);
-    const wantH = THREE.MathUtils.lerp(deg(38), refH, t);
-    let vfov = deg(BASE_FOV);
-    if (aspect < REF_ASPECT) vfov = Math.max(deg(BASE_FOV), Math.min(deg(55), vfovOf(wantH, aspect)));
-    const dolly = Math.max(1, Math.tan(wantH / 2) / Math.tan(hfovOf(vfov, aspect) / 2));
-    camLook.copy(WHEEL_FOCUS).lerp(CAM_TARGET, t);
-    camBase.copy(CAM_POS).sub(CAM_TARGET).multiplyScalar(dolly).add(camLook);
-    camera.fov = THREE.MathUtils.radToDeg(vfov);
-    camera.aspect = aspect;
-    camera.updateProjectionMatrix();
+  ball = new BallAnimator({
+    ball: wheel.ball,
+    spin,
+    onBounce: (s) => audio.bounce(s),
+    onRoll: (level) => audio.roll(level),
+  });
 
-    pixelRatio = Math.min(window.devicePixelRatio, 2);
-    renderer.setPixelRatio(pixelRatio);
+  game = new Game({ stage, table, cage, ball, spin, director, hud, audio, platform, settings });
+  game.onSettingsChanged = saveSettings;
+
+  // ---- Sizing and camera anchors ---------------------------------------------
+  function resize() {
+    const w = Math.max(1, canvas.clientWidth);
+    const h = Math.max(1, canvas.clientHeight);
+    const pr = Math.min(window.devicePixelRatio, 2);
+    renderer.setPixelRatio(pr);
     renderer.setSize(w, h, false);
-    post.setSize(w, h, pixelRatio);
-    room.setPixelRatio(pixelRatio);
-  }
-  frame();
-  new ResizeObserver(frame).observe(canvas);
-
-  // ---- Keys -------------------------------------------------------------
-  let toastTimer = 0;
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'm' || e.key === 'M') {
-      const muted = audio.toggleMute();
-      toast.textContent = muted ? 'sound off' : 'sound on';
-      toast.classList.add('show');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+    post.setSize(w, h, pr);
+    room.setPixelRatio(pr);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    for (const [name, anchor] of Object.entries(stage.anchorsFor(w / h, { table, cage }))) {
+      director.setAnchor(name, anchor);
     }
-  });
+  }
+  resize();
+  new ResizeObserver(resize).observe(canvas);
 
-  // ---- Loop -------------------------------------------------------------
+  // ---- Input -----------------------------------------------------------------
+  const input = createInput(window);
+  // While a card is up (other than the pause menu), keys must not act on the
+  // room behind it.
+  const modalOpen = () => !!document.querySelector('.modal-backdrop:not([inert])');
+  const play = (fn) => () => !modalOpen() && fn();
+  input.on('spin', play(() => game.requestSpin()));
+  input.on('turnLeft', play(() => game.turn(-1)));
+  input.on('turnRight', play(() => game.turn(1)));
+  input.on('choose1', play(() => game.chooseByIndex(0)));
+  input.on('choose2', play(() => game.chooseByIndex(1)));
+  input.on('choose3', play(() => game.chooseByIndex(2)));
+  input.on('endNight', play(() => game.requestEndNight()));
+  input.on('toggleFast', play(() => game.toggleFast()));
+  input.on('toggleMute', () => game.toggleMute());
+  input.on('menu', () => (game.menuClose || !modalOpen()) && game.toggleMenu());
+  // Browsers only allow sound after a gesture.
+  const wake = () => audio.start();
+  window.addEventListener('pointerdown', wake);
+  window.addEventListener('keydown', wake);
+  hud.refs.navLeft.addEventListener('click', () => game.turn(-1));
+  hud.refs.navRight.addEventListener('click', () => game.turn(1));
+
+  // ---- Start -----------------------------------------------------------------
+  game.boot();
+  director.goTo('wide', { cut: true });
+  stage.setFigureGhost(false);
+  setTimeout(() => {
+    if (director.current !== 'wide' || game.busy) return;
+    director.goTo(game.view, {
+      duration: 1.8,
+      onProgress: (e) => e > 0.75 && stage.setFigureGhost(true),
+    });
+  }, 1700);
+  setTimeout(() => hud.root.classList.add('show'), 1400);
+
+  // ---- Loop ------------------------------------------------------------------
   const timer = new THREE.Timer();
   timer.connect(document);
-  const parallax = new THREE.Vector2();
   let lastPocket = Math.floor(spin.angle / SLICE);
-  let prevVelocity = 0;
-  let ballBounce = 0;
-  let ballBounceV = 0;
+  let power = 1;
 
-  // The bulb stutters on when the scene first appears.
-  function introPower(t) {
-    if (t < 0.2) return 0;
-    if (t < 0.27) return 0.8;
-    if (t < 0.42) return 0.05;
-    if (t < 0.48) return 0.6;
-    if (t < 0.6) return 0.15;
-    return Math.min(1, 0.85 + (t - 0.6) * 0.5);
-  }
-
-  function tick(now) {
-    timer.update(now);
-    const dt = Math.min(timer.getDelta(), 1 / 20);
+  function tick() {
+    // The timer reads its own clock: requestAnimationFrame's timestamp can
+    // predate the timer's start and give a negative first delta.
+    timer.update();
+    const dt = Math.min(Math.max(timer.getDelta(), 0), 1 / 20);
     const t = timer.getElapsed();
 
-    spin.update(dt);
+    game.fastHeld = input.isHeld('spin');
+    const sdt = dt * game.timeScale;
+    spin.update(sdt);
     wheel.rotor.rotation.y = spin.angle;
     wheel.setSpeed(spin.speed);
+    ball.update(sdt);
 
-    // Pocket ticks.
+    // Pocket ticks when the player turns the wheel by hand; the ball's own
+    // rattle takes over while it is in flight.
     const pocket = Math.floor(spin.angle / SLICE);
     if (pocket !== lastPocket) {
-      audio.tick(spin.speed);
+      if (!ball.flying) audio.tick(spin.speed);
       lastPocket = pocket;
     }
     audio.update(spin.speed);
 
-    // The ball rattles in its pocket when the wheel jolts.
-    const accel = (spin.velocity - prevVelocity) / Math.max(dt, 1e-4);
-    prevVelocity = spin.velocity;
-    ballBounceV += (Math.min(Math.abs(accel) * 0.054, 15) + spin.speed * 0.036 * (Math.random() - 0.3)) * dt;
-    ballBounceV -= ballBounce * 600 * dt;
-    ballBounceV *= Math.exp(-dt * 9);
-    ballBounce = Math.max(0, ballBounce + ballBounceV * dt);
-    if (ballBounce === 0 && ballBounceV < 0) ballBounceV *= -0.35;
-    wheel.ball.position.y = DIM.pocketY + DIM.ballRadius + Math.min(ballBounce, 0.05);
+    stage.figure.update(t);
+    table.update(dt);
+    cage.update(dt);
+    hud.update(dt);
 
-    figure.update(t);
-
-    const power = introPower(t);
-    const level = room.update(t, dt, power);
+    power += (game.power - power) * (1 - Math.exp(-dt * 2.5));
+    const level = room.update(t, dt, introPower(t) * power);
     wheel.lensMat.emissiveIntensity = 2.4 * level;
 
-    // Slow handheld drift plus a hint of parallax from the cursor.
-    if (!spin.dragging) parallax.lerp(spin.pointer, 1 - Math.exp(-dt * 1.5));
-    camera.position.set(
-      camBase.x + Math.sin(t * 0.21) * 0.06 + parallax.x * 0.35,
-      camBase.y + Math.sin(t * 0.17 + 1.1) * 0.04 + parallax.y * 0.18,
-      camBase.z,
-    );
-    camera.lookAt(camLook);
+    if (director.current === 'wide') director.parallax.lerp(spin.pointer, 1 - Math.exp(-dt * 1.5));
+    director.update(dt, t);
 
     const fade = Math.max(0, 1 - t / 1.4);
     post.render(t, fade * fade);
     requestAnimationFrame(tick);
   }
-
   requestAnimationFrame(tick);
-  setTimeout(() => {
-    if (!hintDismissed) hint.classList.add('show');
-  }, 2000);
 
-  // Handy for debugging from the console.
-  window.__roulette = { scene, camera, renderer, spin, wheel, room, post };
+  // Handy for debugging and for the smoke test.
+  window.__roulette = { game, stage, spin, ball, table, cage, director, interaction };
+  if (import.meta.env.DEV) {
+    window.__roulette.debug = {
+      /** Add coins to the hand, e.g. to try later debts before items exist. */
+      addCoins(n) {
+        game.state = { ...game.state, coins: game.state.coins + n };
+        game.save();
+        game.syncAll();
+      },
+    };
+  }
 }
 
 init();

@@ -4,21 +4,15 @@ import {
   createMotionBlurredStrip,
   createNumberStripTexture,
   createRimWoodTexture,
-} from '../textures.js';
+} from './textures.js';
+import { EUROPEAN_ORDER, defaultColor } from '../core/wheel.js';
 
-// European single-zero order, clockwise seen from above.
-export const WHEEL_ORDER = [
-  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14,
-  31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
-];
-const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+// Pocket order and colours come from the rules (core/wheel.js); this module
+// only turns them into geometry. Phase 5 rebuilds it from live pocket data.
+export const WHEEL_ORDER = EUROPEAN_ORDER;
 export const POCKETS = WHEEL_ORDER.length;
 export const SLICE = (Math.PI * 2) / POCKETS;
-
-export function colorOf(n) {
-  if (n === 0) return 'green';
-  return RED.has(n) ? 'red' : 'black';
-}
+export const colorOf = defaultColor;
 
 // Angles are measured counter-clockwise seen from above, in the rotor's
 // local frame: angle a sits at (cos a, -sin a) in (x, z). rotation.y adds to it.
@@ -37,6 +31,10 @@ export const DIM = {
   coneEdgeY: 0.315,
   coneTopY: 0.47,
   ballRadius: 0.115,
+  // Where the ball rests in a pocket, and where it orbits on the track.
+  ballRestRadius: 3.03,
+  trackRadius: 3.63,
+  trackY: 0.44,
 };
 
 const P = (r, y) => new THREE.Vector2(r, y);
@@ -384,7 +382,7 @@ export function createWheel({ envMap }) {
     turret.add(arm);
   }
 
-  // ---- Ball: resting in a pocket, travelling with the rotor -------------
+  // ---- Ball: positioned every frame by view/ball.js, in the wheel's frame --
   const ball = shadowed(
     new THREE.Mesh(
       new THREE.SphereGeometry(DIM.ballRadius, 32, 24),
@@ -399,16 +397,7 @@ export function createWheel({ envMap }) {
       }),
     ),
   );
-  const ballR = rMid + 0.03;
-  const ballHolder = new THREE.Group();
-  ballHolder.add(ball);
-  ball.position.set(ballR, DIM.pocketY + DIM.ballRadius, 0);
-  rotor.add(ballHolder);
-
-  // Puts the ball in the pocket of a given number.
-  function setBallPocket(orderIndex) {
-    ballHolder.rotation.y = pocketAngle(orderIndex);
-  }
+  wheel.add(ball);
 
   // Blend toward the smeared numbers as the rotor speeds up (rad/s).
   function setSpeed(speed) {
@@ -417,5 +406,5 @@ export function createWheel({ envMap }) {
     blurRing.visible = t > 0.001;
   }
 
-  return { group: wheel, rotor, ball, ballHolder, lensMat, setBallPocket, setSpeed };
+  return { group: wheel, rotor, ball, lensMat, setSpeed, materials: { mahogany, brass, darkMetal, silver } };
 }
