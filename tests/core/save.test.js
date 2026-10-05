@@ -43,4 +43,14 @@ describe('saves', () => {
     expect(deserializeRun('not json')).toBeNull();
     expect(deserializeRun(JSON.stringify({ v: 999, state: {} }))).toBeNull();
   });
+
+  it('fills in the night size for saves made before the tally', () => {
+    const playing = advance(createRun({ seed: 'TEST-SAVE' }), [{ type: 'choosePackage', packageId: 'long' }, { type: 'placeChip', chipId: 'c1', betId: 'red' }, { type: 'spin' }]);
+    const old = JSON.parse(serializeRun(playing));
+    delete old.state.spinsTonight;
+    expect(deserializeRun(JSON.stringify(old)).spinsTonight).toBe(7);
+    const over = JSON.parse(serializeRun(advance(createRun({ seed: 'TEST-SAVE' }), [{ type: 'choosePackage', packageId: 'sitout' }])));
+    delete over.state.spinsTonight;
+    expect(deserializeRun(JSON.stringify(over)).spinsTonight).toBe(null);
+  });
 });

@@ -56,24 +56,27 @@ export function createHud(root = document.body) {
   const hud = el('div', 'hud');
   hud.innerHTML = `
     <div class="hud-coins" data-k="coinsCluster">
+      <span class="sr" data-k="coinsSr"></span>
       <div class="coins-was scrawl" data-k="coinsWas" aria-hidden="true"><span></span></div>
-      <div class="coins-row">
+      <div class="coins-row" aria-hidden="true">
         <span class="coins-num scrawl fat grain" data-k="coins">0</span>
       </div>
-      <div class="tally-row" data-k="tallyRow"><span class="tally-label typed" data-k="spins"></span></div>
+      <div class="tally-row" data-k="tallyRow" aria-hidden="true"><span class="tally-label typed" data-k="spins"></span></div>
     </div>
     <div class="hud-debt" data-k="debtCluster">
-      <div class="debt-head typed"><span data-k="debtNo"></span><span class="night-word">night</span><span class="nights" data-k="nights"></span></div>
-      <div class="owed">
+      <span class="sr" data-k="debtSr"></span>
+      <div class="debt-head typed" aria-hidden="true"><span data-k="debtNo"></span><span class="night-word">night</span><span class="nights" data-k="nights"></span></div>
+      <div class="owed" aria-hidden="true">
         <span class="cell"><span class="v scrawl fat banked" data-k="banked">0</span><span class="k typed">banked</span></span>
         <span class="slash" data-k="slash"></span>
         <span class="cell due-cell"><span class="v scrawl fat due" data-k="owed">0</span><span class="k typed">owed</span></span>
       </div>
-      <div class="meter" data-k="meter"><span class="meter-fill" data-k="meterFill"></span></div>
+      <div class="meter" data-k="meter" aria-hidden="true"><span class="meter-fill" data-k="meterFill"></span></div>
     </div>
     <div class="hud-tokens" data-k="tokensCluster">
-      <div class="tokens-row"><span class="tokens-num scrawl fat grain" data-k="tokens">0</span></div>
-      <span class="k typed">tokens</span>
+      <span class="sr" data-k="tokensSr"></span>
+      <div class="tokens-row" aria-hidden="true"><span class="tokens-num scrawl fat grain" data-k="tokens">0</span></div>
+      <span class="k typed" aria-hidden="true">tokens</span>
     </div>
     <div class="hud-payout" data-k="payout"><span class="v scrawl fat grain"></span></div>
     <div class="hud-flavor" data-k="flavor"><span class="words scrawl fat"></span></div>
@@ -87,6 +90,9 @@ export function createHud(root = document.body) {
   root.appendChild(hud);
   const $ = (k) => hud.querySelector(`[data-k="${k}"]`);
   const refs = {
+    coinsSr: $('coinsSr'),
+    debtSr: $('debtSr'),
+    tokensSr: $('tokensSr'),
     coinsCluster: $('coinsCluster'),
     coins: $('coins'),
     coinsWas: $('coinsWas'),
@@ -134,7 +140,7 @@ export function createHud(root = document.body) {
   refs.payout.prepend(payoutSwipe);
   refs.flavor.prepend(markImg(smearMark(400, 120, 11), 'smear'));
   refs.tooltip.prepend(markImg(lineMark(50, 30, 45, INK.boneDim, 2.4, { y0: 28, y1: 2, bow: 0.12 }), 'leader'));
-  refs.toast.appendChild(markImg(lineMark(160, 12, 59, INK.blood, 2.4, { y0: 8, y1: 4 }), 'deny-line'));
+  refs.toast.appendChild(markImg(lineMark(160, 12, 59, INK.blood, 2.4, { y0: 8, y1: 4, stretch: true }), 'deny-line'));
 
   function buildNav(btn, dir, key) {
     const arrow = markImg(arrowMark(82, 30, dir === 'left' ? 51 : 52, dir), 'arrow', 0.02);
@@ -183,10 +189,18 @@ export function createHud(root = document.body) {
     refs.coins.textContent = format(value);
   }
 
+  // What a screen reader hears: the coins being counted to, not a frame of
+  // the count-up, and the night's spins.
+  let spinsSpoken = '';
+  function speakCoins() {
+    refs.coinsSr.textContent = `${format(targetCoins)} coins. ${spinsSpoken}`;
+  }
+
   function setCoins(value, { animate = false } = {}) {
     const changed = !gte(value, targetCoins) || !gte(targetCoins, value);
     targetCoins = value;
     fitCoins(format(value));
+    speakCoins();
     if (changed) {
       flare(refs.coinsCluster);
       if (animate) replay(refs.coinsCluster, 'bump');
@@ -227,7 +241,9 @@ export function createHud(root = document.body) {
   let tallyKey = '';
   let lowSpins = false;
   function setSpins(left, total = left, { note = '' } = {}) {
-    const key = `${left}/${total}/${lowSpins}`;
+    spinsSpoken = total > 0 ? `${left} of ${total} spins left.` : note ? `${note[0].toUpperCase()}${note.slice(1)}.` : '';
+    speakCoins();
+    const key = `${left}/${total}/${lowSpins}/${note}`;
     if (key === tallyKey) return;
     tallyKey = key;
     if (total > 0) {
@@ -239,7 +255,6 @@ export function createHud(root = document.body) {
       tallyImg.hidden = true;
       refs.spins.textContent = note;
     }
-    refs.coinsCluster.setAttribute('aria-label', `${refs.coins.textContent} coins. ${total > 0 ? `${left} of ${total} spins left` : note}`);
   }
 
   // ---- Debt -------------------------------------------------------------------
@@ -271,7 +286,7 @@ export function createHud(root = document.body) {
     const fill = covered ? 1 : Math.max(0, Math.min(1, ratio(banked, owed)));
     refs.meterFill.style.clipPath = `inset(0 ${((1 - fill) * 100).toFixed(1)}% 0 0)`;
     owedStrike.style.width = `${(scrawlEm(format(owed)) * 1.15 + 0.2).toFixed(2)}em`;
-    refs.debtCluster.setAttribute('aria-label', `Debt ${debt}: ${format(banked)} banked of ${format(owed)} owed. Night ${round} of ${rounds}.`);
+    refs.debtSr.textContent = `Debt ${debt}, night ${round} of ${rounds}: ${format(banked)} banked of ${format(owed)} owed.${covered ? ' Covered.' : ''}`;
     const key = `${debt}/${format(banked)}/${format(owed)}/${round}`;
     if (debtKey && key !== debtKey) flare(refs.debtCluster);
     debtKey = key;
@@ -284,7 +299,7 @@ export function createHud(root = document.body) {
     if (tokensShown !== null && text !== tokensShown) flare(refs.tokensCluster);
     tokensShown = text;
     refs.tokens.textContent = text;
-    refs.tokensCluster.setAttribute('aria-label', `${text} tokens`);
+    refs.tokensSr.textContent = `${text} tokens.`;
   }
 
   // ---- Payout and flavour -------------------------------------------------------
@@ -317,6 +332,9 @@ export function createHud(root = document.body) {
     const words = refs.flavor.querySelector('.words');
     const list = typeof parts === 'string' ? [[parts, 'blood']] : parts;
     words.innerHTML = list.map(([text, tone = 'bone']) => `<span class="${tone}">${escapeHtml(text)}</span>`).join('');
+    // The payout steps aside in turn: the two never share the screen.
+    clearTimeout(payoutTimer);
+    refs.payout.classList.remove('show', 'out');
     replay(refs.flavor, 'show');
     clearTimeout(flavorTimer);
     flavorTimer = setTimeout(() => refs.flavor.classList.remove('show'), ms);
@@ -388,9 +406,17 @@ export function createHud(root = document.body) {
     note.querySelector('.what').textContent = info.label;
     note.querySelector('.odds').textContent = `${info.pays}×`;
     note.classList.add('show');
-    // Up and to the right of the spot; mirrored to the left near the edge.
-    const reach = 52 * designPixel() + note.querySelector('.note-body').offsetWidth;
-    note.classList.toggle('flip', anchor.x + reach > window.innerWidth - 12);
+    // Up and to the right of the spot, mirrored when the left has more room;
+    // then nudged sideways so it never leaves the screen.
+    const body = note.querySelector('.note-body');
+    const gap = 52 * designPixel();
+    const w = body.offsetWidth;
+    const roomRight = window.innerWidth - anchor.x;
+    const flip = anchor.x + gap + w > window.innerWidth - 12 && anchor.x > roomRight;
+    const left = flip ? anchor.x - gap - w : anchor.x + gap;
+    const shift = Math.max(12 - left, Math.min(0, window.innerWidth - 12 - (left + w)));
+    note.classList.toggle('flip', flip);
+    body.style.translate = shift ? `${Math.round(shift)}px 0` : '';
     note.style.transform = `translate(${Math.round(anchor.x)}px, ${Math.round(anchor.y)}px)`;
   }
 
@@ -465,8 +491,8 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
   sheet.setAttribute('role', 'dialog');
   sheet.setAttribute('aria-modal', 'true');
   backdrop.append(
-    markImg(oldTallies(240, 520, 101, [[10, 10, 12, 1.4], [20, 110, 9, 1.4], [6, 210, 14, 1.4], [30, 310, 7, 1.4]]), 'wall wall-l'),
-    markImg(oldTallies(220, 460, 103, [[10, 10, 10, 1.4], [6, 110, 13, 1.4], [24, 210, 6, 1.4]]), 'wall wall-r'),
+    markImg(oldTallies(240, 520, 101, [[10, 10, 12, 1.4], [20, 110, 9, 1.4], [6, 210, 14, 1.4], [30, 310, 7, 1.4]]), 'wall wall-l', 1),
+    markImg(oldTallies(220, 460, 103, [[10, 10, 10, 1.4], [6, 110, 13, 1.4], [24, 210, 6, 1.4]]), 'wall wall-r', 1),
   );
 
   if (kicker) sheet.appendChild(el('div', 'modal-kicker typed', escapeHtml(kicker)));
@@ -527,7 +553,7 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
       b.setAttribute('aria-label', `${a.label}: ${v}`);
     };
     paint();
-    b.appendChild(markImg(lineMark(120, 12, seedOf(a.label), INK.bone, 2.6, { y0: 8, y1: 5 }), 'focus-mark'));
+    b.appendChild(markImg(lineMark(120, 12, seedOf(a.label), INK.bone, 2.6, { y0: 8, y1: 5, stretch: true }), 'focus-mark'));
     b.addEventListener('click', () => {
       if (a.keepOpen) {
         a.onClick?.();
@@ -559,14 +585,25 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
     sheet.appendChild(row);
   }
 
-  // Arrow keys (and later the pad) walk between the actions.
+  // Arrow keys (and later the pad) walk the actions in the order they are
+  // laid out: up and down between the main action and the row, left and right
+  // along the row. Nothing wraps, so one stray press from the main action can
+  // never land on a destructive one.
   backdrop.addEventListener('keydown', (ev) => {
-    const i = buttons.indexOf(document.activeElement);
-    const step = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[ev.key];
-    if (!step || !buttons.length) return;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key)) return;
     ev.preventDefault();
     ev.stopPropagation();
-    buttons[(Math.max(0, i) + step + buttons.length) % buttons.length].focus();
+    const main = buttons.find((b) => b.classList.contains('primary'));
+    const row = buttons.filter((b) => b !== main);
+    const at = document.activeElement;
+    const i = row.indexOf(at);
+    let next = null;
+    if (ev.key === 'ArrowDown' && (at === main || i < 0)) next = row[0];
+    else if (ev.key === 'ArrowUp' && i >= 0) next = main;
+    else if (i >= 0 && ev.key === 'ArrowLeft') next = row[i - 1];
+    else if (i >= 0 && ev.key === 'ArrowRight') next = row[i + 1];
+    else if (i < 0 && at !== main && !main) next = row[0];
+    next?.focus();
   });
 
   backdrop.appendChild(sheet);

@@ -19,15 +19,18 @@ export const SANS = "Oswald, 'Arial Narrow', sans-serif";
 
 export async function loadFonts() {
   const faces = [
-    new FontFace('Scrawl', `url(${rockSaltUrl}) format('woff2')`),
-    new FontFace('Scrawl', `url(${mansalvaUrl}) format('woff2')`, { unicodeRange: 'U+0031, U+002C', sizeAdjust: '135%' }),
+    // Quoted: an install path such as "Program Files (x86)" puts brackets in
+    // the URL, which an unquoted url() cannot hold.
+    new FontFace('Scrawl', `url("${rockSaltUrl}") format('woff2')`),
+    new FontFace('Scrawl', `url("${mansalvaUrl}") format('woff2')`, { unicodeRange: 'U+0031, U+002C', sizeAdjust: '135%' }),
   ];
   for (const face of faces) document.fonts.add(face);
-  // Canvas lettering and measured marks need the faces before first use.
-  await Promise.all([
+  // Canvas lettering and measured marks need the faces before first use. One
+  // face failing must not cut short the wait for the others.
+  await Promise.allSettled([
     ...faces.map((face) => face.load()),
     document.fonts.load('600 64px Oswald'),
     document.fonts.load('500 64px Oswald'),
     document.fonts.load("20px 'Special Elite'"),
-  ]).catch(() => {});
+  ]);
 }

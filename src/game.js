@@ -95,8 +95,12 @@ export class Game {
   /** The night's tally: spins left of the night's allowance. */
   syncSpins() {
     const s = this.state;
-    const total = s.phase === PHASE.ROUND_START ? 0 : (s.spinsTonight ?? s.spinsLeft);
-    const note = s.phase === PHASE.ROUND_START ? 'choose a night' : s.phase === PHASE.NIGHT_OVER ? 'sat out' : '';
+    const total = s.phase === PHASE.ROUND_START ? 0 : (s.spinsTonight ?? 0);
+    let note = '';
+    if (s.phase === PHASE.ROUND_START) note = 'choose a night';
+    // A save from before the tally knew the night's size cannot tell a played
+    // night from a sat-out one.
+    else if (s.phase === PHASE.NIGHT_OVER) note = s.spinsTonight === 0 ? 'sat out' : 'the night is over';
     this.hud.setDread({
       lowSpins: s.phase === PHASE.BETTING && total > 2 && s.spinsLeft <= 2,
       lastNight: isFinalNight(s) && s.phase !== PHASE.GAME_OVER,
@@ -508,14 +512,16 @@ export class Game {
     const s = this.state;
     const close = showModal({
       className: 'pause',
-      kicker: `Debt ${s.debt} · night ${s.round} · seed ${s.seed}`,
       title: 'Paused',
-      lines: ['Space spins · A/D turn · 1/2/3 choose a night · E ends the night · F fast spins · M sound'],
+      lines: [
+        `Debt <b>${s.debt}</b>, night <b>${s.round}</b>. Seed <b>${s.seed}</b>.`,
+        'Space spins · A/D turn · 1/2/3 choose a night · E ends the night · F fast spins · M sound',
+      ],
       actions: [
         { label: 'Resume', primary: true, onClick: () => (this.menuClose = null) },
-        { label: 'Abandon run', danger: true, onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
+        { label: 'Abandon run', danger: true, onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
       ],
     });
     this.menuClose = close;

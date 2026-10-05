@@ -79,6 +79,16 @@ img.mark {
   user-select: none;
 }
 
+/* Read aloud, never drawn: the plain sentence behind each cluster of marks. */
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* Author display rules would otherwise beat the hidden attribute. */
 [hidden] {
   display: none !important;
@@ -427,8 +437,9 @@ img.mark {
   opacity: 0.5;
 }
 
-.hud.at-cage .hud-debt {
-  opacity: 0;
+.hud.at-cage .hud-debt,
+.hud.at-cage .hud-debt.flare {
+  opacity: 0 !important;
 }
 
 /* Payout: a swipe dragged across, the figure landing on it with a thunk. */
@@ -551,7 +562,8 @@ img.mark {
 }
 
 .hud-flavor.show .words {
-  animation: drag 0.45s steps(12) both;
+  /* Backwards only: a clip held after the wipe would cut the halo into a box. */
+  animation: drag 0.45s steps(12) backwards;
 }
 
 /* Navigation: a gouged arrow, the place, and its key in a chalk loop. */
@@ -871,7 +883,7 @@ img.mark {
 
 .modal-backdrop .wall {
   position: absolute;
-  opacity: 0.055;
+  opacity: 0.04;
   font-size: calc(1 * var(--u));
 }
 
@@ -895,10 +907,10 @@ img.mark {
 }
 
 .modal-kicker {
-  font-size: calc(14 * var(--u));
+  font-size: calc(15 * var(--u));
   letter-spacing: 0.4em;
   text-transform: uppercase;
-  color: var(--bone-faint);
+  color: var(--bone-dim);
   margin-bottom: 0.4em;
 }
 
@@ -1058,10 +1070,10 @@ img.mark {
 }
 
 .keyhint {
-  font-size: calc(12 * var(--u));
+  font-size: calc(13 * var(--u));
   letter-spacing: 0.4em;
   text-transform: uppercase;
-  color: var(--bone-faint);
+  color: var(--bone-dim);
   margin-top: 0.4em;
 }
 
@@ -1109,7 +1121,7 @@ img.mark {
   .modal-backdrop * {
     animation-duration: 0.01s !important;
     animation-delay: 0s !important;
-    transition-duration: 0.01s !important;
+    transition: none !important;
   }
 
   /* These would end invisible: hold them still instead, until their timers

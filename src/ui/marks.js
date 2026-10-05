@@ -250,7 +250,7 @@ export function lineMark(w, h, seed = 9, color = INK.bone, width = 3, opts = {})
   const y1 = opts.y1 ?? h / 2;
   let body = path(scratch(2, y0, w - 4, y1, width, r, { bow: opts.bow ?? 0.01, n: 24 }), color, ` opacity="${opts.o ?? 1}"`);
   if (opts.double) body += path(scratch(10, y0 + 4, w - 30, y1 + 3, width * 0.45, r, { bow: 0.01, n: 18 }), color, ' opacity="0.45"');
-  return svg(w, h, 'gouge', body);
+  return svg(w, h, 'gouge', body, { stretch: opts.stretch });
 }
 
 /** A chalk loop around a word. */

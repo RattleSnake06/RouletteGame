@@ -1,3 +1,4 @@
+import { PACKAGES } from './economy.js';
 import { isBig, num } from './num.js';
 
 // Runs save as versioned JSON. Big money values are stored as { $d: "1.2e500" };
@@ -27,5 +28,18 @@ export function deserializeRun(json) {
     return null;
   }
   if (!data || data.v !== SAVE_VERSION || !data.state) return null;
-  return data.state;
+  return migrate(data.state);
+}
+
+/** Fill in fields added since a save was written. */
+function migrate(state) {
+  if (state.spinsTonight === undefined) {
+    // The night's allowance: the smallest night that fits the spins still left.
+    // Past the betting phase it cannot be known, so it stays unknown (null).
+    const fits = Object.values(PACKAGES)
+      .map((p) => p.spins)
+      .filter((n) => n > 0 && n >= state.spinsLeft);
+    state.spinsTonight = state.phase === 'betting' && fits.length ? Math.min(...fits) : null;
+  }
+  return state;
 }
