@@ -15,15 +15,14 @@ roadmap.
   change is agreed, update the doc in the same commit, so code and doc never
   drift apart.
 - Build in roadmap order (section 10). Don't start later-phase systems early.
-- Section 12 lists the decisions the owner has made. Treat them as fixed;
-  undecided items use the recommendation noted there.
+- Section 12 lists the decisions the owner has made. Treat them as fixed.
 
 ## Decisions
 
 - First person at the table; cut to the third-person wide shot during spins.
 - Chips are owned bets; the risk is the coin cost per spin.
 - Keep the current render; the low-res "crunch" filter is optional.
-- Leans are telegraphed one spin early (default; not yet confirmed by the owner).
+- Leans are announced one spin early.
 - Steam is a target: route input through `src/input/` actions and saves and
   platform calls through `src/platform/` from the start (doc 9.10).
 

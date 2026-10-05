@@ -926,6 +926,6 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 1 | Camera | **First person at the table, cutting to the third-person wide shot during spins.** (8.2) |
 | 2 | What a chip is | **Owned bets, with a coin cost per spin.** (5.3) |
 | 3 | Look | **Keep the current render, with an optional low-resolution crunch filter.** (8.5) |
-| 4 | Leans | *Not yet decided.* Building with the recommendation: **telegraphed one spin early.** (5.6) |
+| 4 | Leans | **Announced one spin early.** (5.6) |
 | 5 | Name | **Rien Ne Va Plus.** |
 | 6 | Platform | **Plan for Steam.** Developed in the browser, shipped as an Electron app. (9.10) |
