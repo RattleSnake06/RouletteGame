@@ -35,7 +35,6 @@ async function init() {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   let pixelRatio = Math.min(window.devicePixelRatio, 2);
   renderer.setPixelRatio(pixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -99,8 +98,8 @@ async function init() {
   const camBase = new THREE.Vector3();
   const camLook = new THREE.Vector3();
   function frame() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const w = Math.max(1, canvas.clientWidth || window.innerWidth);
+    const h = Math.max(1, canvas.clientHeight || window.innerHeight);
     const aspect = w / h;
     // Wide screens get the reference composition; narrower ones tighten
     // around the wheel so it stays big enough to grab.
@@ -123,7 +122,7 @@ async function init() {
     room.setPixelRatio(pixelRatio);
   }
   frame();
-  window.addEventListener('resize', frame);
+  new ResizeObserver(frame).observe(canvas);
 
   // ---- Keys -------------------------------------------------------------
   let toastTimer = 0;
@@ -148,12 +147,12 @@ async function init() {
 
   // The bulb stutters on when the scene first appears.
   function introPower(t) {
-    if (t < 0.35) return 0;
-    if (t < 0.42) return 0.8;
-    if (t < 0.6) return 0.05;
-    if (t < 0.66) return 0.6;
-    if (t < 0.8) return 0.15;
-    return Math.min(1, 0.85 + (t - 0.8) * 0.5);
+    if (t < 0.2) return 0;
+    if (t < 0.27) return 0.8;
+    if (t < 0.42) return 0.05;
+    if (t < 0.48) return 0.6;
+    if (t < 0.6) return 0.15;
+    return Math.min(1, 0.85 + (t - 0.6) * 0.5);
   }
 
   function tick(now) {
@@ -198,7 +197,7 @@ async function init() {
     );
     camera.lookAt(camLook);
 
-    const fade = Math.max(0, 1 - t / 2.2);
+    const fade = Math.max(0, 1 - t / 1.4);
     post.render(t, fade * fade);
     requestAnimationFrame(tick);
   }
@@ -206,7 +205,7 @@ async function init() {
   requestAnimationFrame(tick);
   setTimeout(() => {
     if (!hintDismissed) hint.classList.add('show');
-  }, 2600);
+  }, 2000);
 
   // Handy for debugging from the console.
   window.__roulette = { scene, camera, renderer, spin, wheel, room, post };
