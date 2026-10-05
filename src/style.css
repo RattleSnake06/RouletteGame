@@ -1,0 +1,51 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+#scene {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+  outline: none;
+}
+
+#hint,
+#toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'IM Fell English', Georgia, serif;
+  font-style: italic;
+  color: #d6cdb9;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 14px rgba(0, 0, 0, 0.95);
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+#hint {
+  bottom: 6vh;
+  font-size: clamp(15px, 1.5vw, 22px);
+  transition: opacity 2.5s ease;
+}
+
+#hint.show {
+  opacity: 0.55;
+}
+
+#toast {
+  top: 4vh;
+  font-size: 15px;
+  transition: opacity 0.4s ease;
+}
+
+#toast.show {
+  opacity: 0.6;
+}
