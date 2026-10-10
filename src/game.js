@@ -23,6 +23,8 @@ const VIEW_NAMES = { cage: 'Cage', table: 'Table', cabinet: 'Cabinet' };
 const FOCUS_BETS = ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'dozen:2', 'dozen:3', 'column:1', 'column:2', 'column:3'];
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** A stable name for a focusable object, so focus survives the list changing. */
+const focusKey = (t) => `${t.kind}:${t.uid ?? t.betId ?? t.slot ?? t.plaque ?? ''}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 export class Game {
@@ -35,7 +37,7 @@ export class Game {
     this.power = 1; // room light, 0 when the Cage collects
     this.menuClose = null;
     this.seen = new Set(); // one-time hints already shown this session
-    this.focus = null; // keyboard focus: { view, index }
+    this.focus = null; // keyboard focus: { view, key } (see focusKey)
     this.noteTarget = null; // the object whose note is up
     this.lifted = null; // the rail talisman raised by keyboard focus
     // Bumped by a new run, so a spin or timer from the old run stops short.
@@ -121,6 +123,8 @@ export class Game {
     this.cabinet.sync(cabinetView(s));
     this.table.setMarks({ foreseen: s.foreseen ? s.wheel.pockets[s.foreseen.pocketIndex].number : null });
     this.hud.setTokens(s.tokens);
+    // A focused talisman that was sold or smashed takes the focus with it.
+    if (this.focus && this.focus.view === this.view && !this.focusedTarget()) this.clearFocus();
     this.refreshNote();
   }
 
@@ -368,9 +372,10 @@ export class Game {
     if (this.busy) return;
     const list = this.focusables();
     if (!list.length) return;
-    const i = this.focus?.view === this.view ? this.focus.index : dir > 0 ? -1 : list.length;
+    const at = this.focus?.view === this.view ? list.findIndex((t) => focusKey(t) === this.focus.key) : -1;
+    const i = at >= 0 ? at : dir > 0 ? -1 : list.length;
     const index = (i + dir + list.length) % list.length;
-    this.setFocus({ view: this.view, index });
+    this.setFocus({ view: this.view, key: focusKey(list[index]) });
   }
 
   setFocus(focus) {
@@ -401,9 +406,13 @@ export class Game {
     this.lifted = null;
   }
 
+  /**
+   * Focus is held by identity, not by position: the list reorders as chips
+   * are placed and talismans leave, and Enter must act on what the note shows.
+   */
   focusedTarget() {
     if (!this.focus || this.focus.view !== this.view) return null;
-    return this.focusables()[this.focus.index] ?? null;
+    return this.focusables().find((t) => focusKey(t) === this.focus.key) ?? null;
   }
 
   /** Enter: buy, ring, restock or open what has focus. */
@@ -428,7 +437,7 @@ export class Game {
     const from = this.state.rail.findIndex((t) => t.uid === target.uid);
     const to = from + dir;
     if (to < 0 || to >= this.state.rail.length) return;
-    if (this.moveTalisman(target.uid, to)) this.setFocus({ view: this.view, index: to });
+    if (this.moveTalisman(target.uid, to)) this.setFocus({ view: this.view, key: focusKey(target) });
   }
 
   sellFocused() {
@@ -464,6 +473,8 @@ export class Game {
       this.hud.setCoins(this.state.coins, { animate: true });
       this.hud.toast(`Banked ${format(amount)}`);
       this.syncStatus();
+      // The crank's tag shows whether a restock is affordable.
+      this.syncItems();
       if (this.state.phase === PHASE.ROUND_START) this.table.showPackages(this.state);
     }
   }
@@ -651,8 +662,8 @@ export class Game {
     this.audio.crank();
     this.cabinet.restockAnim();
     this.hud.strikeCoins();
-    this.syncAll();
     this.hud.setCoins(this.state.coins, { animate: true });
+    this.syncAll();
   }
 
   /** A click on a rail talisman: its card, with Sell and (for actives) Ring. */
@@ -772,7 +783,7 @@ export class Game {
   /** From Space or a flung wheel. Returns true if a spin started. */
   requestSpin() {
     const s = this.state;
-    if (this.busy || this.menuClose) return false;
+    if (this.busy || this.menuClose || this.ball.flying) return false;
     if (s.phase === PHASE.ROUND_START) {
       this.hud.toast('Choose how to spend the night first.');
       return false;
@@ -807,6 +818,9 @@ export class Game {
       return;
     }
     const { result } = events.find((e) => e.type === 'spin');
+    // A new run (from the pause menu, or a reload) leaves this sequence behind.
+    const id = this.runId;
+    const stale = () => id !== this.runId;
     const detail = events.filter((e) => e.type !== 'spin');
     const fast = this.settings.fast;
     this.syncSpins();
@@ -840,6 +854,7 @@ export class Game {
     const first = result.firstThrow?.[0];
     if (first) {
       await this.ball.launch(first.pocketIndex);
+      if (stale()) return;
       this.audio.settle();
       this.table.flashResult(first.number);
       this.hud.flavor(
@@ -850,6 +865,7 @@ export class Game {
         1100,
       );
       await wait(fast ? 0.25 : 0.7);
+      if (stale()) return;
       const by = detail.find((e) => e.type === 'rethrow')?.by;
       if (by) this.rail.pulse(by, 1.2);
       this.bell.ring(true);
@@ -857,8 +873,10 @@ export class Game {
       this.audio.rethrow();
       this.hud.flavor([['Again.', 'blood']], 900);
       await this.ball.launch(result.pocketIndex, { short: true });
+      if (stale()) return;
     } else {
       await this.ball.launch(result.pocketIndex);
+      if (stale()) return;
     }
 
     this.audio.settle();
@@ -874,18 +892,21 @@ export class Game {
       1300,
     );
     await wait(fast ? 0.2 : 0.6);
+    if (stale()) return;
     // Attention returns to the felt; the wheel fades back into the dark slowly.
     this.lighting.set('table');
     if (!fast) {
       await this.director.goTo('table', { duration: 0.8, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
+      if (stale()) return;
     }
 
     if (!result.miss) this.hud.strikeCoins();
     await playPayout(
       { table: this.table, rail: this.rail, hud: this.hud, audio: this.audio, screenPosition: (w) => this.screenPosition(w) },
       detail,
-      { fast, coinsBefore },
+      { fast, coinsBefore, alive: () => !stale() },
     );
+    if (stale()) return;
     this.hud.setMode('play');
     if (result.miss) {
       this.audio.miss();
@@ -935,6 +956,9 @@ export class Game {
       this.menuClose = null;
       return;
     }
+    // Not while the ball flies or the Cage collects: abandoning then would
+    // leave the old run's sequence playing into the new one.
+    if (this.busy) return;
     const s = this.state;
     const close = showModal({
       className: 'pause',

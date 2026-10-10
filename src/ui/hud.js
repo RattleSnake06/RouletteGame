@@ -206,6 +206,8 @@ export function createHud(root = document.body) {
       flare(refs.coinsCluster);
       if (animate) replay(refs.coinsCluster, 'bump');
     }
+    // A re-sync with the same value leaves a count-up running to it alone.
+    if (!changed && !animate) return;
     if (!animate || typeof value !== 'number' || typeof shownCoins !== 'number' || reducedMotion()) {
       coinAnim = null;
       shownCoins = value;
@@ -588,6 +590,8 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
   // a key pressed with focus lost (a click on the veil) brings it back.
   const trap = (ev) => {
     if (backdrop.inert || !['Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key)) return;
+    // Only the card on top holds the keys; one opened over another waits.
+    if ([...document.querySelectorAll('.modal-backdrop:not([inert])')].at(-1) !== backdrop) return;
     const inside = backdrop.contains(document.activeElement);
     if (ev.key === 'Tab') {
       ev.preventDefault();

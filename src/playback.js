@@ -23,9 +23,10 @@ function pacing(steps, fast) {
 
 /**
  * deps: { table, rail, hud, audio, screenPosition }
+ * `alive()` turning false (a new run began) stops the playback where it is.
  * Returns the running coin total when it is done.
  */
-export async function playPayout(deps, events, { fast, coinsBefore }) {
+export async function playPayout(deps, events, { fast, coinsBefore, alive = () => true }) {
   const { table, rail, hud, audio, screenPosition } = deps;
   const steps = events.filter((e) => e.type === 'trigger' || e.type === 'chipPaid');
   const pace = pacing(steps, fast);
@@ -61,6 +62,7 @@ export async function playPayout(deps, events, { fast, coinsBefore }) {
       audio.trigger(k);
       k += 1;
       if (PAYOUT_HOOKS.has(e.hook)) await wait(pace.trigger);
+      if (!alive()) return running;
       continue;
     }
     if (e.type === 'chipPaid') {
@@ -72,6 +74,7 @@ export async function playPayout(deps, events, { fast, coinsBefore }) {
       wins += 1;
       hud.setCoins(running, { animate: true });
       await wait(pace.paid);
+      if (!alive()) return running;
       // The next chip's line starts from the plain factors again.
       live = { ...base };
       rail.setPlaques(live);
