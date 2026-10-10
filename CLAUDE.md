@@ -75,3 +75,30 @@ debt 2 in about 44%; debt 3 is a wall until Phase 3 (see `npm run sim`).
   anything timed per frame (camera moves, the ball) runs in slow motion there:
   cut the camera with `director.goTo(name, { cut: true })` for screenshots, and
   wait for `!director.tween` before clicking objects.
+
+## Testing in a real browser
+
+- **A cut lands on the next frame.** After `director.goTo(name, { cut: true })`,
+  wait two animation frames before projecting positions or clicking, or the
+  click is aimed with the old camera. The first frames after load are slow
+  (about 4 s for two frames in software WebGL). In page code:
+  `await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`;
+  the smoke test has a `frames()` helper.
+- **Use a dev server that never reloads** when anything else may edit files
+  (another agent, a second session): Vite's file watcher reloads the page and
+  breaks a scripted run mid-way. Point Vite at a config such as
+  `export default { root: '/home/user/RouletteGame', server: { hmr: false, watch: { ignored: ['**/*'] } } }`
+  and restart it after each source edit, since it no longer sees changes. The
+  smoke test's own server is set up this way.
+- **Stop servers by PID** (`echo $!` when starting one). `pkill -f` and
+  `pgrep -f` with a pattern also match the shell running the command and kill it.
+- **Pipes hide exit codes:** `npm run smoke | tail` exits 0 even when the test
+  fails. Read the last lines for "Smoke test passed." or check the exit code first.
+- **Useful page hooks** (dev build): `window.__roulette` has `game`, `rail`,
+  `bell`, `cabinet`, `table`, `stage`, `director`, `lighting` and `debug`.
+  `game.screenPosition(rail.talismanWorldPosition(uid))`,
+  `cabinet.slotWorldPosition(i)` and `table.spotWorldPosition(betId)` give click
+  targets; interactive meshes carry `userData.role` (`night-card`, `end-card`,
+  `cage-button`, `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
+  `talisman-mesh`).
+  `debug.grant(id)` hangs a talisman and marks its Cabinet offer sold.
