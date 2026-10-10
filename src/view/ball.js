@@ -17,13 +17,12 @@ const mod = (a, n) => ((a % n) + n) % n;
 const smooth = (t) => t * t * (3 - 2 * t);
 const lerp = (a, b, t) => a + (b - a) * t;
 
-const T_LIFT = 0.35;
-const T_ORBIT = 1.9;
 const T_DROP = 0.5;
-const T_POCKETS = T_ORBIT + T_DROP;
 const DELTA_NOM = 1.3; // rad still to travel (relative to the rotor) when the drop ends
 const W_END = 2.2; // ball's angular speed in the world when the drop ends
-const A_BASE = 13; // minimum orbit travel in rad (about two laps)
+// lift and orbit times (s), and the minimum orbit travel (rad).
+const FULL = { lift: 0.35, orbit: 1.9, base: 13 }; // about two laps
+const SHORT = { lift: 0.25, orbit: 0.9, base: 5 }; // a re-throw: about one lap
 
 const REST_Y = DIM.pocketY + DIM.ballRadius;
 const DROP_RADIUS = 3.14;
@@ -52,14 +51,20 @@ export class BallAnimator {
     this._place(this.spin.angle + pocketAngle(pocketIndex), DIM.ballRestRadius, REST_Y);
   }
 
-  /** Launch toward a pocket index (wheel order). Resolves when the ball settles. */
-  launch(target) {
+  /**
+   * Launch toward a pocket index (wheel order). Resolves when the ball
+   * settles. `short` is a re-throw (Wheel of Fortune): the ball hops out of
+   * its pocket for about one lap instead of the full orbit.
+   */
+  launch(target, { short = false } = {}) {
+    const timing = short ? SHORT : FULL;
+    const pocketsAt = timing.orbit + T_DROP;
     const s = this.spin.velocity >= 0 ? -1 : 1; // the ball runs against the rotor
     const theta0 = this.spin.angle + pocketAngle(this.pocket);
-    const aim = this.spin.predictAngle(T_POCKETS) + pocketAngle(target) - s * DELTA_NOM;
-    const travel = A_BASE + mod(s * (aim - theta0) - A_BASE, TAU);
-    const w0 = (2 * travel) / T_POCKETS - W_END;
-    this.flight = { s, theta0, w0, decel: (w0 - W_END) / T_POCKETS, target, tau: 0 };
+    const aim = this.spin.predictAngle(pocketsAt) + pocketAngle(target) - s * DELTA_NOM;
+    const travel = timing.base + mod(s * (aim - theta0) - timing.base, TAU);
+    const w0 = (2 * travel) / pocketsAt - W_END;
+    this.flight = { s, theta0, w0, decel: (w0 - W_END) / pocketsAt, target, tau: 0, ...timing, pocketsAt };
     this.mode = 'orbit';
     return new Promise((resolve) => {
       this._resolve = resolve;
@@ -75,22 +80,22 @@ export class BallAnimator {
     f.tau += dt;
 
     if (this.mode === 'orbit') {
-      const tau = Math.min(f.tau, T_POCKETS);
+      const tau = Math.min(f.tau, f.pocketsAt);
       const theta = f.theta0 + f.s * (f.w0 * tau - 0.5 * f.decel * tau * tau);
       let r = DIM.trackRadius + 0.008 * Math.sin(tau * 9);
       let y = DIM.trackY;
-      if (tau < T_LIFT) {
-        const p = tau / T_LIFT;
+      if (tau < f.lift) {
+        const p = tau / f.lift;
         r = lerp(DIM.ballRestRadius, DIM.trackRadius, smooth(p));
         y = lerp(REST_Y, DIM.trackY, smooth(p)) + 0.12 * Math.sin(Math.PI * p);
-      } else if (tau > T_ORBIT) {
-        const p = (tau - T_ORBIT) / T_DROP;
+      } else if (tau > f.orbit) {
+        const p = (tau - f.orbit) / T_DROP;
         r = lerp(DIM.trackRadius, DROP_RADIUS, smooth(p));
         y = lerp(DIM.trackY, REST_Y + 0.06, p) + 0.06 * Math.sin(Math.PI * p);
       }
       this._place(theta, r, y);
       this.onRoll?.(Math.min(1, (f.w0 - f.decel * tau) / 8));
-      if (f.tau >= T_POCKETS) this._beginSettle(theta);
+      if (f.tau >= f.pocketsAt) this._beginSettle(theta);
       return;
     }
 

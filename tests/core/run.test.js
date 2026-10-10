@@ -133,7 +133,8 @@ describe('run state machine', () => {
     expect(state.debt).toBe(2);
     expect(state.round).toBe(1);
     expect(state.deposited).toBe(19);
-    expect(state.tokens).toBe(4 + 1 + 3 * 3);
+    // Start, a token every night, the debt reward and three sat-out nights.
+    expect(state.tokens).toBe(4 + 3 * 1 + 2 + 3 * 3);
     expect(state.coins).toBe(30 + 3 * 2); // three spins at debt 2's cost of 2
     expect(state.satOut).toBe(0);
     expect(state.stats.debtsPaid).toBe(1);

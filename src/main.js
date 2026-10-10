@@ -6,13 +6,19 @@ import { createInput } from './input/actions.js';
 import { loadSettings, platform, saveSettings } from './platform/index.js';
 import { loadFonts } from './ui/fonts.js';
 import { createHud } from './ui/hud.js';
+import { add } from './core/num.js';
+import { grantTalisman } from './core/run.js';
 import { BallAnimator } from './view/ball.js';
+import { createBell } from './view/bell.js';
 import { CameraDirector } from './view/camera.js';
 import { Interaction } from './view/interaction.js';
 import { LightingDirector } from './view/lighting.js';
+import { createRail } from './view/rail.js';
 import { createStage } from './view/stage.js';
+import { createCabinet } from './view/stations/cabinet.js';
 import { createCage } from './view/stations/cage.js';
 import { createTable } from './view/stations/table.js';
+import { buildTalismanMesh } from './view/talismanArt.js';
 import { DIM, SLICE, pocketAngle } from './view/wheel.js';
 import { SpinController } from './view/wheelSpin.js';
 
@@ -73,6 +79,43 @@ async function init() {
   cage.group.rotation.y = layout.cageYaw;
   scene.add(cage.group);
 
+  // Talismans: the rail and the Bell live on the table; the Cabinet stands
+  // on the player's right.
+  const makeCharm = (id) => buildTalismanMesh(id, { brass: wheel.materials.brass });
+  const onHoverItem = (target, ev) => game?.onHoverItem(target, ev);
+  const rail = createRail({
+    materials: wheel.materials,
+    interaction,
+    makeCharm,
+    callbacks: {
+      onSelect: (uid) => game.openTalisman(uid),
+      onMove: (uid, to) => game.moveTalisman(uid, to),
+      onRing: (uid) => game.ringBell(uid),
+      onHover: onHoverItem,
+    },
+  });
+  table.group.add(rail.group);
+  const bell = createBell({
+    materials: wheel.materials,
+    interaction,
+    callbacks: { onRing: () => game.ringBell(), onHover: onHoverItem },
+  });
+  table.group.add(bell.group);
+
+  const cabinet = createCabinet({
+    materials: wheel.materials,
+    interaction,
+    makeCharm,
+    callbacks: {
+      onBuy: (slot) => game.buy(slot),
+      onRestock: () => game.restock(),
+      onHover: onHoverItem,
+    },
+  });
+  cabinet.group.position.copy(layout.cabinetPos);
+  cabinet.group.rotation.y = layout.cabinetYaw;
+  scene.add(cabinet.group);
+
   let ball = null;
   const spin = new SpinController({
     camera,
@@ -96,7 +139,7 @@ async function init() {
   });
 
   const lighting = new LightingDirector('intro');
-  game = new Game({ stage, table, cage, ball, spin, director, hud, audio, platform, settings, lighting });
+  game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -110,7 +153,7 @@ async function init() {
     room.setPixelRatio(pr);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    for (const [name, anchor] of Object.entries(stage.anchorsFor(w / h, { table, cage }))) {
+    for (const [name, anchor] of Object.entries(stage.anchorsFor(w / h, { table, cage, cabinet }))) {
       director.setAnchor(name, anchor);
     }
   }
@@ -131,6 +174,14 @@ async function init() {
   input.on('choose3', play(() => game.chooseByIndex(2)));
   input.on('endNight', play(() => game.requestEndNight()));
   input.on('toggleFast', play(() => game.toggleFast()));
+  input.on('ringBell', play(() => game.ringBell()));
+  input.on('restock', play(() => game.restock()));
+  input.on('focusNext', play(() => game.focusStep(1)));
+  input.on('focusPrev', play(() => game.focusStep(-1)));
+  input.on('activate', play(() => game.activate()));
+  input.on('moveLeft', play(() => game.moveFocused(-1)));
+  input.on('moveRight', play(() => game.moveFocused(1)));
+  input.on('sell', play(() => game.sellFocused()));
   input.on('toggleMute', () => game.toggleMute());
   input.on('menu', () => (game.menuClose || !modalOpen()) && game.toggleMenu());
   // Browsers only allow sound after a gesture.
@@ -151,7 +202,7 @@ async function init() {
       onProgress: (e) => e > 0.75 && stage.setFigureGhost(true),
     });
     // The establishing shot shows the wheel lit; at the table it sinks into the dark.
-    lighting.set(game.view === 'cage' ? 'cage' : 'table');
+    lighting.set(game.view);
   }, 1700);
   setTimeout(() => hud.root.classList.add('show'), 1400);
 
@@ -186,7 +237,10 @@ async function init() {
 
     stage.figure.update(t);
     table.update(dt, t);
+    rail.update(dt, t);
+    bell.update(dt, t);
     cage.update(dt);
+    cabinet.update(dt, t);
     hud.update(dt);
 
     power += (game.power - power) * (1 - Math.exp(-dt * 2.5));
@@ -195,6 +249,9 @@ async function init() {
     const level = room.update(t, dt, hall, light.wheel);
     wheel.setLightLevel(level);
     table.setLampLevel(light.lamp * hall);
+    rail.setLightLevel(light.rail * hall);
+    cage.setLightLevel(light.cage * hall);
+    cabinet.setLightLevel(light.cabinet * hall);
     // The turret's cap keeps a faint glint even when the bulb is low.
     wheel.lensMat.emissiveIntensity = 2.4 * Math.max(level, 0.16 * hall);
 
@@ -208,12 +265,24 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, director, interaction, lighting };
+  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting };
   if (import.meta.env.DEV) {
     window.__roulette.debug = {
       /** Add coins to the hand, e.g. to try later debts before items exist. */
       addCoins(n) {
-        game.state = { ...game.state, coins: game.state.coins + n };
+        game.state = { ...game.state, coins: add(game.state.coins, n) };
+        game.save();
+        game.syncAll();
+      },
+      addTokens(n) {
+        game.state = { ...game.state, tokens: game.state.tokens + n };
+        game.save();
+        game.syncAll();
+      },
+      /** Hang a talisman without paying for it, e.g. grant('glass_eye'). */
+      grant(id) {
+        if (game.state.rail.length >= game.state.railHooks) return console.warn('The rail is full.');
+        game.state = grantTalisman(game.state, id);
         game.save();
         game.syncAll();
       },

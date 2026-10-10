@@ -29,22 +29,28 @@ roadmap.
 ## Architecture rules (doc section 9)
 
 - `src/core/` is pure game logic: no DOM, no three.js. Deterministic, using
-  seeded RNG streams. All money goes through the big-number wrapper `core/num.js`.
+  seeded RNG streams. All coin amounts (coins, deposits, debts, payouts, prices
+  in coins) go through the big-number wrapper `core/num.js`. Tokens are plain
+  integers.
 - The core returns ordered events; `view/` and `ui/` only play them back. The
   view never decides outcomes.
 - Talismans, fortunes, records and the rest are data objects with hooks in
   `src/core/content/` (from Phase 2).
 - Money is a plain number below 1e15 and a break_infinity Decimal above it.
   Always use the helpers in `core/num.js` (`add`, `mul`, `gte`, `format`…),
-  never `+` or `<` on money.
+  never `+` or `<` on coins.
+- Talismans act in rail order. Payout hooks are pure and build a plan
+  (`core/payout.js`); commit hooks change the run. Every effect emits a
+  `trigger` event so the view can show it.
 - `src/game.js` is the only place that calls `act()`. Station callbacks and
   input actions go through it.
 
 ## Status
 
-Phase 1 (core loop) is done. Next is Phase 2: talismans, the Curio Cabinet,
-tokens and the Bell. Without items the economy cannot carry a run past debt 1;
-that is expected (see `npm run sim`).
+Phase 1 (core loop) and Phase 2 (talismans, the Curio Cabinet, tokens and the
+Bell) are done. Next is Phase 3: Nudge, telegraphed Leans, pity and the Devil.
+With talismans the best simulator bot pays debt 1 in about 82% of runs and
+debt 2 in about 44%; debt 3 is a wall until Phase 3 (see `npm run sim`).
 
 ## Commands
 
@@ -55,8 +61,8 @@ that is expected (see `npm run sim`).
 - `npm run sim` runs the balance simulator. Re-run it after any economy change.
 - `npm run smoke` plays a debt end to end in headless Chromium; set
   `CHROME_PATH` (in the cloud container: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
-- In the dev build, `window.__roulette.debug.addCoins(n)` tops up coins for
-  testing later debts.
+- In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`
+  and `grant(id)` (hang a talisman for free) for testing.
 
 ## Conventions
 

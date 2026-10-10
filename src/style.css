@@ -442,6 +442,12 @@ img.mark {
   opacity: 0 !important;
 }
 
+/* At the Cabinet prices are in tokens: the tokens come forward. */
+.hud.at-cabinet .hud-tokens {
+  opacity: 1;
+  font-size: calc(42 * var(--u));
+}
+
 /* Payout: a swipe dragged across, the figure landing on it with a thunk. */
 .hud-payout {
   position: absolute;
@@ -684,6 +690,9 @@ img.mark {
   font-size: calc(25 * var(--u));
   rotate: -3deg;
   white-space: nowrap;
+  /* The note hangs from a zero-width anchor: size it to its own lines (each
+     capped by its max-width), not to the anchor. */
+  width: max-content;
 }
 
 .hud-note.flip .leader {
@@ -722,6 +731,98 @@ img.mark {
 
 .note-body .odds {
   font-size: 1.1em;
+}
+
+/* A talisman's or a compartment's note: typed rules under the scrawled name. */
+.note-body .rarity {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.35em 0 0 0.1em;
+  font-size: 0.5em;
+  color: var(--brass);
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  text-shadow: var(--halo);
+}
+
+.note-body .rarity .rarity-marks {
+  font-size: 2.6em;
+}
+
+.note-body .line,
+.note-body .status,
+.note-body .source {
+  max-width: calc(330 * var(--u));
+  white-space: normal;
+  font-size: 0.66em;
+  line-height: 1.35;
+  color: var(--bone);
+  text-shadow: var(--halo);
+}
+
+.note-body .line {
+  margin-top: 0.45em;
+}
+
+.note-body .status {
+  margin-top: 0.35em;
+  color: var(--bone-dim);
+}
+
+.note-body .source {
+  margin: 0.1em 0 0 1.1em;
+  color: var(--bone-dim);
+}
+
+.note-body .source b {
+  font-weight: 400;
+  color: var(--brass);
+}
+
+.note-body .was {
+  position: relative;
+  font-size: 0.8em;
+  color: var(--bone-dim);
+}
+
+.note-body .was .was-strike {
+  position: absolute;
+  left: -0.1em;
+  top: 0.15em;
+  width: 2.2em !important;
+}
+
+.note-body .price {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  margin-top: 0.4em;
+  color: var(--brass);
+}
+
+.note-body .price .typed {
+  font-size: 0.6em;
+  color: var(--bone-dim);
+  text-shadow: var(--halo);
+}
+
+.note-body .price .amount {
+  color: var(--brass);
+  font-size: 1.05em;
+}
+
+.note-body .price .unit {
+  font-size: 1em;
+}
+
+.note-body .price.short .amount {
+  color: var(--bone-dim);
+  opacity: 0.7;
+}
+
+.note-body .price .short-by {
+  color: var(--blood);
 }
 
 /* Toast: a typed line; a refusal gets a red scratch under it. */
@@ -799,6 +900,17 @@ img.mark {
   font-size: calc(30 * var(--u));
   color: var(--bone);
   animation: popup-rise 1.3s ease-out forwards;
+}
+
+/* A talisman acting: smaller, in brass, so chip payouts stay the loudest. */
+.hud-popup.trigger {
+  font-size: calc(19 * var(--u));
+  color: var(--brass);
+}
+
+.hud-popup.tok {
+  font-size: calc(21 * var(--u));
+  color: var(--brass);
 }
 
 @keyframes popup-rise {

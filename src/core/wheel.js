@@ -42,3 +42,9 @@ export function drawPocket(wheel, rng) {
   }
   return wheel.pockets.length - 1;
 }
+
+/** The pocket `steps` along the wheel from `index` (positive is clockwise). */
+export function neighbourIndex(wheel, index, steps) {
+  const n = wheel.pockets.length;
+  return (((index + steps) % n) + n) % n;
+}

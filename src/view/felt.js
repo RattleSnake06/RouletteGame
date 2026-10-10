@@ -308,7 +308,7 @@ export class FeltCanvas {
    * Light up the numbers a bet covers (hover) and/or a landed number (result).
    * `numbers` is a list of numbers; `spot` optionally marks the chip position.
    */
-  highlight({ numbers = [], spotId = null, result = null } = {}) {
+  highlight({ numbers = [], spotId = null, result = null, foreseen = null } = {}) {
     const ctx = this.overlay.getContext('2d');
     const s = 0.5; // overlay is half resolution
     const u = (v) => this._u(v) * s;
@@ -329,6 +329,30 @@ export class FeltCanvas {
         const r = sp.rect;
         ctx.fillRect(u(r.x0), u(r.y0), (r.x1 - r.x0) * px, (r.y1 - r.y0) * px);
       }
+    }
+    if (foreseen !== null) {
+      // The Glass Eye's number: a slow bone ring with an eye drawn above it.
+      const r = cellRect(foreseen);
+      const cx = u((r.x0 + r.x1) / 2);
+      const cy = u((r.y0 + r.y1) / 2);
+      const rad = Math.min((r.x1 - r.x0) * px, (r.y1 - r.y0) * px) * 0.62;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(237, 229, 211, 0.95)';
+      ctx.lineWidth = px * 0.07;
+      ctx.setLineDash([px * 0.18, px * 0.1]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = px * 0.05;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - rad * 1.25, rad * 0.55, rad * 0.28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(196, 154, 82, 1)';
+      ctx.beginPath();
+      ctx.arc(cx, cy - rad * 1.25, rad * 0.16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
     if (result !== null) {
       const r = cellRect(result);

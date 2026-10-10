@@ -193,6 +193,66 @@ export class WheelAudio {
     this._tone({ freq: 160, gain: 0.08, decay: 0.12, type: 'square' });
   }
 
+  /** The service bell: a bright ding when a talisman answers, a dull clack when none does. */
+  bell(kind = 'ding') {
+    if (kind === 'dull') {
+      this._burst({ freq: 1200, q: 3, gain: 0.18, decay: 0.05 });
+      this._tone({ freq: 410, to: 380, gain: 0.07, decay: 0.18, type: 'triangle' });
+      return;
+    }
+    // Inharmonic partials, as a struck brass dome has.
+    this._burst({ freq: 5200, q: 2, gain: 0.12, decay: 0.03 });
+    this._tone({ freq: 1568, gain: 0.14, decay: 1.6 });
+    this._tone({ freq: 1568 * 2.76, gain: 0.04, decay: 0.7 });
+    this._tone({ freq: 1568 * 5.4, gain: 0.015, decay: 0.35 });
+  }
+
+  /** A talisman acting during a payout; `step` climbs within a chip's line. */
+  trigger(step = 0) {
+    const f = 880 * 2 ** (Math.min(step, 10) / 10);
+    this._burst({ freq: 4200, q: 6, gain: 0.05, decay: 0.025 });
+    this._tone({ freq: f, gain: 0.06, decay: 0.16, type: 'triangle' });
+    this._tone({ freq: f * 2.4, gain: 0.02, decay: 0.08 });
+  }
+
+  /** The Cabinet's restock crank: a ratchet. */
+  crank() {
+    for (let i = 0; i < 9; i++) this._burst({ freq: 2600 - i * 80, q: 5, gain: 0.07, decay: 0.025, at: i * 0.07 });
+    this._tone({ freq: 90, to: 70, gain: 0.08, decay: 0.7, type: 'triangle' });
+  }
+
+  /** Tokens pushed across the counter: a heavier clink than coins. */
+  buy() {
+    [0, 0.07, 0.15].forEach((at, i) => {
+      this._tone({ freq: 1250 + i * 140, gain: 0.08, decay: 0.3, type: 'triangle', at });
+      this._burst({ freq: 3800, q: 3, gain: 0.05, decay: 0.03, at });
+    });
+  }
+
+  /** A talisman taken off its hook and traded for tokens. */
+  sell() {
+    this._burst({ freq: 2000, q: 1, gain: 0.08, decay: 0.08, type: 'highpass' });
+    this._tone({ freq: 1100, to: 900, gain: 0.06, decay: 0.25, type: 'triangle', at: 0.05 });
+  }
+
+  /** The Piggy Bank smashed: a ceramic crack, then the coins spill. */
+  smash() {
+    this._burst({ freq: 2800, q: 0.8, gain: 0.35, decay: 0.12 });
+    this._burst({ freq: 900, q: 1, gain: 0.25, decay: 0.2, type: 'lowpass' });
+    for (let i = 0; i < 8; i++) this._tone({ freq: 1900 + Math.random() * 1400, gain: 0.05, decay: 0.2, type: 'triangle', at: 0.08 + i * 0.05 });
+  }
+
+  /** The Glass Eye seeing ahead: a glassy shimmer. */
+  foresee() {
+    [1320, 1760, 2217, 2640].forEach((f, i) => this._tone({ freq: f, gain: 0.035, decay: 1.1, at: i * 0.06 }));
+  }
+
+  /** The Wheel of Fortune throws the ball again: a rising whoosh. */
+  rethrow() {
+    this._burst({ freq: 900, q: 0.6, gain: 0.18, decay: 0.45, type: 'lowpass' });
+    this._tone({ freq: 220, to: 660, gain: 0.07, decay: 0.4, type: 'sawtooth' });
+  }
+
   tick(speed) {
     const ctx = this.ctx;
     if (!ctx || this.muted) return;

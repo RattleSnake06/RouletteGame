@@ -1,45 +1,78 @@
-import { betCovers, betOdds, getBet } from './bets.js';
-import { add, mul, floor } from './num.js';
+import { lifecycle } from './effects.js';
+import { commitPlan, evaluate } from './payout.js';
+import { Rng } from './rng.js';
+import { recordLanding } from './tally.js';
 import { drawPocket } from './wheel.js';
 
-/**
- * Payout of one winning chip (design doc 5.5):
- *   chip value × Stake × odds × Odds mult × pocket mult × talismans.
- * Stake, Odds mult, pocket and talisman factors are all 1 until later phases.
- */
-export function chipPayout(chip, bet) {
-  return floor(mul(chip.value, betOdds(bet)));
-}
+// Settles one spin on a draft (doc 5.5). The outcome is decided here, before
+// anything is animated:
+//   1. beforeSpin hooks           (Phase 3: Nudge and the Devil's chance)
+//   2. land each ball             (a foreseen landing from the Glass Eye, else a draw)
+//   3. evaluate the payout        (pure)
+//   4. Wheel of Fortune           (an armed miss is thrown again; the first throw counts for nothing)
+//   5. commit the payout
+//   6. tally the final landings, then afterSpin hooks
 
-/**
- * Settles one spin. The outcome is decided here, before anything is animated.
- * Chips are settled in chip order, which later becomes rail order for talismans.
- */
-export function resolveSpin({ wheel, chips, placements }, rngWheel) {
-  const pocketIndex = drawPocket(wheel, rngWheel);
-  const pocket = wheel.pockets[pocketIndex];
-  const wins = [];
-  const losses = [];
-  let total = 0;
-  for (const chip of chips) {
-    const betId = placements[chip.id];
-    if (!betId) continue;
-    const bet = getBet(betId);
-    if (betCovers(bet, pocket)) {
-      const amount = chipPayout(chip, bet);
-      wins.push({ chipId: chip.id, betId, amount });
-      total = add(total, amount);
-    } else {
-      losses.push({ chipId: chip.id, betId });
+/** Balls per spin. Multi-ball talismans arrive later. */
+export const ballCount = () => 1;
+
+const describe = (state, landings) =>
+  landings.map(({ ball, pocketIndex }) => {
+    const p = state.wheel.pockets[pocketIndex];
+    return { ball, pocketIndex, number: p.number, color: p.color };
+  });
+
+/** Returns the spin's result summary; detail events go through `emit`. */
+export function resolveSpin(s, emit) {
+  lifecycle(s, 'beforeSpin', emit);
+
+  const rng = new Rng(s.rng.wheel);
+  const balls = Array.from({ length: ballCount(s) }, (_, i) => i);
+  const foreseen = s.foreseen;
+  let landings = balls.map((ball) => {
+    if (ball === 0 && foreseen) {
+      emit({ type: 'foreseenUsed', pocketIndex: foreseen.pocketIndex, by: foreseen.by });
+      return { ball, pocketIndex: foreseen.pocketIndex };
     }
+    return { ball, pocketIndex: drawPocket(s.wheel, rng) };
+  });
+  s.foreseen = null;
+
+  let plan = evaluate(s, landings);
+  let firstThrow = null;
+  if (s.armed.rethrow) {
+    const { by } = s.armed.rethrow;
+    if (plan.miss) {
+      firstThrow = describe(s, landings);
+      landings = balls.map((ball) => ({ ball, pocketIndex: drawPocket(s.wheel, rng) }));
+      plan = evaluate(s, landings);
+      s.stats.rethrows += 1;
+      emit({ type: 'rethrow', by, first: firstThrow });
+    }
+    // Armed for one spin only: a spin that pays spends the charge anyway.
+    s.armed = { rethrow: null };
   }
-  return {
-    pocketIndex,
-    number: pocket.number,
-    color: pocket.color,
-    wins,
-    losses,
-    total,
-    miss: wins.length === 0,
+  s.rng.wheel = rng.state();
+
+  commitPlan(s, plan, emit);
+  for (const { pocketIndex } of landings) recordLanding(s.tally, s.wheel.pockets[pocketIndex].number);
+
+  const final = describe(s, landings);
+  const result = {
+    balls: final,
+    pocketIndex: final[0].pocketIndex,
+    number: final[0].number,
+    color: final[0].color,
+    foreseen: !!foreseen,
+    firstThrow,
+    lines: plan.lines,
+    losses: plan.losses,
+    wins: plan.lines.map(({ ball, chipId, betId, amount, hit }) => ({ ball, chipId, betId, amount, hitMult: hit.mult })),
+    chipTotal: plan.chipTotal,
+    bonusCoins: plan.bonusCoins,
+    bonusTokens: plan.bonusTokens,
+    miss: plan.miss,
   };
+  lifecycle(s, 'afterSpin', emit, { result });
+  return result;
 }

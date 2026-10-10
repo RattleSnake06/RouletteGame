@@ -3,9 +3,10 @@
 *Rien ne va plus* is the croupier's call when betting closes: "no more bets".
 Decisions made so far are listed under [Decisions](#12-decisions).
 
-Status: plan only. The spinnable wheel scene exists; nothing below is built yet.
-Every number here is a first draft meant to be tuned with the balance simulator
-described in [9.8](#98-testing-and-the-balance-simulator).
+Status: Phase 1 (the core loop) and Phase 2 (talismans, the Curio Cabinet,
+tokens and the Bell) are built; see [10](#10-roadmap). Every number here is a
+first draft meant to be tuned with the balance simulator described in
+[9.8](#98-testing-and-the-balance-simulator).
 
 **Contents**
 
@@ -160,12 +161,13 @@ flowchart TD
 | Currency | Earned from | Spent on |
 |---|---|---|
 | **Coins** | Winning chips, some items, debt rewards | Spins, Cabinet restocks, fortune rerolls, deposits |
-| **Tokens** (brass casino tokens) | Short nights, sat-out rounds, debt rewards, some items | Talismans and oddities at the Curio Cabinet |
+| **Tokens** (brass casino tokens) | Every night's end, short nights, sat-out rounds, debt rewards, some items | Talismans and oddities at the Curio Cabinet |
 
 **The Cage.** Deposits are one-way: coins go in and count toward the debt. At the
 end of every round, deposits earn **interest (base 5%)**. Coins in hand are what
 you spend, and what the Devil takes (5.7). The core money decision is to bank
 coins (safe, growing) or keep them in hand (restocks, rerolls, flexibility).
+The Cage also pays **+1 token** at the end of every night, with the interest.
 
 When a debt is paid, the debt amount is removed from the deposits and any surplus
 stays in the Cage, still earning interest.
@@ -203,8 +205,13 @@ From debt 10 the growth factor itself doubles each debt (×6, ×12, ×24...), so
 endless runs reach absurd numbers. That is why money uses a big-number type from
 day one (9.5).
 
-**Debt reward:** +1 token, +3 tokens per sat-out round, and coins equal to 3 spins
+**Debt reward:** +2 tokens, +3 tokens per sat-out round, and coins equal to 3 spins
 at the next debt's spin cost.
+
+**Token income** in a debt is then 3 (one per night) + 2 (the reward), plus 1 per
+short night and 3 per night sat out: about 5–8 tokens a debt, or two commons. The
+doc's first draft (short nights, sit-outs and +1 per debt only) gave about 2 a
+debt, too little for a shop to matter, so the owner chose a token every night.
 
 **First sanity check (debt 1):** three chips of value 1 return about
 3 × 36/37 ≈ 2.9 coins per spin, against a spin cost of 1. Three long nights are
@@ -214,8 +221,16 @@ it. That is the intended tension.
 
 **Phase 1 simulator result** (no items, Leans or Devil): about 31% of runs pay
 debt 1, about 1% pay debt 2, none reach debt 3. Debt 2 charges 2 per spin
-against about 2.9 coins of income, so only multipliers can carry a run. The
-numbers stay as drafted until Phase 2–3 give the simulator something to tune.
+against about 2.9 coins of income, so only multipliers can carry a run.
+
+**Phase 2 simulator result** (talismans, no Leans or Devil; 2,000 runs per bot).
+The best bot, which adapts its bets to what it owns, pays debt 1 in about 82% of
+runs, debt 2 in about 44%, debt 3 in about 4%, and never debt 4; an outside bettor
+pays debt 1 most often (86%) but fades at debt 2 (29%). Debt 1 and 2 sit a little
+under their Phase 2 targets (9.8). Debt 3 (666 owed) is a wall without Leans and
+Nudge: the spec predicted it, and Phase 3 is where it gets tuned. The debt table
+stays as drafted until then. Strongest alone: the Glass Eye (a sure straight-up
+once a debt). Weakest early: Horseshoe and Wheel of Fortune.
 
 ### 5.3 The table: chips and bets
 
@@ -252,7 +267,7 @@ is the risk, as with Clover Pit's spin cost.
 | *Voisins du Zéro* | 17 | 2 | the arc around zero (unlockable) |
 
 **Zero** loses every bet except bets that include it. It is the natural, frequent
-"house wins" moment, and items can turn it around (Saint's Medal, House Key).
+"house wins" moment, and items can turn it around (House Key; later Saint's Medal).
 
 **Bet levels.** Some fortunes and oddities level up a bet type. Each level adds the
 base odds again (Straight up: 36 → 72 → 108). This is the slow, permanent scaling
@@ -293,19 +308,25 @@ testable and replayable, and it is the only way luck can be shown honestly.
 
 Order of operations:
 
-1. **Before the spin:** use any Bell actives; total up Nudge (talismans + Lean +
-   pity); total up the Devil's chance.
-2. **Land:** draw a pocket for each ball by width (RNG stream `wheel`).
+1. **Before the spin:** Bell actives are rung before this point, while betting
+   (5.8). Run before-spin hooks; total up Nudge (talismans + Lean + pity); total
+   up the Devil's chance.
+2. **Land:** draw a pocket for each ball by width (RNG stream `wheel`). A landing
+   the Glass Eye foresaw is used instead of a draw.
 3. **Nudge:** each ball may hop up to *N* pockets along the wheel toward the best
    payout (5.6).
 4. **Devil:** roll the Devil's chance (stream `devil`). Nudge cannot help here. If
    it fires, skip to 5.7.
 5. **Pay:** for each ball, for each chip whose bet covers the landed number, and
    for geometry effects such as Mirror Shard and Croupier's Rake, compute the
-   payout. Talismans trigger left to right along the rail.
-6. **After the spin:** update streaks (misses, repeats, hot dozens) and run
-   after-spin hooks.
-7. **Bank** the total into coins in hand.
+   payout. Talismans trigger left to right along the rail: for each chip, each
+   talisman in rail order adds its Stake, then its odds, then its multipliers,
+   so the playback is strictly left to right.
+6. **Wheel of Fortune:** if it was armed and the spin pays nothing, the ball is
+   thrown again (fresh draws, steps 2–5 again) and the second result stands.
+7. **After the spin:** update streaks (repeats, hot dozens) and run after-spin
+   hooks.
+8. **Bank** the total into coins in hand.
 
 **Payout of one winning chip:**
 
@@ -318,12 +339,15 @@ payout = chip value × Stake × odds × Odds mult × pocket mult × (each × tal
 - **Odds mult** starts at 1. Bonuses add to it ("+1 Odds").
 - **Pocket mult** is the product of the landed pocket's enhancements.
 - **× talismans** multiply one after another.
+- A secondary hit (Croupier's Rake's neighbours) multiplies by its own factor
+  (×¼). Each chip's payout is rounded down once, at the end.
 
 Two brass plaques on either side of the felt show **STAKE ×n** and **ODDS ×n**.
 As in Clover Pit, the useful question is always which factor is weakest
 relative to what an upgrade adds.
 
-A **miss** is a spin that pays nothing at all. Misses feed pity (5.6).
+A **miss** is a spin where no chip pays. Coins from talismans (Lucky Penny) do
+not undo a miss. Misses feed pity (5.6).
 
 ### 5.6 Luck: Nudge and the Lean
 
@@ -380,27 +404,57 @@ blackout lands harder.
 **Talismans** are gambler's superstitions and curios: a rabbit's foot, an evil
 eye, a pawn ticket. They hang on a brass **rail** above the table, on **6 hooks**
 at the start. **Order matters**: they trigger left to right, which matters for
-copy effects, retriggers and "first/last" effects. Sell for half price in tokens.
+copy effects, retriggers and "first/last" effects. Drag one along the rail to
+reorder it (or Tab to it and press [ or ]).
 
-**The Curio Cabinet** is a glass-front cabinet with 4 lit compartments: 3 talismans
-and 1 **oddity** (a chip, a piece of wheel work, a record or a bet level).
+**Selling** returns half the price paid, rounded down, at least 1 token (common
+1, uncommon 2, rare 3, legendary 4). Each talisman remembers what it cost. A
+sold talisman can be offered again.
 
-| Rarity | Price (tokens) | Relative weight |
-|---|---|---|
-| Common | 3 | 1.00 |
-| Uncommon | 4 | 0.85 |
-| Rare | 6 | 0.60 |
-| Legendary | 9 | 0.30 |
-| Cursed | from black cards only | none |
+**The Curio Cabinet** is a low glass counter with 4 lit compartments: 3 talismans
+and 1 **oddity** (a chip, a piece of wheel work, a record or a bet level). Until
+oddities exist (Phase 5), the 4th compartment is boarded up: "not yet".
+
+| Rarity | Price (tokens) | Relative weight | Chance, first compartment (Phase 2 pool) |
+|---|---|---|---|
+| Common | 3 | 1.00 | 50.8% |
+| Uncommon | 4 | 0.85 | 28.8% |
+| Rare | 6 | 0.60 | 15.3% |
+| Legendary | 9 | 0.30 | 5.1% |
+| Cursed | from black cards only | none | none |
 
 Rarity works by reroll, as in Clover Pit: pick a random item, then reroll it with
-probability 1 − weight. Duplicates are not offered.
+probability 1 − weight (stream `cabinet`). Nothing on the rail is offered, and
+the same talisman never fills two compartments at once. Later compartments
+shift a little, since they cannot repeat the first.
 
-**Restocks:** free at the start of every round. A paid restock costs the debt's
-restock base, +20% (rounded up) after each paid restock, resetting every debt.
+**Buying** takes a free hook. With the rail full, the Cabinet asks which talisman
+to sell; the sale and the purchase happen in one step, so the refund can help
+pay.
 
-**The Bell.** A brass service bell on the table triggers active talismans with
-charges (Wheel of Fortune, Glass Eye, Piggy Bank). Ding.
+**Restocks:** free at the start of every night, including the first. A paid
+restock costs the debt's restock base, +20% (rounded up) after each paid
+restock, resetting every debt (debt 1: 2, 3, 4, 5, 6, 8...). Restocking never
+changes the spins: the Cabinet draws from its own stream.
+
+**The Bell.** A brass service bell on the table wakes active talismans: the
+Wheel of Fortune, the Glass Eye and the Piggy Bank. Ding.
+
+- **One ring wakes one talisman:** the leftmost that can answer. Clicking a
+  talisman's brass tag rings the Bell for that one.
+- **The Piggy Bank** only answers a ring at its own tag, because smashing it
+  cannot be undone.
+- When nothing can answer, the bell rings dull and nothing changes.
+- **Charges** refill at each new debt, except a charge still waiting to act (a
+  foreseen landing, or an armed throw, not yet spun).
+- **Wheel of Fortune** (2 charges a debt): ring it before a spin to arm it. If that
+  spin pays nothing, the ball is thrown again and the second result stands. The
+  charge is spent even when the first throw pays.
+- **Glass Eye** (1 charge a debt): the next landing is drawn when you ring, shown
+  on the felt and in the note, and the next spin lands there. Bets can be moved
+  onto it.
+- The Bell works whenever betting is open: before choosing a night, while
+  betting, and after the night's last spin.
 
 ### 5.9 Madame Zero: fortunes
 
@@ -443,6 +497,14 @@ A first pool to build from. Names and numbers are drafts.
 
 ### 6.1 Talismans (40)
 
+**Built in Phase 2 (15):** Red Ribbon, Horseshoe, Matchbook, Lucky Penny, Crumpled
+Receipt, Pawn Ticket (common); Brass Knuckles, Croupier's Rake, Ledger, Abacus
+(uncommon); Wheel of Fortune, Glass Eye, Piggy Bank (rare); Twin Mirrors, House
+Key (legendary). Mirror Shard is the first alternate. Black Cat and Saint's Medal
+wait: the first 15 needed corners and interest more than a second colour or zero
+item. Their data lives in `src/core/content/talismans.js`; the rows below are
+the rules as built.
+
 | Talisman | Rarity | Effect | Plays with |
 |---|---|---|---|
 | Rabbit's Foot | Common | +1 Nudge | luck |
@@ -459,12 +521,12 @@ A first pool to build from. Names and numbers are drafts.
 | Wishbone | Common | The first miss each round refunds its spin cost | safety |
 | Evil Eye | Uncommon | Devil chance halved | safety |
 | Mirror Shard | Uncommon | The pocket directly opposite also counts as hit, at ×0.5 | wheel geometry |
-| Croupier's Rake | Uncommon | Straight-ups on the result's wheel neighbours pay at ×0.25 | wheel geometry |
+| Croupier's Rake | Uncommon | Straight-ups on the two pockets beside the result also pay, at ×0.25 | wheel geometry |
 | Abacus | Uncommon | Dozen and column chips +1 Odds for each earlier hit on that dozen or column this round | streaks |
 | Hourglass | Uncommon | +1 spin per round | tempo |
 | Saint's Medal | Uncommon | Zero counts as both red and black | zero |
-| Ledger | Uncommon | When a number repeats within the debt, that spin pays ×2 | streaks |
-| Brass Knuckles | Uncommon | Corner chips ×2 | inside bets |
+| Ledger | Uncommon | A number already seen this debt pays ×2 | streaks |
+| Brass Knuckles | Uncommon | Corner chips ×2 (First Four is not a corner) | inside bets |
 | Thirteen Ball | Uncommon | Result 13: everything pays ×13, and Nudge never moves the ball off 13 | jackpot |
 | Fortune Cookie | Uncommon | Each spin names a random number; straight-ups on it pay ×7 | variance |
 | Compass | Uncommon | +4 Nudge, clockwise hops only | luck |
@@ -473,15 +535,15 @@ A first pool to build from. Names and numbers are drafts.
 | Gilder's Knife | Rare | Once per round, gild the pocket the ball lands on | wheel-building |
 | Snakeskin | Rare | Unlocks the Snake bet; Snake chips +2 Stake | special bets |
 | Croupier's Glove | Rare | Unlocks sector bets; sector chips ×1.5 | special bets |
-| Wheel of Fortune | Rare | Bell, 2 charges per debt: re-roll the ball, bets kept | active |
-| Glass Eye | Rare | Bell, 1 charge per debt: see the next result before you bet | active |
-| Piggy Bank | Rare | Gains 1 coin of value each spin. Bell: smash it for twice its value. | economy |
+| Wheel of Fortune | Rare | Bell, 2 charges per debt: if the next spin pays nothing, the ball is thrown again | active |
+| Glass Eye | Rare | Bell, 1 charge per debt: see where the next ball lands, before you bet | active |
+| Piggy Bank | Rare | Gains 1 coin of value each spin. Ring the Bell at it: smash it for twice its value. | economy |
 | Table Map | Rare | Splits and corners also pay when the ball lands next to them on the table | table geometry |
 | Golden Ball | Legendary | All payouts ×3; Devil chance +3% | risk |
 | Ouroboros | Legendary | Same number as the previous spin: ×36 | jackpot |
 | House Key | Legendary | When zero hits, every chip on the table wins | zero |
 | Metronome | Legendary | Every 4th spin of a round is a Lean | timing |
-| Twin Mirrors | Legendary | Copies the talisman to its right | combos |
+| Twin Mirrors | Legendary | Copies the talisman to its right (not Bell abilities, purchases or sales; mirrors skip mirrors) | combos |
 | Loaded Wheel | Legendary | On purchase, widen all red pockets +0.5 | wheel-building |
 | Bone Dice | Cursed | +4 Stake; Devil chance +2% | Devil |
 | Black Candle | Cursed | Leans are twice as strong; no pity | Devil, timing |
@@ -626,10 +688,10 @@ each with its own small light source:
 
 | Station | Object | Purpose |
 |---|---|---|
-| The Table | baize lectern at the wheel's front-left rim, where the figure stands now | chips, Bell, STAKE/ODDS plaques, talisman rail above |
+| The Table | baize lectern at the wheel's front-left rim, where the figure stands now | chips; the Bell on the near-left corner; a low brass talisman rail along the far edge, with the STAKE/ODDS plaques riveted to its posts |
 | The Wheel | the giant wheel under the bulb (built) | spins |
 | The Cage | brass teller's cage with mechanical counters | deposit coins; OWED / DEPOSITED / NIGHTS LEFT / 666 counter |
-| Curio Cabinet | glass cabinet, 4 lit compartments, restock crank, rarity chart nailed beside it | shop |
+| Curio Cabinet | low glass counter on the player's right (kept below the wheel's rim in the wide shot), 4 lit compartments, restock crank, rarity chart nailed to its front | shop |
 | Madame Zero | fortune-teller automaton in a glass booth, green eyes | fortunes |
 | Gramophone | on a stool, record crate beneath | records |
 | Boards | flip results board, stats chalkboard, payout placard | information |
@@ -641,7 +703,8 @@ each with its own small light source:
 - **Betting (first person at the table).** You look down at the felt with the
   giant wheel beyond it. Turn left and right between stations with A/D, the arrow
   keys or screen-edge clicks: fixed anchors with smooth eased moves, like turning
-  your head in Clover Pit.
+  your head in Clover Pit. From left to right: the Cage, the table, the Cabinet
+  (where the view leans in over the counter). Turning never wraps.
 - **Spinning (third person, cinematic).** When the ball launches, the camera lifts
   out of your body to the current wide shot, and the figure at the table is you.
   It returns to the table for the payout.
@@ -697,12 +760,25 @@ bounces, never the result.
   - The marks are seeded procedural SVG (`ui/marks.js`), baked once to images: no
     SVG filter runs while the HUD animates, and every animation has a reduced
     motion fallback.
-- **Everything else lives on objects:** prices on the Cabinet's tags, debt on the
+- **Everything else lives on objects:** prices on the Cabinet's paper tags (a
+  brass hexagon means tokens, tally strokes the rarity, "sold" in red chalk), debt on the
   Cage, odds on the placard, probabilities on the chalkboard, the Devil's chance
   on the 666 counter, multipliers on the brass plaques.
-- **Tooltips:** hover any object, talisman, chip or felt number for a note
-  scrawled beside it, with a scratch leading back to the thing it describes
-  (anchored to the object, not the pointer).
+- **Notes (tooltips):** hover any object, talisman, chip or felt number for a
+  note scrawled beside it, with a scratch leading back to the thing it describes
+  (anchored to the object, not the pointer). Tab walks the same notes at each
+  station, so everything shown on hover is reachable without a mouse.
+  - *Talisman:* name, rarity as tally strokes, its rule, its state ("2 charges",
+    "holds 14", "copying Red Ribbon") and what it sells for, in brass.
+  - *Compartment:* the same, with the price; dim with "2 short" when you cannot
+    pay, and a warning when the rail is full.
+  - *Bet spot:* what it pays with the rail as it is: "pays ~~36×~~ 48×", with
+    "+12 Horseshoe" in small print. The plaques show that bet's STAKE and ODDS.
+  - *Crank, chart, Bell, plaques:* what they do and cost.
+- **Payout playback:** talismans shake and flash on their hooks as they act, left
+  to right, with a small brass note of what they added ("+1 Stake", "×2"); the
+  plaques tick through each chip's factors; chips glow and pop their payouts.
+  Long cascades compress so playback never passes 2.5 seconds.
 - **Menus:** pause, settings, run summary, Almanac. These are written on the
   dark too: the room falls away behind a soot veil, the title is scrawled (a paid
   debt is struck out with "paid" after it), figures sit in a ledger with nicked
@@ -724,6 +800,10 @@ bounces, never the result.
   - *Payout*: back at the table, the wheel sinks slowly into the dark again.
   - *At the Cage*: the wheel stays dark, the table lamp half-lit, the Cage under
     its own green banker's lamp.
+  - *At the Cabinet*: the light inside the case comes up; the table lamp and
+    the Cage sink.
+  - Each station's light is a channel of the mood (wheel, lamp, rail, cage,
+    cabinet), so a turn hands the light to where the player looks.
 - Add an **optional low-resolution "crunch" filter**: a lower internal render
   resolution, ordered dithering and a reduced palette, for Clover Pit's lo-fi
   texture. It can be the default or an option (see open decisions).
@@ -776,11 +856,16 @@ src/
     wheel.js        pocket model: numbers, colours, widths, enhancements
     bets.js         bet types, coverage, odds, levels
     resolve.js      one spin -> result + events
+    payout.js       a spin's payout plan: hits, chip lines, talisman triggers (pure)
     nudge.js
     devil.js
-    economy.js      debts, spin costs, interest, restock and reroll costs
-    run.js          run state machine
-    effects.js      hook dispatch
+    economy.js      debts, spin costs, interest, restock and reroll costs, prices
+    run.js          run state machine and actions
+    effects.js      hook dispatch and rail order
+    cabinet.js      offers and restocks
+    bell.js         the Bell queue and rings
+    tally.js        what has landed this night and this debt (streak items)
+    selectors.js    read models for the view and the sim (rail, Cabinet, bet previews)
     save.js
     content/
       talismans.js  fortunes.js  records.js  engravings.js  enhancements.js  chips.js
@@ -788,10 +873,12 @@ src/
     room.js         (current room.js)
     wheel/          wheel built from pocket data (refactor of current wheel.js)
     ball.js         choreographed ball
+    rail.js  bell.js  talismanArt.js   the talisman rail, the Bell, charm faces
     stations/       table, cage, cabinet, oracle, gramophone, boards, vault, figures
     camera.js       anchors and transitions
     fx/             postfx (current), payout popups, sparks
-  ui/               HUD, tooltips, menus
+  ui/               HUD, notes (tooltips), menus
+  playback.js       plays a spin's events back (payout cascade)
   audio/            current audio.js, then samples and records
   input/            actions mapped from mouse, keyboard, later gamepad (9.10)
   platform/         saves, achievements, window: web and Electron adapters (9.10)
@@ -810,12 +897,23 @@ RUN_START → DEBT_START → ROUND_START (choose package)
   → (paid ? DEBT_START : GAME_OVER)       goal reached → LEAVE_OR_CONTINUE
 ```
 
+As built, the phases are `roundStart`, `betting`, `nightOver` and `gameOver`.
+The actions are `choosePackage`, `placeChip`, `removeChip`, `deposit`, `spin`,
+`endNight`, and from Phase 2 `buy` (with an optional `sellUid` for a full rail),
+`sell`, `moveTalisman`, `restock` and `ringBell` (with an optional `uid`). The
+Phase 2 actions work in every phase but `gameOver`. A refused action returns a
+`rejected` event with a reason and a `code` (`noTokens`, `railFull`, `soldOut`,
+`noCoins`, `wrongPhase`, `notUsable`, `empty`). A new run runs its hooks in
+order: run start, debt start, then the first night's start.
+
 ### 9.4 Randomness
 
 - One **run seed**, shown in the run summary so runs can be shared and replayed.
   A `?seed=XXXX-XXXX` link starts that seed, but never replaces a run in progress.
 - **Separate streams** derived from it: `wheel`, `devil`, `lean`, `cabinet`,
-  `fortunes`, `misc`. Restocking the Cabinet never changes your next spin.
+  `fortunes`, `misc`. Restocking the Cabinet never changes your next spin. The
+  Glass Eye draws the next landing from `wheel` when it is rung and keeps it, so
+  the stream ends up where it would have anyway.
 - Save after each resolution so reloading cannot re-roll a spin.
 
 ### 9.5 Big numbers
@@ -856,11 +954,25 @@ data object with optional hooks:
 }
 ```
 
-Hook points: `runStart`, `debtStart`, `roundStart`, `beforeSpin` (Nudge, Devil
-chance), `ballLanded`, `chipStake`, `chipOdds`, `chipPaid`, `afterSpin`,
-`roundEnd` (interest, tokens), `debtPaid`, `purchased`, `sold`, `bell`. Every hook
-that changes something emits an event, which is what makes the talisman shake on
-screen.
+A definition can also carry `tags`, `charges` ({ max, refill: 'debt' }), `bell`
+({ usable(ctx), ring(ctx), targetOnly }), `copyable`, `copies: 'right'` (Twin
+Mirrors), `init()` for its own data, and `status()` for its note.
+
+Hook points:
+
+- *Payout (pure; they build the spin's plan):* `hits` (extra pockets that count
+  as hit, e.g. Croupier's Rake), `ballLanded`, `covers` (a bet counts as covering
+  the hit, e.g. House Key on zero), `chipStake`, `chipOdds`, `chipMult`,
+  `chipPaid`, `chipLost`.
+- *Commit (they change the run straight away):* `runStart`, `debtStart`,
+  `roundStart`, `beforeSpin` (Nudge, Devil chance from Phase 3), `afterSpin`,
+  `roundEnd` (tokens), `debtPaid`, `purchased`, `sold`; `interestRate` adds to the
+  Cage's rate; `bell` is the talisman's own ring.
+
+Talismans act in rail order. Within a chip's line, each talisman in turn adds
+its Stake, then its odds, then its multipliers ("rail-major"), so the events
+play back strictly left to right. Every hook that changes something emits a
+`trigger` event naming the talisman, which is what makes it shake on screen.
 
 ### 9.8 Testing and the balance simulator
 
@@ -873,8 +985,14 @@ screen.
 - **Balance simulator** (`npm run sim`): plays thousands of runs headless with a few
   bot strategies (outside bettor, straight-up hunter, greedy buyer) and reports the
   share of runs clearing each debt, median coins, and most-picked talismans.
-  Draft targets for a sensible bot: debt 1 ≈ 95%, debt 2 ≈ 80%, debt 3 ≈ 60%,
-  debt 4 ≈ 35%. Tune the debt table and spin costs against it.
+  Draft targets for a sensible bot once every system is in: debt 1 ≈ 95%,
+  debt 2 ≈ 80%, debt 3 ≈ 60%, debt 4 ≈ 35%. Tune the debt table and spin costs
+  against it.
+- **Phase 2 targets** (talismans only, for the best bot): debt 1 ≥ 85%, debt 2
+  50–65%, debt 3 15–30%, debt 4 under 5%. The report prints each as pass or miss,
+  along with each talisman's pick rate and lift, how often the rail acts per spin,
+  token flow and the biggest spins. `--bot solo:<id>` plays with one talisman
+  granted, to judge each alone; `--set key=value` overrides an economy number.
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -926,7 +1044,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 |---|---|---|
 | **0. Wheel** (done) | Room, wheel, mouse spin | ✓ |
 | **1. Core loop** (done) | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
-| **2. Builds** | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
+| **2. Builds** (done) | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
 | **3. Luck and risk** | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
@@ -955,6 +1073,23 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 9. From the first line: route input through `input/` actions and saves through
    `platform/`, even though only the web adapter exists yet (9.10).
 
+### Phase 2 breakdown
+
+1. Core: talismans as data with hooks (`content/`), hook dispatch in rail order
+   (`effects.js`), a pure payout plan (`payout.js`), the Cabinet's offers and
+   restocks, the Bell, tokens every night, save version 2 with migrations.
+   Exact-EV tests per talisman and one test per rule.
+2. Simulator: bots that buy, place their chips to suit their rail, ring the Bell
+   and restock; targets printed as pass or miss.
+3. View: the rail with six hooks, swinging charms and drag to reorder; charm
+   faces painted per talisman; the Bell; the STAKE/ODDS plaques; the Cabinet
+   station with price tags, crank and rarity chart; lighting channels.
+4. Playback: talisman triggers in order, plaques ticking, re-throws, the Glass
+   Eye's mark on the felt, chip faces that show Matchbook's extra value.
+5. Notes for every object, keyboard focus (Tab, Enter, [ ], Delete, B, R), the
+   trade-in card for a full rail, and a smoke test that buys, restocks, rings and
+   sells.
+
 ---
 
 ## 11. Risks
@@ -981,3 +1116,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 4 | Leans | **Announced one spin early.** (5.6) |
 | 5 | Name | **Rien Ne Va Plus.** |
 | 6 | Platform | **Plan for Steam.** Developed in the browser, shipped as an Electron app. (9.10) |
+| 7 | Token income | **+1 token at the end of every night**, and the debt reward goes from +1 to +2 tokens. Short nights (+1) and sitting out (+3 per night) stay. (5.1, 5.2) |
+| 8 | Wheel of Fortune | **Ring before the spin to arm it.** If that spin pays nothing, the ball is thrown again; the charge is spent even when the spin pays. (5.8) |
+| 9 | The Cabinet's 4th compartment | **Boarded up until oddities exist (Phase 5).** (5.8) |
+| 10 | The Bell | **One talisman per ring, the leftmost that can answer.** A talisman's tag rings for that one; the Piggy Bank answers only its own tag. (5.8) |

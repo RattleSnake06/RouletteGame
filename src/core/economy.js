@@ -1,4 +1,4 @@
-import { add, floor, mul, num, pow } from './num.js';
+import { add, ceil, floor, mul, mulFloor, num, pow } from './num.js';
 
 // Numbers from design doc 5.1–5.2. All of them are first drafts, tuned with
 // the balance simulator (npm run sim).
@@ -7,11 +7,22 @@ export const ECONOMY = {
   startCoins: 10,
   startTokens: 4,
   startChips: 3,
+  startHooks: 6, // talisman hooks on the rail
   roundsPerDebt: 3,
   interestRate: 0.05,
-  debtRewardTokens: 1,
+  nightTokens: 1, // paid at the Cage with the interest, every night
+  debtRewardTokens: 2,
   sitOutTokens: 3, // per sat-out round, paid when the debt is paid
   rewardSpins: 3, // coins worth this many spins at the next debt's cost
+  restockGrowth: 1.2, // each paid restock costs 20% more (rounded up), reset each debt
+};
+
+/** Curio Cabinet prices (tokens) and reroll weights by rarity (doc 5.8). */
+export const RARITY = {
+  common: { price: 3, weight: 1 },
+  uncommon: { price: 4, weight: 0.85 },
+  rare: { price: 6, weight: 0.6 },
+  legendary: { price: 9, weight: 0.3 },
 };
 
 export const PACKAGES = {
@@ -60,5 +71,17 @@ export function packageCost(debt, packageId) {
 }
 
 export function interestOn(deposited, rate = ECONOMY.interestRate) {
-  return floor(mul(deposited, rate));
+  return mulFloor(deposited, rate);
 }
+
+/** Coins for the next paid restock, after `paid` paid restocks this debt. */
+export function restockCost(debt, paid) {
+  let cost = restockBaseFor(debt);
+  for (let i = 0; i < paid; i++) cost = ceil(mul(cost, ECONOMY.restockGrowth));
+  return cost;
+}
+
+export const priceOf = (rarity) => RARITY[rarity].price;
+
+/** Selling returns half the rarity price, rounded down, and never nothing. */
+export const sellValueOf = (price) => Math.max(1, Math.floor(price / 2));

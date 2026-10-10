@@ -4,8 +4,9 @@ A roulette roguelike. A giant roulette wheel alone in a dark hall under a single
 bulb, a debt you have to pay, and three nights to pay it.
 
 The plan for the full game is in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md).
-**Phase 1 (the core loop) is playable.** There are no items yet, so runs rarely
-get past the first debt; talismans arrive in Phase 2.
+**Phases 1 and 2 are playable:** the core loop, plus talismans, the Curio
+Cabinet, tokens and the Bell. Luck and risk (Nudge, Leans, the Devil) arrive in
+Phase 3.
 
 ## Run it
 
@@ -26,17 +27,30 @@ seed; it only applies when no run is in progress.
    any spot to see the bet and what it pays. Chips are yours to keep. Only the
    spin costs money.
 3. **Spin:** fling the wheel with the mouse, or press Space.
-4. **Bank at the Cage** (turn left with A or the ◀ button). Banked coins earn 5%
+4. **Buy talismans at the Curio Cabinet** (turn right with D). They cost tokens and
+   hang on the brass rail behind the felt, where they act left to right on every
+   spin: drag them to reorder. The Cabinet restocks free each night; the crank
+   restocks it now for coins. Click a talisman to sell it.
+5. **Ring the Bell** (B, or click it) to wake an active talisman: the Glass Eye
+   shows where the next ball lands; the Wheel of Fortune throws a losing ball
+   again; the Piggy Bank smashes when you click its own tag.
+6. **Bank at the Cage** (turn left with A or the ◀ button). Banked coins earn 5%
    at the end of each night and count toward the debt, but they cannot come back
-   out.
-5. **End the night.** After the third night the Cage collects what you owe. Fall
+   out. Every night that ends also pays a token.
+7. **End the night.** After the third night the Cage collects what you owe. Fall
    short and the run is over.
 
 | Key | Action |
 |---|---|
 | Space | Spin (hold to hurry the ball) |
-| A / D, ← / → | Turn between the table and the Cage |
-| 1 / 2 / 3 | Long night / short night / sit out |
+| A / D, ← / → | Turn: the Cage, the table, the Cabinet |
+| 1 / 2 / 3 | Long night / short night / sit out; at the Cabinet, buy |
+| R | Restock the Cabinet (at the Cabinet) |
+| B | Ring the Bell |
+| Tab / Shift+Tab | Walk the talismans, Bell and plaques (or the Cabinet) |
+| Enter | Open, buy or ring what is focused |
+| [ / ] | Move the focused talisman along the rail |
+| Delete | Sell the focused talisman |
 | E | End the night |
 | F | Fast spins on/off |
 | M | Sound on/off |
@@ -62,13 +76,15 @@ plays them back.
 
 ```
 src/
-  core/        rules: bets, wheel, money, economy, run state machine, saves
+  core/        rules: bets, wheel, money, economy, talismans, the Cabinet, the
+               Bell, payouts, run state machine, saves
   view/        three.js: hall, wheel, ball choreography, camera, stations
-  ui/          HUD, popups, tooltips, modals
+  ui/          HUD, popups, notes, modals
   audio/       synthesised sound
   input/       keys → game actions (gamepad later)
   platform/    saves and settings (web now, Steam desktop later)
   game.js      connects the rules to the room
+  playback.js  plays a spin's payout back, talisman by talisman
   main.js      boot and frame loop
 sim/           balance simulator
 tests/         unit tests and the smoke test

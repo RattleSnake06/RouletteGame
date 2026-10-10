@@ -33,7 +33,10 @@ export function createLayout() {
   const tableYaw = yawToward(tablePos, player);
   const cagePos = player.clone().addScaledVector(left, 2.3).addScaledVector(facing, 0.75);
   const cageYaw = yawToward(cagePos, eye);
-  return { player, facing, left, eye, tablePos, tableYaw, cagePos, cageYaw };
+  // A low glass counter on the right: below the wheel's rim in the wide shot.
+  const cabinetPos = player.clone().addScaledVector(left, -2.05).addScaledVector(facing, 0.05);
+  const cabinetYaw = yawToward(cabinetPos, eye);
+  return { player, facing, left, eye, tablePos, tableYaw, cagePos, cageYaw, cabinetPos, cabinetYaw };
 }
 
 export function createStage(canvas) {
@@ -76,7 +79,7 @@ export function createStage(canvas) {
   }
 
   /** Camera anchors for the current aspect ratio. */
-  function anchorsFor(aspect, { table, cage }) {
+  function anchorsFor(aspect, { table, cage, cabinet }) {
     // Wide: the reference composition, tightened around the wheel on narrow screens.
     const t = THREE.MathUtils.clamp((aspect - 0.75) / (REF_ASPECT - 0.75), 0, 1);
     const refH = hfovOf(deg(WIDE_FOV), REF_ASPECT);
@@ -101,11 +104,20 @@ export function createStage(canvas) {
     const back = Math.max(0, feltFit - 0.83);
     const tableEye = eye.clone().addScaledVector(facing, -back).add(new THREE.Vector3(0, back * 0.45, 0));
     const cageLook = cage.group.localToWorld(cage.focus.clone());
-    return {
+    const anchors = {
       wide: { position: widePos, target: look, fov: THREE.MathUtils.radToDeg(vfov), kind: 'wide' },
       table: { position: tableEye, target: tableLook, fov: tableFov, kind: 'eye' },
       cage: { position: eye.clone(), target: cageLook, fov: eyeFov(50, 70), kind: 'eye' },
     };
+    if (cabinet) {
+      // Lean in over the counter so the price tags read on a small screen.
+      cabinet.group.updateMatrixWorld();
+      const cabinetLook = cabinet.group.localToWorld(cabinet.focus.clone());
+      const lean = eye.clone().lerp(cabinetLook, 0.22);
+      lean.y = eye.y - 0.05;
+      anchors.cabinet = { position: lean, target: cabinetLook, fov: eyeFov(48, 66), kind: 'eye' };
+    }
+    return anchors;
   }
 
   return { renderer, scene, camera, envMap, room, wheel, figure, post, layout, setFigureGhost, anchorsFor };

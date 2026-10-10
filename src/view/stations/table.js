@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PACKAGES } from '../../core/economy.js';
+import { ECONOMY, PACKAGES } from '../../core/economy.js';
 import { format } from '../../core/num.js';
 import { canAfford, costOf } from '../../core/run.js';
 import { SANS } from '../../ui/fonts.js';
@@ -79,7 +79,8 @@ function drawNightCard(ctx, { id, cost, affordable, key }) {
   ctx.fillStyle = INK.boneDim;
   ctx.fillText(pkg.spins === 1 ? 'spin' : 'spins', 180, 318);
   ctx.font = typedFont(23);
-  const bonus = id === 'short' ? '+1 token' : id === 'sitout' ? '+3 tokens when the debt is paid' : 'the most spins';
+  const plural = (n) => `+${n} token${n === 1 ? '' : 's'}`;
+  const bonus = id === 'short' ? plural(pkg.tokens) : id === 'sitout' ? `${plural(ECONOMY.sitOutTokens)} when the debt is paid` : 'the most spins';
   wrapText(ctx, bonus, 180, 366, 270, 30);
   if (cost === '0') {
     scrawlText(ctx, 'free', 180, 446, 36, INK.bone);
@@ -303,12 +304,21 @@ export function createTable({ materials, interaction, callbacks }) {
   let hoverBet = null;
   let resultNumber = null;
   let resultTimer = 0;
+  let foreseen = null;
   function redrawHighlight() {
     felt.highlight({
       numbers: hoverBet ? numbersFor(hoverBet) : [],
       spotId: hoverBet,
       result: resultNumber,
+      foreseen,
     });
+  }
+  /** Marks on the felt that outlast a hover: the number the Glass Eye foresaw. */
+  function setMarks(marks = {}) {
+    const next = marks.foreseen ?? null;
+    if (next === foreseen) return;
+    foreseen = next;
+    redrawHighlight();
   }
   function setHoverBet(betId, ev) {
     if (betId === hoverBet) return;
@@ -386,6 +396,7 @@ export function createTable({ materials, interaction, callbacks }) {
     let trayIndex = 0;
     for (const chip of state.chips) {
       const c = chips.get(chip.id);
+      c.mesh.userData.setValue(chip.value + (chip.roundValue ?? 0));
       const betId = state.placements[chip.id];
       if (betId) {
         const n = stacks.get(betId) ?? 0;
@@ -448,6 +459,8 @@ export function createTable({ materials, interaction, callbacks }) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = false;
+    mesh.userData.role = id === 'end' ? 'end-card' : 'night-card';
+    mesh.userData.card = id;
     group.add(mesh);
     const card = { mesh, material, base: new THREE.Vector3(), hover: false, shown: false, t: 0 };
     interaction.add(mesh, {
@@ -569,6 +582,8 @@ export function createTable({ materials, interaction, callbacks }) {
     hideEndCard,
     setLocked,
     setLampLevel,
+    setMarks,
+    topY: TOP_Y,
     update,
     get isDragging() {
       return !!dragging;

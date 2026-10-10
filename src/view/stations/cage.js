@@ -100,7 +100,8 @@ export function createCage({ materials, interaction, callbacks }) {
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 8), brass);
   stem.position.set(-0.42, 1.13, 0.05);
   group.add(shade, stem);
-  const lamp = new THREE.PointLight(0xffe2b0, 2.2, 3.2, 2);
+  const LAMP = 2.2;
+  const lamp = new THREE.PointLight(0xffe2b0, LAMP, 3.2, 2);
   lamp.position.set(-0.42, 1.19, 0.12);
   group.add(lamp);
 
@@ -113,6 +114,8 @@ export function createCage({ materials, interaction, callbacks }) {
     const mat = new THREE.MeshStandardMaterial({ map: t.tex, emissiveMap: t.tex, emissive: 0xffffff, emissiveIntensity: 0.2, metalness: 0.4, roughness: 0.45 });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.02), [brass, brass, brass, brass, mat, brass]);
     mesh.position.set(x, 0.85, 0.27);
+    mesh.userData.role = 'cage-button';
+    mesh.userData.button = id;
     group.add(mesh);
     const button = { id, mesh, mat, t, enabled: false, hover: false, label: '', sub: '' };
     interaction.add(mesh, {
@@ -150,7 +153,7 @@ export function createCage({ materials, interaction, callbacks }) {
     tex.needsUpdate = true;
   }
 
-  function sync({ owed, deposited, coins, canBank, round, keep, canEnd, endLabel }) {
+  function sync({ owed, deposited, coins, canBank, round, keep, canEnd, endLabel, rate = ECONOMY.interestRate }) {
     const { ctx, canvas, tex } = sign;
     ctx.fillStyle = '#1b120d';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -167,7 +170,8 @@ export function createCage({ materials, interaction, callbacks }) {
     ctx.font = typedFont(30);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`Banked coins earn ${Math.round(ECONOMY.interestRate * 100)}%`, 340, 360);
+    // The live rate: talismans (Pawn Ticket) can raise it.
+    ctx.fillText(`Banked coins earn ${Math.round(rate * 100)}%`, 340, 360);
     ctx.fillText('at the end of each night.', 340, 400);
     tex.needsUpdate = true;
 
@@ -196,6 +200,10 @@ export function createCage({ materials, interaction, callbacks }) {
     update,
     setLocked(v) {
       locked = v;
+    },
+    /** 0..1: the lamp's share of the room's attention (lighting moods). */
+    setLightLevel(x) {
+      lamp.intensity = LAMP * x;
     },
     /** Where the first-person camera looks when turned to the Cage (local). */
     focus: new THREE.Vector3(0, 1.45, 0.2),

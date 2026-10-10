@@ -11,7 +11,8 @@ import { chromium } from 'playwright-core';
 import { createServer } from 'vite';
 
 const root = new URL('../..', import.meta.url).pathname;
-const server = await createServer({ root, logLevel: 'error', server: { port: 0, strictPort: false } });
+// No file watching: an edit elsewhere must not reload the page mid-run.
+const server = await createServer({ root, logLevel: 'error', server: { port: 0, strictPort: false, hmr: false, watch: { ignored: ['**/*'] } } });
 await server.listen();
 const url = server.resolvedUrls.local[0];
 
@@ -39,20 +40,22 @@ const state = () => game(() => {
 const idle = () => page.waitForFunction(() => !window.__roulette.game.busy, null, { timeout: 300000 });
 const cameraStill = () => page.waitForFunction(() => !window.__roulette.director.tween, null, { timeout: 120000 });
 
-/** Screen position of a mesh found by a predicate over the table or cage. */
-const meshPos = (where, kind, index) => game(({ where, kind, index }) => {
+/** Screen position of a visible mesh tagged with userData.role (left to right). */
+const meshPos = (where, role, index) => game(({ where, role, index }) => {
   const r = window.__roulette;
   const found = [];
   r[where].group.traverse((o) => {
-    if (!o.isMesh || !o.visible) return;
-    const g = o.geometry.parameters ?? {};
-    if (kind === 'card' && o.geometry.type === 'PlaneGeometry' && g.width < 0.2) found.push(o);
-    if (kind === 'plate' && o.geometry.type === 'BoxGeometry' && Math.abs(g.width - 0.34) < 1e-6) found.push(o);
+    if (o.isMesh && o.visible && o.userData.role === role) found.push(o);
   });
   found.sort((a, b) => a.position.x - b.position.x);
   const o = found[index];
   return o ? r.game.screenPosition(o.getWorldPosition(o.position.clone())) : null;
-}, { where, kind, index });
+}, { where, role, index });
+
+const items = () => game(() => {
+  const s = window.__roulette.game.state;
+  return { tokens: s.tokens, coins: s.coins, rail: s.rail.map((t) => ({ uid: t.uid, id: t.id, price: t.price })), offers: s.cabinet.slots.map((x) => x.id ?? null) };
+});
 
 const spotPos = (betId) => game(async (betId) => {
   const r = window.__roulette;
@@ -92,7 +95,7 @@ try {
   check(s.phase === 'roundStart' && s.debt === 1 && s.coins === 10, 'a new run starts at debt 1 with 10 coins');
 
   // Night 1: a long night, three chips, seven spins.
-  await click(await meshPos('table', 'card', 0), 'the long-night card');
+  await click(await meshPos('table', 'night-card', 0), 'the long-night card');
   s = await state();
   check(s.phase === 'betting' && s.spinsLeft === 7 && s.coins === 3, 'the long night costs 7 and gives 7 spins');
   for (const bet of ['red', 'straight:17', 'dozen:2']) await click(await spotPos(bet), `the ${bet} spot`);
@@ -116,16 +119,50 @@ try {
   await page.keyboard.press('KeyA');
   await cameraStill();
   const coinsBefore = s.coins;
-  await click(await meshPos('cage', 'plate', 0), 'the BANK ALL plate');
+  await click(await meshPos('cage', 'cage-button', 0), 'the BANK ALL plate');
   s = await state();
   check(s.coins === 0 && s.deposited === coinsBefore, `banking moved ${coinsBefore} coins into the Cage`);
-  await click(await meshPos('cage', 'plate', 2), 'the END NIGHT plate');
+  await click(await meshPos('cage', 'cage-button', 2), 'the END NIGHT plate');
   s = await state();
   check(s.round === 2 && s.phase === 'roundStart', 'night 2 begins');
+  await cameraStill();
 
-  // Night 2: sit out with a key press, end it with E.
+  // The Curio Cabinet: buy a talisman, restock, ring the Bell, sell it back.
+  let it = await items();
+  check(it.tokens === 5, `the night paid a token (${it.tokens} tokens)`);
   await page.keyboard.press('KeyD');
   await cameraStill();
+  check((await game(() => window.__roulette.game.view)) === 'cabinet', 'D turns to the Cabinet');
+  const slot = await game(async () => {
+    const { cabinetView } = await import('/src/core/selectors.js');
+    return cabinetView(window.__roulette.game.state).slots.findIndex((x) => x.id && x.affordable);
+  });
+  check(slot >= 0, `an affordable talisman is on offer (compartment ${slot + 1})`);
+  const offered = it.offers[slot];
+  await click(await game((slot) => window.__roulette.game.screenPosition(window.__roulette.cabinet.slotWorldPosition(slot)), slot), `compartment ${slot + 1}`);
+  const bought = await items();
+  check(bought.rail.length === 1 && bought.rail[0].id === offered && bought.tokens === it.tokens - bought.rail[0].price, `bought ${offered} for ${bought.rail[0]?.price} tokens`);
+  await page.screenshot({ path: process.env.SMOKE_SHOTS ? `${process.env.SMOKE_SHOTS}/smoke-cabinet.png` : '/dev/null' }).catch(() => {});
+  await game(() => window.__roulette.debug.addCoins(10));
+  await page.keyboard.press('KeyR');
+  await page.waitForTimeout(400);
+  it = await items();
+  check(it.coins === bought.coins + 10 - 2 && it.offers.join() !== bought.offers.join(), 'R restocked the Cabinet for 2 coins');
+  await page.keyboard.press('KeyB');
+  await page.waitForTimeout(400);
+  check(true, 'B rang the Bell');
+  await page.keyboard.press('KeyA');
+  await cameraStill();
+  const charm = await game((uid) => window.__roulette.game.screenPosition(window.__roulette.rail.talismanWorldPosition(uid)), it.rail[0]?.uid ?? bought.rail[0].uid);
+  await click(charm, 'the talisman on the rail');
+  await page.waitForSelector('.modal-card', { timeout: 10000 });
+  const before = await items();
+  await page.click('button:has-text("Sell")');
+  await page.waitForTimeout(400);
+  it = await items();
+  check(it.rail.length === 0 && it.tokens === before.tokens + Math.max(1, Math.floor(bought.rail[0].price / 2)), `sold it back for ${it.tokens - before.tokens}`);
+
+  // Night 2: sit out with a key press, end it with E.
   await page.keyboard.press('Digit3');
   await page.keyboard.press('KeyE');
   await page.waitForTimeout(500);
@@ -137,7 +174,7 @@ try {
   await page.keyboard.press('Digit3');
   await page.keyboard.press('KeyA');
   await cameraStill();
-  await click(await meshPos('cage', 'plate', 0), 'the BANK ALL plate');
+  await click(await meshPos('cage', 'cage-button', 0), 'the BANK ALL plate');
   await page.keyboard.press('KeyE');
   await page.waitForSelector('.modal-card', { timeout: 10000 });
   const title = await page.textContent('.modal-title');

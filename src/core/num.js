@@ -59,6 +59,34 @@ export function floor(a) {
   return norm(a.floor());
 }
 
+/**
+ * The product of several factors, rounded down once at the end. While the
+ * running product stays a safe integer it is exact in plain numbers; past
+ * that it runs in Decimals with no rounding between steps. (Chaining mul and
+ * floor would round a big intermediate before a fractional factor like ×¼.)
+ */
+export function mulFloor(...factors) {
+  if (factors.every((f) => typeof f === 'number')) {
+    let r = 1;
+    let safe = true;
+    for (const f of factors) {
+      r *= f;
+      if (Math.abs(r) > Number.MAX_SAFE_INTEGER) safe = false;
+    }
+    if (safe && Math.abs(r) < LIMIT) return Math.floor(r + 1e-9);
+  }
+  return norm(factors.reduce((p, f) => p.mul(toDec(f)), new Decimal(1)).floor());
+}
+
+/** The exact text of a Decimal, for saves: "6.07753125e20" re-parses exactly. */
+export const decimalText = (d) => `${d.mantissa}e${d.exponent}`;
+
+/** Round up to a whole coin, the mirror of floor. */
+export function ceil(a) {
+  if (typeof a === 'number') return Math.ceil(a - 1e-9);
+  return norm(a.ceil());
+}
+
 export function cmp(a, b) {
   if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : a > b ? 1 : 0;
   return toDec(a).cmp(toDec(b));
@@ -114,7 +142,7 @@ function trimFixed(x, digits) {
 
 /** JSON-safe form: numbers stay numbers, Decimals become { $d: "1.2e500" }. */
 export function serialize(a) {
-  return typeof a === 'number' ? a : { $d: a.toString() };
+  return typeof a === 'number' ? a : { $d: decimalText(a) };
 }
 
 export function deserialize(v) {

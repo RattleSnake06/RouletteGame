@@ -50,6 +50,7 @@ function replay(node, cls) {
 }
 
 const FLARE_MS = 1500;
+const RARITY_MARKS = { common: 1, uncommon: 2, rare: 3, legendary: 4 };
 const COINS_MAX_EM = 3.4; // past this the figure steps down so it never reaches the debt
 
 export function createHud(root = document.body) {
@@ -82,7 +83,7 @@ export function createHud(root = document.body) {
     <div class="hud-flavor" data-k="flavor"><span class="words scrawl fat"></span></div>
     <button class="hud-nav hud-nav-left" data-k="navLeft" type="button" hidden></button>
     <button class="hud-nav hud-nav-right" data-k="navRight" type="button" hidden></button>
-    <div class="hud-note" data-k="tooltip"><div class="note-body"><div class="what scrawl"></div><div class="pays"><span class="typed">pays</span><span class="odds scrawl fat"></span></div></div></div>
+    <div class="hud-note" data-k="tooltip" aria-live="polite"><div class="note-body"></div></div>
     <div class="hud-toast typed" data-k="toast"><span></span></div>
     <div class="hud-hint typed" data-k="hint"></div>
     <div class="hud-popups" data-k="popups"></div>
@@ -393,31 +394,86 @@ export function createHud(root = document.body) {
   }
 
   /**
-   * A note scrawled beside a spot on the felt, with a scratch leading to it.
-   * `anchor` is the spot's screen position (projected from the table), so
-   * the note stays put while the pointer moves within the spot.
+   * A note scrawled beside an object, with a scratch leading to it (doc 8.4).
+   * `anchor` is the object's screen position, projected from the room, so the
+   * note stays put while the pointer moves over the object.
+   *
+   *   title    scrawled name
+   *   rarity   'common' | 'uncommon' | 'rare' | 'legendary': tally strokes and the word
+   *   pays     { odds, base, sources: [[label, text]] }: a bet's effective odds,
+   *            the printed odds struck through when talismans change them
+   *   lines    typed sentences (plain text)
+   *   status   a dim typed line ("2 charges this debt")
+   *   price    { amount, unit: 'tokens' | 'coins', ok, short, label }
    */
-  function tooltip(info, anchor) {
-    const note = refs.tooltip;
-    if (!info || !anchor) {
-      note.classList.remove('show');
+  let noteKey = '';
+  function note(spec, anchor) {
+    const box = refs.tooltip;
+    if (!spec || !anchor) {
+      box.classList.remove('show');
+      noteKey = '';
       return;
     }
-    note.querySelector('.what').textContent = info.label;
-    note.querySelector('.odds').textContent = `${info.pays}×`;
-    note.classList.add('show');
-    // Up and to the right of the spot, mirrored when the left has more room;
-    // then nudged sideways so it never leaves the screen.
-    const body = note.querySelector('.note-body');
+    const body = box.querySelector('.note-body');
+    const key = JSON.stringify(spec);
+    if (key !== noteKey) {
+      noteKey = key;
+      body.textContent = '';
+      body.appendChild(el('div', 'what scrawl', escapeHtml(spec.title)));
+      if (spec.rarity) {
+        const row = el('div', 'rarity typed');
+        const n = RARITY_MARKS[spec.rarity] ?? 1;
+        row.append(markImg(tally(n, n, 61 + n, { color: INK.brass, h: 34, gap: 10, w: 3.6 }), 'rarity-marks', 0.012), el('span', '', spec.rarity));
+        body.appendChild(row);
+      }
+      if (spec.pays) {
+        const row = el('div', 'pays');
+        row.appendChild(el('span', 'typed', 'pays'));
+        if (spec.pays.base !== undefined && spec.pays.base !== spec.pays.odds) {
+          const was = el('span', 'was scrawl', `${escapeHtml(spec.pays.base)}×`);
+          was.appendChild(markImg(lineMark(80, 24, 63, INK.blood, 3, { y0: 18, y1: 7 }), 'was-strike', 0.012));
+          row.appendChild(was);
+        }
+        row.appendChild(el('span', 'odds scrawl fat', `${escapeHtml(spec.pays.odds)}×`));
+        body.appendChild(row);
+        for (const [label, text] of spec.pays.sources ?? []) {
+          body.appendChild(el('div', 'source typed', `<b>${escapeHtml(text)}</b> ${escapeHtml(label)}`));
+        }
+      }
+      for (const line of spec.lines ?? []) body.appendChild(el('div', 'line typed', escapeHtml(line)));
+      if (spec.status) body.appendChild(el('div', 'status typed', escapeHtml(spec.status)));
+      if (spec.price) {
+        const p = spec.price;
+        const row = el('div', `price${p.ok === false ? ' short' : ''}`);
+        if (p.label) row.appendChild(el('span', 'typed', escapeHtml(p.label)));
+        row.appendChild(el('span', 'amount scrawl fat', escapeHtml(format(p.amount))));
+        row.appendChild(markImg(p.unit === 'coins' ? coinGlyph(40, 3) : hexGlyph(34, 6), 'unit', p.unit === 'coins' ? 0.014 : 0.024));
+        if (p.short) row.appendChild(el('span', 'typed short-by', escapeHtml(p.short)));
+        body.appendChild(row);
+      }
+    }
+    box.classList.add('show');
+    // Up and to the right of the object, mirrored when the left has more
+    // room; then nudged so it never leaves the screen.
     const gap = 52 * designPixel();
+    body.style.translate = '';
     const w = body.offsetWidth;
+    const h = body.offsetHeight;
     const roomRight = window.innerWidth - anchor.x;
     const flip = anchor.x + gap + w > window.innerWidth - 12 && anchor.x > roomRight;
     const left = flip ? anchor.x - gap - w : anchor.x + gap;
-    const shift = Math.max(12 - left, Math.min(0, window.innerWidth - 12 - (left + w)));
-    note.classList.toggle('flip', flip);
-    body.style.translate = shift ? `${Math.round(shift)}px 0` : '';
-    note.style.transform = `translate(${Math.round(anchor.x)}px, ${Math.round(anchor.y)}px)`;
+    const shiftX = Math.max(12 - left, Math.min(0, window.innerWidth - 12 - (left + w)));
+    // The body sits above the anchor; keep its top on screen.
+    const top = anchor.y - 22 * designPixel() - h;
+    const shiftY = Math.max(0, 12 - top);
+    box.classList.toggle('flip', flip);
+    body.style.translate = shiftX || shiftY ? `${Math.round(shiftX)}px ${Math.round(shiftY)}px` : '';
+    box.style.transform = `translate(${Math.round(anchor.x)}px, ${Math.round(anchor.y)}px)`;
+  }
+
+  /** The bet note: a felt spot's name and what it pays. */
+  function tooltip(info, anchor) {
+    note(info && { title: info.label, pays: { odds: info.pays, base: info.base, sources: info.sources } }, anchor);
   }
 
   // ---- Mood ---------------------------------------------------------------------
@@ -426,9 +482,13 @@ export function createHud(root = document.body) {
     hud.classList.toggle('spinning', mode === 'spin');
   }
 
-  /** At the Cage its own sign carries the debt, so the HUD's copy steps back. */
+  /**
+   * At the Cage its own sign carries the debt, so the HUD's copy steps back;
+   * at the Cabinet prices are in tokens, so the tokens come forward.
+   */
   function setView(view) {
     hud.classList.toggle('at-cage', view === 'cage');
+    hud.classList.toggle('at-cabinet', view === 'cabinet');
   }
 
   /** Dread: few spins left, or the night the Cage collects. */
@@ -458,6 +518,7 @@ export function createHud(root = document.body) {
     flavor,
     toast,
     popup,
+    note,
     tooltip,
     setMode,
     setView,
