@@ -39,6 +39,9 @@ const state = () => game(() => {
 });
 const idle = () => page.waitForFunction(() => !window.__roulette.game.busy, null, { timeout: 300000 });
 const cameraStill = () => page.waitForFunction(() => !window.__roulette.director.tween, null, { timeout: 120000 });
+// A camera cut lands on the next frame, and the first frames after load are
+// slow in software WebGL: wait for two real frames before aiming a click.
+const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
 
 /** Screen position of a visible mesh tagged with userData.role (left to right). */
 const meshPos = (where, role, index) => game(({ where, role, index }) => {
@@ -90,7 +93,8 @@ try {
     r.director.goTo('table', { cut: true });
     r.stage.setFigureGhost(true);
   });
-  await page.waitForTimeout(1000);
+  await frames();
+  await page.waitForTimeout(500);
   let s = await state();
   check(s.phase === 'roundStart' && s.debt === 1 && s.coins === 10, 'a new run starts at debt 1 with 10 coins');
 
