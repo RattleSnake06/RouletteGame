@@ -172,7 +172,8 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     ]) {
       const p = plaques[key];
       const shown = `${value}`;
-      if (p.value === shown && !lit) continue;
+      // Only the factor that moved flashes, so the line reads which one changed.
+      if (p.value === shown) continue;
       p.value = shown;
       drawPlaque(p.t, p.label, shown, false);
       if (lit) p.lit = 1;
@@ -182,6 +183,7 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
 
   // ---- Talismans -------------------------------------------------------------
   const items = new Map(); // uid → { pivot, charm, tag, x, swing, vel, glow, id, dragging }
+  const tagGeo = new THREE.PlaneGeometry(0.06, 0.017);
   let order = [];
   let locked = false;
   let drag = null;
@@ -241,17 +243,23 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     return item;
   }
 
+  function dropTag(item) {
+    if (!item.tag) return;
+    interaction.remove(item.tag.mesh);
+    item.pivot.remove(item.tag.mesh);
+    item.tag.t.tex.dispose();
+    item.tag.mesh.material.dispose();
+    item.tag = null;
+  }
+
   function syncTag(item, view) {
     if (!view.active) {
-      if (item.tag) {
-        item.pivot.remove(item.tag.mesh);
-        item.tag = null;
-      }
+      dropTag(item);
       return;
     }
     if (!item.tag) {
       const t = canvasTexture(256, 72);
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.017), new THREE.MeshStandardMaterial({ map: t.tex, transparent: true, roughness: 0.5, metalness: 0.4 }));
+      const mesh = new THREE.Mesh(tagGeo, new THREE.MeshStandardMaterial({ map: t.tex, transparent: true, roughness: 0.5, metalness: 0.4 }));
       mesh.position.set(0.012, -0.09, 0.004);
       mesh.rotation.z = -0.12;
       mesh.userData.role = 'bell-tag';
@@ -281,8 +289,10 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     for (const [uid, item] of items) {
       if (keep.has(uid)) continue;
       interaction.remove(item.charm);
-      if (item.tag) interaction.remove(item.tag.mesh);
+      dropTag(item);
       group.remove(item.pivot);
+      // Each charm owns its materials (its glow is its own); free them.
+      item.charm.userData.dispose?.();
       items.delete(uid);
     }
     order = views.map((v) => v.uid);
@@ -347,9 +357,16 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     setLightLevel(x) {
       lightLevel = x;
     },
+    /**
+     * Where a talisman's disc hangs on its hook: the hook it is moving to,
+     * not where its swing or slide happens to be this frame, so a note
+     * anchored to it lands on the right charm.
+     */
     talismanWorldPosition(uid, out = new THREE.Vector3()) {
       const item = items.get(uid);
-      return item ? world(item.charm, out).add(new THREE.Vector3(0, -0.04, 0)) : null;
+      if (!item) return null;
+      group.updateMatrixWorld();
+      return group.localToWorld(out.set(item.dragX ?? item.x, HOOK_Y - 0.045, RAIL_Z + 0.006));
     },
     tagWorldPosition(uid, out = new THREE.Vector3()) {
       const item = items.get(uid);

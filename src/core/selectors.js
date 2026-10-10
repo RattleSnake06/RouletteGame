@@ -7,6 +7,7 @@ import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
 import { nextRestockCost } from './run.js';
 import { restockCost } from './economy.js';
+import { gte } from './num.js';
 
 // Pure read models for the view and the sim. Nothing here changes state.
 
@@ -75,6 +76,7 @@ export function cabinetView(state) {
       };
     }),
     restockCost: nextRestockCost(state),
+    canRestock: gte(state.coins, nextRestockCost(state)),
     nextRestockCost: restockCost(state.debt, state.cabinet.paidRestocks + 1),
     rarityOdds: rarityOdds(state),
   };

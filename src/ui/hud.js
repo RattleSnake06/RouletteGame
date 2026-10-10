@@ -584,7 +584,29 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
     sheet.appendChild(grid);
   }
 
+  // Keep keyboard focus inside the card: Tab walks its buttons and wraps, and
+  // a key pressed with focus lost (a click on the veil) brings it back.
+  const trap = (ev) => {
+    if (backdrop.inert || !['Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key)) return;
+    const inside = backdrop.contains(document.activeElement);
+    if (ev.key === 'Tab') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const i = buttons.indexOf(document.activeElement);
+      const next = !inside || i < 0 ? 0 : (i + (ev.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+      return;
+    }
+    if (!inside) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      (buttons.find((b) => b.classList.contains('primary')) ?? buttons[0])?.focus();
+    }
+  };
+  document.addEventListener('keydown', trap, true);
+
   const close = () => {
+    document.removeEventListener('keydown', trap, true);
     // Let go of focus at once: while the veil fades out, a focused button
     // would swallow the next key press.
     if (backdrop.contains(document.activeElement)) document.activeElement.blur();

@@ -47,8 +47,8 @@ seed; it only applies when no run is in progress.
 | 1 / 2 / 3 | Long night / short night / sit out; at the Cabinet, buy |
 | R | Restock the Cabinet (at the Cabinet) |
 | B | Ring the Bell |
-| Tab / Shift+Tab | Walk the talismans, Bell and plaques (or the Cabinet) |
-| Enter | Open, buy or ring what is focused |
+| Tab / Shift+Tab | Walk the talismans, Bell, plaques and bets (or the Cabinet) |
+| Enter | Open, buy, ring or place a chip on what is focused |
 | [ / ] | Move the focused talisman along the rail |
 | Delete | Sell the focused talisman |
 | E | End the night |

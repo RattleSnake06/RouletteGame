@@ -10,8 +10,10 @@ import { INK, paintLoop, paintScratch, scrawlFont, scrawlText, typedFont } from 
 // four velvet compartments: three talismans for tokens, and a fourth for
 // oddities that stays boarded up until Phase 5. Each talisman lies on a
 // velvet pad with a black card tag tied to it (the price, and the rarity as a
-// prisoner's tally). The restock crank is on the right side panel and the
-// rarity chart is nailed to the front.
+// prisoner's tally). Below the glass, on the doors that face the player, the
+// rarity chart is nailed to the left and the restock crank turns on the
+// right, its price tag hung on a nail beside it, so all of it reads from
+// where the player stands.
 //
 // The counter stays under 1.15 m so it never rises over the wheel's rim in
 // the wide shot. Local frame: +z faces the player, y up from the floor, the
@@ -44,19 +46,25 @@ const glassY = (z) => GLASS.y0 + ((GLASS.z0 - z) * GLASS_RISE) / GLASS_RUN;
 // the price reads from where the player stands.
 const RAMP = { z0: 0.248, y0: 0.745, z1: 0.1, slope: deg(32) };
 RAMP.y1 = RAMP.y0 + (RAMP.z0 - RAMP.z1) * Math.tan(RAMP.slope);
-const TAG = { w: 0.2, h: 0.14, px: 640 };
+const TAG = { w: 0.22, h: 0.15, px: 640 };
 // Each talisman reclines on a velvet pad, its face turned up to the player.
 const PAD = { w: 0.17, h: 0.17, d: 0.035, z: -0.11, tilt: deg(25) };
 const CHARM_SCALE = 1.3;
-const CHART = { w: 0.4, h: 0.3, x: -0.34, y: 0.5 };
-const CRANK = { x: BODY.w / 2, y: 0.6, z: 0.04, arm: 0.095 };
-const CRANK_TAG = { w: 0.16, h: 0.15 };
+// The door frames' centre plane; the chart and the crank sit just proud of it.
+const DOORS_Z = BODY.d / 2 + 0.006;
+// High on the doors, so the hint line along the bottom of a small screen
+// never covers them.
+const CHART = { w: 0.52, h: 0.38, x: -0.318, y: 0.44 };
+const CRANK = { x: 0.455, y: 0.44, arm: 0.11 };
+const CRANK_TAG = { w: 0.24, h: 0.19, x: 0.185, nail: 0.6 };
+const CRANK_TAG_TILT = -0.04;
 
 const LIGHT = 2; // the case light at full mood
 const BACK_GLOW = 0.85;
 const BULB_GLOW = 3.2;
 const TAG_GLOW = 0.32;
-const SIGN_GLOW = 0.26;
+// The doors are below the case light, so their cards carry their own glow.
+const SIGN_GLOW = 0.5;
 const SHEEN = 0.5;
 const RESTOCK_TIME = 0.8;
 const RARITIES = ['common', 'uncommon', 'rare', 'legendary'];
@@ -270,31 +278,27 @@ function drawPriceTag(t, info, seed) {
   paintHex(ctx, w * 0.73, h * 0.36, 118, seed + 20);
   ctx.restore();
 
-  // The rarity, as a prisoner counts it.
+  // The rarity, as a prisoner counts it, and its name; when the price is out
+  // of reach, how far instead (the tally still tells the rarity). The words
+  // are set large: the tag is a hand's width across on a laptop screen.
   ctx.save();
   ctx.globalAlpha = sold ? 0.35 : 1;
   ctx.globalAlpha *= 0.3;
   paintScratch(ctx, h * 0.3, h * 0.66, w - 40, h * 0.655, 3, seed + 30, INK.boneDim, { bow: 0.01 });
   ctx.globalAlpha = sold ? 0.35 : 1;
-  const end = paintTally(ctx, h * 0.33, h * 0.72, h * 0.19, info.marks, seed + 40);
-  ctx.font = typedFont(46);
-  ctx.fillStyle = INK.boneDim;
+  const end = paintTally(ctx, h * 0.33, h * 0.705, h * 0.2, info.marks, seed + 40, { gap: 25, width: 9 });
+  const short = !sold && !info.affordable && info.short;
+  const wordX = end + 34;
+  ctx.font = typedFont(62);
   ctx.textAlign = 'left';
-  ctx.fillText(info.rarity, end + 34, h * 0.815);
+  ctx.fillStyle = short ? INK.blood : INK.bone;
+  ctx.fillText(short ? `${info.short} short` : info.rarity, wordX, h * 0.815, w - 34 - wordX);
   ctx.restore();
 
-  if (!sold && !info.affordable && info.short) {
-    ctx.save();
-    ctx.font = typedFont(36);
-    ctx.fillStyle = INK.boneDim;
-    ctx.textAlign = 'right';
-    ctx.fillText(`${info.short} short`, w - 36, h * 0.6);
-    ctx.restore();
-  }
   if (sold) {
     // Struck off, and "sold" across it in red chalk.
-    paintScratch(ctx, w * 0.22, h * 0.48, w * 0.86, h * 0.26, 7, seed + 60, INK.bloodDeep, { bow: 0.03 });
-    chalkText(ctx, 'sold', w * 0.58, h * 0.44, 132, INK.blood, seed + 70, -0.14);
+    paintScratch(ctx, w * 0.22, h * 0.48, w * 0.86, h * 0.26, 8, seed + 60, INK.bloodDeep, { bow: 0.03 });
+    chalkText(ctx, 'sold', w * 0.57, h * 0.43, 156, INK.blood, seed + 70, -0.14);
   }
   tex.needsUpdate = true;
 }
@@ -313,19 +317,24 @@ function drawCrankTag(t, info) {
     c.lineTo(0, cut);
   });
   paintFrame(ctx, 22, cut * 0.9, w - 22, h - 22, 820, 0.3);
-  paintEyelet(ctx, w / 2, h * 0.09, w * 0.04);
+  paintEyelet(ctx, w / 2, h * 0.085, w * 0.036);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  scrawlText(ctx, 'restock', w / 2, h * 0.28, 66, INK.bone);
+  scrawlText(ctx, 'restock', w / 2, h * 0.27, 80, INK.bone);
   ctx.save();
   ctx.globalAlpha = info.affordable ? 1 : 0.5;
-  scrawlText(ctx, info.cost, w * 0.43, h * 0.56, info.cost.length > 3 ? 96 : 140, INK.bone);
-  paintCoins(ctx, w * 0.76, h * 0.56, 92, 830);
+  const long = info.cost.length > 3;
+  scrawlText(ctx, info.cost, w * 0.42, h * 0.555, long ? 108 : 156, INK.bone, { maxWidth: w * 0.5 });
+  paintCoins(ctx, w * 0.76, h * 0.555, 104, 830);
   ctx.restore();
-  if (!info.affordable) paintScratch(ctx, w * 0.18, h * 0.66, w * 0.9, h * 0.46, 7, 840, INK.blood, { bow: 0.03 });
-  ctx.font = typedFont(34);
+  if (!info.affordable) paintScratch(ctx, w * 0.18, h * 0.66, w * 0.9, h * 0.46, 8, 840, INK.blood, { bow: 0.03 });
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  paintScratch(ctx, 44, h * 0.735, w - 44, h * 0.73, 3, 845, INK.boneDim, { bow: 0.01 });
+  ctx.restore();
+  ctx.font = typedFont(52);
   ctx.fillStyle = INK.boneDim;
-  ctx.fillText('free each night', w / 2, h * 0.86);
+  ctx.fillText('free each night', w / 2, h * 0.84, w - 64);
   tex.needsUpdate = true;
 }
 
@@ -336,33 +345,37 @@ function drawChart(t, odds) {
   const { ctx, canvas, tex } = t;
   const { width: w, height: h } = canvas;
   paintCard(ctx, w, h, 901, (c) => c.rect(0, 0, w, h));
-  paintFrame(ctx, 24, 26, w - 24, h - 24, 910);
+  paintFrame(ctx, 24, 26, w - 24, h - 24, 910, 0.45);
   // Nail holes the card was hung by.
-  for (const x of [52, w - 52]) {
+  for (const x of [56, w - 56]) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     ctx.beginPath();
-    ctx.arc(x, 50, 9, 0, Math.PI * 2);
+    ctx.arc(x, 54, 10, 0, Math.PI * 2);
     ctx.fill();
   }
+  // Labels typed, values scrawled, as on the HUD (doc 8.4). Sized to read
+  // from the player's spot on a laptop screen.
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  scrawlText(ctx, 'the odds', w / 2, 84, 60, INK.bone);
-  ctx.font = typedFont(28);
+  scrawlText(ctx, 'the odds', w / 2, 92, 86, INK.bone);
+  ctx.font = typedFont(38);
   ctx.fillStyle = INK.boneDim;
-  ctx.fillText('in each compartment', w / 2, 140);
+  ctx.fillText('in each compartment', w / 2, 160);
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  paintScratch(ctx, 70, 196, w - 70, 192, 3, 915, INK.boneDim, { bow: 0.01 });
+  ctx.restore();
   RARITIES.forEach((rarity, i) => {
-    const y = 218 + i * 94;
-    paintTally(ctx, 62, y - 30, 60, i + 1, 920 + i * 17, { gap: 17, width: 6 });
-    ctx.font = typedFont(44);
+    const y = 268 + i * 128;
+    paintTally(ctx, 68, y - 38, 76, i + 1, 920 + i * 17, { gap: 21, width: 8 });
+    ctx.font = typedFont(60);
     ctx.fillStyle = INK.bone;
     ctx.textAlign = 'left';
-    ctx.fillText(rarity, 158, y + 2);
+    ctx.fillText(rarity, 178, y + 4);
     ctx.textAlign = 'right';
-    scrawlText(ctx, String(RARITY[rarity].price), 538, y, 60, INK.brass);
-    paintHex(ctx, 576, y, 50, 940 + i * 11);
-    ctx.font = typedFont(44);
-    ctx.fillStyle = INK.boneDim;
-    ctx.fillText(odds ? percent(odds[rarity] ?? 0) : '', w - 46, y + 2);
+    scrawlText(ctx, String(RARITY[rarity].price), 690, y, 82, INK.brass);
+    paintHex(ctx, 738, y + 2, 66, 940 + i * 11);
+    if (odds) scrawlText(ctx, percent(odds[rarity] ?? 0), w - 46, y, 56, INK.bone);
   });
   tex.needsUpdate = true;
 }
@@ -486,6 +499,7 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   group.name = 'cabinet';
   const wood = materials.mahogany;
   const brass = materials.brass;
+  const darkMetal = materials.darkMetal ?? brass;
   const envMap = brass.envMap ?? null;
   const shadowed = (m) => {
     m.castShadow = true;
@@ -498,16 +512,13 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   const body = shadowed(box(BODY.w, BODY.y1 - BODY.y0, BODY.d, wood, 0, (BODY.y0 + BODY.y1) / 2, 0));
   const deck = shadowed(box(DECK.w, DECK.y1 - DECK.y0, DECK.d, wood, 0, (DECK.y0 + DECK.y1) / 2, 0));
   group.add(plinth, body, deck);
-  // Raised panel frames on the front: a stile down the middle, rails top and bottom.
-  const fz = BODY.d / 2 + 0.006;
+  // Raised panel frames on the front: a stile down the middle, rails top and
+  // bottom. The doors are bare: the chart and the crank are what goes on them.
+  const fz = DOORS_Z;
   group.add(box(0.05, BODY.y1 - BODY.y0 - 0.02, 0.012, wood, 0, (BODY.y0 + BODY.y1) / 2, fz));
   group.add(box(BODY.w - 0.02, 0.05, 0.012, wood, 0, BODY.y1 - 0.035, fz));
   group.add(box(BODY.w - 0.02, 0.06, 0.012, wood, 0, BODY.y0 + 0.04, fz));
   for (const sx of [-1, 1]) group.add(box(0.04, BODY.y1 - BODY.y0 - 0.02, 0.012, wood, sx * (BODY.w / 2 - 0.02), (BODY.y0 + BODY.y1) / 2, fz));
-  // A brass lock on the right door.
-  const lock = box(0.034, 0.06, 0.006, brass, 0.3, 0.5, fz + 0.009);
-  const keyhole = box(0.006, 0.018, 0.002, new THREE.MeshStandardMaterial({ color: 0x050403 }), 0.3, 0.495, fz + 0.0125);
-  group.add(lock, keyhole);
 
   // ---- The case: ends, front rail, back, cap -----------------------------------
   const endProfile = [
@@ -745,60 +756,85 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   oddity.boards.visible = false;
   group.add(oddity.boards);
 
-  // ---- Restock crank, right side panel --------------------------------------------
+  // ---- Restock crank, on the right door ---------------------------------------------
+  // It turns in the plane facing the player, so a restock is a full turn of
+  // the handle in plain view. Its axle runs along local z, out of the door.
   const crank = new THREE.Group();
-  crank.position.set(CRANK.x, CRANK.y, CRANK.z);
-  const axisX = (geo) => geo.rotateZ(Math.PI / 2);
-  const hub = new THREE.Mesh(axisX(new THREE.CylinderGeometry(0.034, 0.038, 0.022, 24)), brass);
-  hub.position.x = 0.011;
-  const axle = new THREE.Mesh(axisX(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 10)), brass);
-  axle.position.x = 0.03;
+  crank.position.set(CRANK.x, CRANK.y, fz + 0.006);
+  const axisZ = (geo) => geo.rotateX(Math.PI / 2);
+  // The mechanism's iron plate, screwed to the door: dark, so the brass
+  // handle reads against it instead of a disc of reflected light.
+  const plate = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.058, 0.062, 0.006, 32)), darkMetal);
+  plate.position.z = 0.003;
+  const screwGeo = axisZ(new THREE.CylinderGeometry(0.0045, 0.0045, 0.004, 8));
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + (k * Math.PI) / 2;
+    const screw = new THREE.Mesh(screwGeo, brass);
+    screw.position.set(Math.cos(a) * 0.046, Math.sin(a) * 0.046, 0.007);
+    crank.add(screw);
+  }
+  const hub = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.024, 0.03, 0.022, 24)), brass);
+  hub.position.z = 0.017;
+  const axle = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.008, 0.008, 0.03, 10)), brass);
+  axle.position.z = 0.036;
   const crankArm = new THREE.Group();
-  crankArm.position.x = 0.046;
-  const arm = box(0.012, CRANK.arm + 0.02, 0.02, brass, 0, CRANK.arm / 2, 0);
-  const knob = new THREE.Mesh(axisX(new THREE.CylinderGeometry(0.013, 0.016, 0.065, 14)), wood);
-  knob.position.set(0.04, CRANK.arm, 0);
-  const knobCap = new THREE.Mesh(new THREE.SphereGeometry(0.013, 12, 8), brass);
-  knobCap.position.set(0.074, CRANK.arm, 0);
-  crankArm.add(arm, knob, knobCap);
-  crankArm.rotation.x = deg(-20);
-  crank.add(hub, axle, crankArm);
+  crankArm.position.z = 0.046;
+  // A turned rod rather than a flat bar, so it catches a line of light, and
+  // an ivory grip that shows against the dark door.
+  const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.012, CRANK.arm, 12), brass);
+  arm.position.y = CRANK.arm / 2;
+  const boss = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.014, 0.014, 0.014, 14)), brass);
+  boss.position.y = CRANK.arm;
+  const ivory = new THREE.MeshStandardMaterial({ color: 0xd8ccb0, roughness: 0.42, envMap, envMapIntensity: 0.9 });
+  const knob = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.0145, 0.016, 0.062, 16)), ivory);
+  knob.position.set(0, CRANK.arm, 0.038);
+  const knobCap = new THREE.Mesh(new THREE.SphereGeometry(0.0145, 14, 10), brass);
+  knobCap.position.set(0, CRANK.arm, 0.069);
+  crankArm.add(arm, boss, knob, knobCap);
+  // At rest the arm points up and to the right. Seen from the player's
+  // spot (above and to the left) the grip then runs down and away from the
+  // arm instead of folding back over it, so the crank reads as a crank.
+  crankArm.rotation.z = deg(-42);
+  crank.add(plate, hub, axle, crankArm);
   hub.castShadow = true;
   arm.castShadow = true;
-  // A generous invisible handle: the crank itself is thin.
-  const crankHit = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.26, 0.26), new THREE.MeshBasicMaterial());
+  // A generous invisible handle around the handle's whole sweep.
+  const crankHit = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.11), new THREE.MeshBasicMaterial());
   crankHit.material.visible = false;
-  crankHit.position.x = 0.07;
+  crankHit.position.z = 0.05;
   crankHit.userData.role = 'crank';
   crank.add(crankHit);
   group.add(crank);
-  const crankRest = crankArm.rotation.x;
+  const crankRest = crankArm.rotation.z;
 
-  // Its tag hangs off the axle on a string, turned to face the player.
-  const crankTex = canvasTexture(512, Math.round((512 * CRANK_TAG.h) / CRANK_TAG.w));
+  // Its tag hangs by the eyelet on a nail beside it, facing the player.
+  const crankTex = canvasTexture(600, Math.round((600 * CRANK_TAG.h) / CRANK_TAG.w));
   const crankTagMat = new THREE.MeshStandardMaterial({
     map: crankTex.tex,
     emissiveMap: crankTex.tex,
     emissive: 0xffffff,
-    emissiveIntensity: TAG_GLOW,
+    emissiveIntensity: SIGN_GLOW,
     roughness: 0.9,
     alphaTest: 0.5,
     side: THREE.DoubleSide,
   });
   const crankTagAt = new THREE.Group();
-  crankTagAt.position.set(CRANK.x + 0.11, CRANK.y - 0.1, CRANK.z + 0.09);
-  crankTagAt.rotation.set(deg(-12), deg(-26), 0, 'YXZ');
+  crankTagAt.position.set(CRANK_TAG.x, CRANK_TAG.nail, fz + 0.012);
   const crankTagPivot = new THREE.Group();
+  crankTagPivot.rotation.z = CRANK_TAG_TILT;
   const crankTag = new THREE.Mesh(new THREE.PlaneGeometry(CRANK_TAG.w, CRANK_TAG.h), crankTagMat);
-  crankTag.position.y = -CRANK_TAG.h * 0.41;
+  // drawCrankTag punches the eyelet 8.5% down from the top.
+  crankTag.position.y = -CRANK_TAG.h * 0.415;
   crankTag.userData.role = 'crank';
   crankTagPivot.add(crankTag);
   crankTagAt.add(crankTagPivot);
+  const tagNail = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.005, 0.005, 0.016, 10)), darkMetal);
+  tagNail.position.z = 0.002;
+  crankTagAt.add(tagNail);
   group.add(crankTagAt);
-  group.add(stringMesh(new THREE.Vector3(CRANK.x + 0.05, CRANK.y, CRANK.z), crankTagAt.position.clone(), 0.015, twine));
 
-  // ---- Rarity chart, nailed to the front-left panel ---------------------------------
-  const chartTex = canvasTexture(800, 600);
+  // ---- Rarity chart, nailed to the left door ------------------------------------------
+  const chartTex = canvasTexture(1040, Math.round((1040 * CHART.h) / CHART.w));
   const chartMat = new THREE.MeshStandardMaterial({ map: chartTex.tex, emissiveMap: chartTex.tex, emissive: 0xffffff, emissiveIntensity: SIGN_GLOW, roughness: 0.9 });
   const chartAt = new THREE.Group();
   chartAt.position.set(CHART.x, CHART.y, fz + 0.009);
@@ -809,8 +845,8 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   const nailGeo = new THREE.CylinderGeometry(0.0055, 0.0055, 0.006, 10);
   nailGeo.rotateX(Math.PI / 2);
   for (const sx of [-1, 1]) {
-    const nail = new THREE.Mesh(nailGeo, materials.darkMetal ?? brass);
-    nail.position.set(sx * (CHART.w / 2 - 0.026), CHART.h / 2 - 0.025, 0.003);
+    const nail = new THREE.Mesh(nailGeo, darkMetal);
+    nail.position.set(sx * (CHART.w / 2 - 0.028), CHART.h / 2 - 0.027, 0.003);
     chartAt.add(nail);
   }
   group.add(chartAt);
@@ -850,11 +886,18 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   };
   interaction.add(crankHit, crankHandler);
   interaction.add(crankTag, crankHandler);
+  let chartHover = false;
   interaction.add(chart, {
     enabled: () => !locked,
     cursor: 'help',
-    hover: (hit, ev) => hover({ kind: 'chart' }, ev),
-    leave: () => hover(null),
+    hover(hit, ev) {
+      chartHover = true;
+      hover({ kind: 'chart' }, ev);
+    },
+    leave() {
+      chartHover = false;
+      hover(null);
+    },
   });
 
   // ---- Charms --------------------------------------------------------------------
@@ -995,10 +1038,11 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     if (restockT >= 0) {
       restockT += dt;
       const e = easeInOut(Math.min(1, restockT / RESTOCK_TIME));
-      crankArm.rotation.x = crankRest + e * Math.PI * 2;
+      // One full turn, clockwise as the player sees it.
+      crankArm.rotation.z = crankRest - e * Math.PI * 2;
       if (restockT >= RESTOCK_TIME + 0.1) {
         restockT = -1;
-        crankArm.rotation.x = crankRest;
+        crankArm.rotation.z = crankRest;
       }
     }
     let lit = 0;
@@ -1044,13 +1088,13 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     if (oddity.plankMats) for (const m of oddity.plankMats) m.emissiveIntensity = 0.16 * level;
     light.intensity = LIGHT * level * (0.2 + (0.8 * lit) / Math.max(1, lamps)) * waver;
     glassSheen.envMapIntensity = SHEEN * (0.25 + 0.75 * level);
-    crankTagMat.emissiveIntensity = TAG_GLOW * level * (crankHover && !locked ? 1.35 : 1);
-    chartMat.emissiveIntensity = SIGN_GLOW * level;
+    crankTagMat.emissiveIntensity = SIGN_GLOW * level * (crankHover && !locked ? 1.3 : 1);
+    chartMat.emissiveIntensity = SIGN_GLOW * level * (chartHover && !locked ? 1.2 : 1);
     if (crankShake > 0) {
       crankShake = Math.max(0, crankShake - dt / 0.4);
       const wob = Math.sin(crankShake * 36) * crankShake;
-      if (restockT < 0) crankArm.rotation.x = crankRest + wob * 0.12;
-      crankTagPivot.rotation.z = wob * 0.12;
+      if (restockT < 0) crankArm.rotation.z = crankRest + wob * 0.12;
+      crankTagPivot.rotation.z = CRANK_TAG_TILT + wob * 0.12;
     }
     if (chartShake > 0) {
       chartShake = Math.max(0, chartShake - dt / 0.4);
@@ -1061,8 +1105,9 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   function setLocked(v) {
     locked = v;
     if (!v) return;
-    const wasHovered = crankHover || slots.some((s) => s.hover);
+    const wasHovered = crankHover || chartHover || slots.some((s) => s.hover);
     crankHover = false;
+    chartHover = false;
     for (const s of slots) s.hover = false;
     if (wasHovered) hover(null);
   }
@@ -1080,14 +1125,19 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     return s.pad.localToWorld(out.set(0, PAD.h * 0.05, PAD.d / 2 + 0.01));
   }
 
+  // Notes open above and beside their anchor. The crank's note hangs off the
+  // top corner of its tag, so it opens over the boarded compartment and
+  // leaves the crank, the tag's price and the chart in view; the chart's off
+  // its own top corner. Both points are on the object, so a click there
+  // lands on it.
   function crankWorldPosition(out = new THREE.Vector3()) {
     group.updateMatrixWorld();
-    return crank.localToWorld(out.set(0.06, 0.02, 0));
+    return crankTag.localToWorld(out.set(CRANK_TAG.w * 0.3, CRANK_TAG.h * 0.28, 0.002));
   }
 
   function chartWorldPosition(out = new THREE.Vector3()) {
     group.updateMatrixWorld();
-    return chartAt.localToWorld(out.set(0, 0, 0));
+    return chartAt.localToWorld(out.set(CHART.w * 0.22, CHART.h * 0.3, 0));
   }
 
   return {

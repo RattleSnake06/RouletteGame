@@ -7,10 +7,12 @@ import { INK, paintScratch, scrawlText, typedFont } from './ink.js';
 // HUD's ink, hanging from a ring. One builder serves the rail and the Curio
 // Cabinet, so a talisman looks the same in the shop and on the hook.
 //
-// Faces are painted on canvas (no image files). A charm is only 40-60 px tall
-// at the table, so each curio is one bold silhouette in bone, brass or red on
-// dark enamel; the detail is for the Cabinet's close look. No green anywhere:
-// green belongs to the House.
+// Faces are painted on canvas (no image files). A charm's face is only 30-40
+// px across at the table (16 in a small window), so each curio is one big
+// silhouette in bone, brass or red that fills the enamel, inside a soot
+// keyline; the fine detail is for the Cabinet's close look. Twin Mirrors'
+// copies sit on silvered glass instead of enamel, so a copy never passes for
+// the real thing. No green anywhere: green belongs to the House.
 
 /** Charm size in metres: the disc's outer radius and its thickness. */
 export const CHARM = { radius: 0.032, depth: 0.008 };
@@ -23,7 +25,6 @@ const C = {
   ...INK,
   paper: '#ece3cf',
   paperShade: '#b4a68a',
-  manila: '#d9bb83',
   manilaDeep: '#8f6e3a',
   ivory: '#e9dcbf',
   brassLight: '#f0d494',
@@ -31,14 +32,11 @@ const C = {
   copper: '#de8748',
   copperLight: '#ffc995',
   copperDeep: '#7a3818',
-  iron: '#aaa298',
   ironDeep: '#3f3934',
-  wood: '#b06a34',
   woodDeep: '#4e2611',
   amber: '#eba232',
   amberDeep: '#7c3a0c',
   ink: '#1d1310',
-  porcelain: '#efe5cf',
   porcelainShade: '#9c8b6e',
 };
 
@@ -131,104 +129,107 @@ const brassFill = (ctx, y0, y1) =>
   ]);
 
 // ---- The curios ------------------------------------------------------------------
-// Each painter draws one curio centred on (0, 0), inside a radius of about 80.
+// Each painter draws one curio centred on (0, 0), filling a radius of about 80
+// (the bone ring sits at 90). At the table a face is 30-40 px across, so every
+// curio is one big silhouette with a few thick strokes; anything thinner than
+// about 4 units vanishes there and is only for the Cabinet's close look.
 // `r` is a seeded random stream, so a face always comes out the same.
 
 const PAINTERS = {
   red_ribbon(ctx) {
     // Tails first, so the bow sits over them.
+    ctx.save();
+    ctx.translate(0, -4);
     for (const [bx, by, color] of [
-      [-40, 70, C.bloodDeep],
-      [38, 72, C.blood],
+      [-42, 74, C.bloodDeep],
+      [40, 76, C.blood],
     ]) {
-      band(ctx, bx * 0.08, -2, bx, by, 23, 10);
-      fill(ctx, color, '#4a080c', 2.5);
+      band(ctx, bx * 0.08, -2, bx, by, 25, 11);
+      fill(ctx, color, '#4a080c', 3);
     }
     for (const s of [-1, 1]) {
       const loop = new Path2D();
       loop.moveTo(0, -8);
-      loop.bezierCurveTo(s * -32, -70, s * -86, -56, s * -72, -14);
-      loop.bezierCurveTo(s * -62, 16, s * -26, 10, 0, -8);
+      loop.bezierCurveTo(s * -32, -72, s * -88, -58, s * -74, -14);
+      loop.bezierCurveTo(s * -64, 18, s * -26, 10, 0, -8);
       ctx.lineJoin = 'round';
       ctx.strokeStyle = '#4a080c';
-      ctx.lineWidth = 22;
+      ctx.lineWidth = 25;
       ctx.stroke(loop);
       ctx.strokeStyle = C.bloodDeep;
-      ctx.lineWidth = 18;
+      ctx.lineWidth = 20;
       ctx.stroke(loop);
       ctx.save();
       ctx.translate(s * 1.5, -2.5);
       ctx.strokeStyle = C.blood;
-      ctx.lineWidth = 12;
+      ctx.lineWidth = 14;
       ctx.stroke(loop);
       ctx.restore();
       // Light catching the outer edge of each loop.
       ctx.beginPath();
-      ctx.moveTo(s * -14, -38);
-      ctx.bezierCurveTo(s * -36, -66, s * -78, -58, s * -78, -26);
+      ctx.moveTo(s * -14, -40);
+      ctx.bezierCurveTo(s * -36, -68, s * -80, -60, s * -80, -26);
       ctx.strokeStyle = 'rgba(255, 214, 200, 0.75)';
-      ctx.lineWidth = 2.6;
+      ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.stroke();
     }
-    rrect(ctx, -14, -25, 28, 32, 8);
-    fill(ctx, C.blood, '#4a080c', 3);
-    seg(ctx, -7, -19, -5, 0, 'rgba(255, 214, 200, 0.7)', 2.6);
+    rrect(ctx, -15, -26, 30, 34, 8);
+    fill(ctx, C.blood, '#4a080c', 3.5);
+    seg(ctx, -7, -19, -5, 0, 'rgba(255, 214, 200, 0.7)', 3);
+    ctx.restore();
   },
 
   horseshoe(ctx) {
     // Open end up, so the luck stays in.
-    const cx = 0;
-    const cy = 6;
-    const rx = 44;
-    const ry = 52;
-    const a0 = -Math.PI * 0.34;
-    const a1 = Math.PI * 1.34;
-    const arc = () => {
+    const cy = -2;
+    const rx = 50;
+    const ry = 57;
+    const a0 = -Math.PI * 0.32;
+    const a1 = Math.PI * 1.32;
+    const arc = (dr = 0, t0 = a0, t1 = a1) => {
       ctx.beginPath();
-      ctx.ellipse(cx, cy, rx, ry, 0, a0, a1);
+      ctx.ellipse(0, cy, rx + dr, ry + dr, 0, t0, t1);
     };
     ctx.lineCap = 'butt';
     arc();
     ctx.strokeStyle = C.ironDeep;
-    ctx.lineWidth = 32;
+    ctx.lineWidth = 39;
     ctx.stroke();
     arc();
-    ctx.strokeStyle = linear(ctx, -50, -50, 50, 60, [
-      [0, '#d6cfc3'],
-      [0.5, C.iron],
+    ctx.strokeStyle = linear(ctx, -60, -60, 50, 70, [
+      [0, '#f2ece0'],
+      [0.5, '#bdb5a9'],
       [1, '#6e665d'],
     ]);
-    ctx.lineWidth = 27;
+    ctx.lineWidth = 33;
     ctx.stroke();
     // The fuller: the groove the nails sit in.
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, a0 + 0.16, a1 - 0.16);
+    arc(0, a0 + 0.2, a1 - 0.2);
     ctx.strokeStyle = '#5d554c';
-    ctx.lineWidth = 7;
+    ctx.lineWidth = 6;
     ctx.stroke();
-    for (const deg of [-30, 6, 42, 138, 174, 210]) {
+    for (const deg of [-22, 16, 54, 126, 164, 202]) {
       const a = (deg * Math.PI) / 180;
       ctx.save();
-      ctx.translate(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
+      ctx.translate(Math.cos(a) * rx, cy + Math.sin(a) * ry);
       ctx.rotate(a);
-      rrect(ctx, -5, -3.2, 10, 6.4, 1.5);
+      rrect(ctx, -7, -4.5, 14, 9, 2);
       fill(ctx, C.soot);
       ctx.restore();
     }
     // Calkins: the heels at the two tips.
     for (const a of [a0, a1]) {
       ctx.save();
-      ctx.translate(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry);
+      ctx.translate(Math.cos(a) * rx, cy + Math.sin(a) * ry);
       ctx.rotate(a + Math.PI / 2);
-      rrect(ctx, -17, -4, 34, 9, 2);
-      fill(ctx, '#7b736a', C.ironDeep, 2.5);
+      rrect(ctx, -20, -5.5, 40, 12, 2.5);
+      fill(ctx, '#8d857a', C.ironDeep, 3);
       ctx.restore();
     }
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx + 11, ry + 11, 0, Math.PI * 0.82, Math.PI * 1.28);
-    ctx.strokeStyle = 'rgba(245, 238, 225, 0.8)';
-    ctx.lineWidth = 3;
+    arc(12, Math.PI * 0.8, Math.PI * 1.26);
+    ctx.strokeStyle = 'rgba(255, 250, 240, 0.85)';
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.stroke();
   },
@@ -237,145 +238,175 @@ const PAINTERS = {
     // An open book of matches with its cover folded back, and one match torn
     // out and struck. The card behind the comb keeps it from reading as candles.
     ctx.save();
+    ctx.scale(1.14, 1.14);
+    ctx.translate(5, 2);
+    ctx.save();
     ctx.translate(-12, 8);
     ctx.rotate(-0.08);
     rrect(ctx, -44, -50, 80, 70, 4);
     fill(ctx, linear(ctx, 0, -50, 0, 20, [
-      [0, '#d9ccb0'],
+      [0, '#ddd0b4'],
       [1, '#a3967b'],
     ]), '#3a2e22', 3);
     ctx.strokeStyle = C.blood;
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 3;
     ctx.strokeRect(-38, -44, 68, 58);
     rrect(ctx, -40, -2, 72, 16, 2);
     fill(ctx, '#8f8166');
-    for (let i = 0; i < 6; i++) {
-      const x = -32 + i * 12;
-      if (i === 4) continue; // the one that was torn out
-      rrect(ctx, x - 3, -22, 6, 26, 1.2);
-      fill(ctx, '#e9dcbc', '#5a4a36', 1.4);
-      ellipse(ctx, x, -25, 5.6, 7.4);
-      fill(ctx, C.blood, '#4a080c', 1.8);
+    for (let i = 0; i < 5; i++) {
+      const x = -30 + i * 14;
+      if (i === 3) continue; // the one that was torn out
+      rrect(ctx, x - 3.5, -22, 7, 26, 1.2);
+      fill(ctx, '#ece0c0', '#5a4a36', 1.6);
+      ellipse(ctx, x, -25, 6.5, 8.2);
+      fill(ctx, C.blood, '#4a080c', 2);
     }
     rrect(ctx, -46, 12, 84, 44, 4);
     fill(ctx, linear(ctx, 0, 12, 0, 56, [
       [0, '#ea3a42'],
       [1, '#a3151c'],
-    ]), '#4a080c', 3);
-    rrect(ctx, -46, 44, 84, 10, 2);
+    ]), '#4a080c', 3.5);
+    // The striker strip along the bottom.
+    rrect(ctx, -46, 42, 84, 12, 2);
     fill(ctx, '#2c0e0c');
     ctx.fillStyle = 'rgba(179, 169, 147, 0.55)';
-    for (let i = 0; i < 36; i++) ctx.fillRect(-43 + ((i * 37) % 78), 46 + ((i * 7) % 6), 1.6, 1.6);
-    seg(ctx, -38, 21, 30, 21, 'rgba(237, 229, 211, 0.9)', 2.4);
-    rrect(ctx, -10, 26, 6, 4, 1);
-    fill(ctx, C.boneDim);
+    for (let i = 0; i < 30; i++) ctx.fillRect(-43 + ((i * 37) % 78), 45 + ((i * 7) % 7), 2, 2);
+    seg(ctx, -38, 22, 30, 22, 'rgba(237, 229, 211, 0.9)', 3.4);
     ctx.restore();
     // The struck match, held across the book.
     ctx.save();
     ctx.translate(30, -22);
     ctx.rotate(0.5);
-    rrect(ctx, -3.5, 0, 7, 70, 1.5);
-    fill(ctx, '#efe2c2', '#3a2e22', 1.8);
-    ellipse(ctx, 0, -2, 6.5, 8.5);
+    rrect(ctx, -4.5, 0, 9, 70, 2);
+    fill(ctx, '#f0e4c4', '#3a2e22', 2);
+    ellipse(ctx, 0, -2, 7.5, 9.5);
     fill(ctx, '#2a1210', C.soot, 2);
     ctx.restore();
     const flame = (s) => {
       ctx.beginPath();
-      ctx.moveTo(28, -24);
-      ctx.bezierCurveTo(28 - 22 * s, -32, 26 - 8 * s, -56, 36, -70 + (1 - s) * 16);
-      ctx.bezierCurveTo(36 + 10 * s, -54, 30 + 24 * s, -36, 28, -24);
+      ctx.moveTo(28, -22);
+      ctx.bezierCurveTo(28 - 24 * s, -32, 26 - 9 * s, -58, 36, -72 + (1 - s) * 16);
+      ctx.bezierCurveTo(36 + 11 * s, -56, 30 + 26 * s, -36, 28, -22);
       ctx.closePath();
     };
     flame(1);
     fill(ctx, C.blood);
-    flame(0.7);
+    flame(0.72);
     fill(ctx, C.amber);
-    flame(0.36);
+    flame(0.38);
     fill(ctx, '#fff4d6');
+    ctx.restore();
   },
 
   lucky_penny(ctx) {
-    // A copper cash coin, tipped toward the light: thick edge, raised rim,
-    // a square hole punched through the middle.
+    // A copper cash coin on a red cord, tipped toward the light. The thick
+    // milled edge makes it a coin rather than a ring, and the cord through the
+    // square hole makes it a lucky one.
     ctx.save();
-    ctx.rotate(-0.22);
-    const rx = 62;
-    const ry = 54;
-    ellipse(ctx, 0, 10, rx, ry);
-    fill(ctx, C.copperDeep, '#2e1408', 3);
-    ctx.strokeStyle = 'rgba(40, 16, 6, 0.6)';
-    ctx.lineWidth = 1.6;
-    for (let i = 0; i <= 24; i++) {
-      // Milling on the edge.
-      const a = Math.PI * (0.04 + (0.92 * i) / 24);
+    ctx.rotate(-0.2);
+    ctx.translate(0, -2);
+    const rx = 70;
+    const ry = 58;
+    ellipse(ctx, 0, 13, rx, ry);
+    fill(ctx, C.copperDeep, '#2e1408', 3.5);
+    ctx.strokeStyle = 'rgba(40, 16, 6, 0.75)';
+    ctx.lineWidth = 2.6;
+    for (let i = 1; i < 14; i++) {
+      const a = Math.PI * (i / 14);
       const x = Math.cos(a) * rx;
       const y = Math.sin(a) * ry;
       ctx.beginPath();
-      ctx.moveTo(x, y + 1);
-      ctx.lineTo(x, y + 9);
+      ctx.moveTo(x, y + 2);
+      ctx.lineTo(x, y + 11);
       ctx.stroke();
     }
     ellipse(ctx, 0, 0, rx, ry);
-    fill(ctx, linear(ctx, -40, -50, 40, 50, [
+    fill(ctx, linear(ctx, -50, -50, 50, 50, [
       [0, C.copperLight],
       [0.5, C.copper],
       [1, '#9a4c22'],
-    ]), '#3a1a0a', 2.5);
-    ellipse(ctx, 0, 0, rx - 7, ry - 6);
+    ]), '#3a1a0a', 3);
+    // The raised rim.
+    ellipse(ctx, 0, 0, rx - 10, ry - 9);
     ctx.strokeStyle = 'rgba(80, 34, 12, 0.9)';
-    ctx.lineWidth = 2.6;
+    ctx.lineWidth = 4.5;
     ctx.stroke();
-    ellipse(ctx, 0, 0, rx - 9.5, ry - 8.5);
-    ctx.fillStyle = linear(ctx, -40, -40, 40, 40, [
-      [0, '#efa064'],
-      [1, '#a85226'],
-    ]);
-    ctx.fill();
     ctx.save();
     ctx.scale(1, ry / rx);
-    ctx.strokeStyle = 'rgba(90, 38, 14, 0.85)';
-    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
-    for (let i = 0; i < 4; i++) {
-      // Four struck characters round the hole, like old cash.
-      ctx.save();
-      ctx.rotate((i * TAU) / 4);
-      ctx.beginPath();
-      ctx.moveTo(-6, -38);
-      ctx.lineTo(6, -38);
-      ctx.moveTo(0, -44);
-      ctx.lineTo(0, -32);
-      ctx.stroke();
-      ctx.restore();
+    // Four characters struck in relief round the hole, like old cash: lit
+    // above, shadowed below, so they sink into the copper when small.
+    for (const [dx, dy, color] of [
+      [1.6, 1.6, 'rgba(90, 38, 14, 0.75)'],
+      [-0.8, -0.8, 'rgba(255, 222, 186, 0.8)'],
+    ]) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 4.5;
+      for (let i = 0; i < 4; i++) {
+        ctx.save();
+        ctx.rotate((i * TAU) / 4);
+        ctx.translate(dx, dy);
+        ctx.beginPath();
+        ctx.moveTo(-8, -46);
+        ctx.lineTo(8, -46);
+        ctx.moveTo(0, -53);
+        ctx.lineTo(0, -39);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
-    rrect(ctx, -21, -21, 42, 42, 2);
-    ctx.lineWidth = 4;
+    rrect(ctx, -27, -27, 54, 54, 3);
+    ctx.strokeStyle = 'rgba(90, 38, 14, 0.92)';
+    ctx.lineWidth = 5.5;
     ctx.stroke();
-    punch(ctx, () => rrect(ctx, -16, -16, 32, 32, 1.5));
+    punch(ctx, () => rrect(ctx, -20, -20, 40, 40, 2));
     // The far wall of the hole, catching the light.
     ctx.fillStyle = C.copperDeep;
-    ctx.fillRect(-16, -16, 32, 6);
+    ctx.fillRect(-20, -20, 40, 8);
     ctx.restore();
     ctx.beginPath();
-    ctx.ellipse(0, 0, rx - 3, ry - 3, 0, Math.PI * 1.0, Math.PI * 1.55);
+    ctx.ellipse(0, 0, rx - 3.5, ry - 3.5, 0, Math.PI * 1.08, Math.PI * 1.42);
     ctx.strokeStyle = 'rgba(255, 240, 220, 0.9)';
-    ctx.lineWidth = 3.4;
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.stroke();
+    // The cord: round the top bar of the hole, up over the rim, tied in a
+    // loop above. It leaves the hole itself clear.
+    const cord = new Path2D();
+    cord.moveTo(0, -15);
+    cord.lineTo(0, -ry + 2);
+    cord.bezierCurveTo(-22, -ry - 30, 22, -ry - 30, 0, -ry + 2);
+    ctx.lineJoin = 'round';
+    for (const [color, w] of [
+      ['#3a0609', 11],
+      [C.bloodDeep, 8],
+      [C.blood, 5],
+    ]) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = w;
+      ctx.stroke(cord);
+    }
+    // The twist of the cord.
+    for (let y = -18; y > -ry; y -= 7) seg(ctx, -3, y, 3, y - 4, 'rgba(58, 6, 9, 0.8)', 1.6);
+    circle(ctx, 0, -ry + 2, 7.5);
+    fill(ctx, C.blood, '#3a0609', 2.5);
     ctx.restore();
   },
 
   crumpled_receipt(ctx, r) {
+    // A till slip balled up and smoothed out again: torn ends, creases, a few
+    // typed lines and the total ringed in red, the way you mark what you owe.
     ctx.save();
-    ctx.rotate(-0.2);
-    const top = -66;
-    const bot = 64;
-    const half = 31;
+    ctx.rotate(-0.16);
+    const top = -70;
+    const bot = 68;
+    const half = 38;
+    const tooth = 9.5;
     const pts = [];
-    for (let x = -half; x <= half; x += 6.2) pts.push([x, top - ((x / 6.2) & 1 ? 6 : 0)]);
-    for (let y = top + 10; y < bot; y += 13) pts.push([half + (r() - 0.5) * 7 - (y > 0 && y < 20 ? 5 : 0), y]);
-    for (let x = half; x >= -half; x -= 6.2) pts.push([x, bot + ((x / 6.2) & 1 ? 6 : 0)]);
-    for (let y = bot - 10; y > top; y -= 13) pts.push([-half + (r() - 0.5) * 7 + (y < -20 && y > -40 ? 5 : 0), y]);
+    for (let i = 0; i <= 8; i++) pts.push([-half + i * tooth, top + (i & 1 ? 8 : 0)]);
+    for (let y = top + 14; y < bot - 6; y += 16) pts.push([half + (r() - 0.5) * 8 - (y > 0 && y < 24 ? 6 : 0), y]);
+    for (let i = 0; i <= 8; i++) pts.push([half - i * tooth, bot - (i & 1 ? 8 : 0)]);
+    for (let y = bot - 14; y > top + 6; y -= 16) pts.push([-half + (r() - 0.5) * 8 + (y < -16 && y > -44 ? 6 : 0), y]);
     const outline = new Path2D();
     pts.forEach(([x, y], i) => (i ? outline.lineTo(x, y) : outline.moveTo(x, y)));
     outline.closePath();
@@ -383,52 +414,48 @@ const PAINTERS = {
     ctx.fill(outline);
     ctx.save();
     ctx.clip(outline);
-    // Crumple facets: shaded planes between creases.
-    const facets = [
-      [[-40, -30], [40, -52], [40, -10], [-40, 6], 'rgba(110, 92, 62, 0.28)'],
-      [[-40, 20], [40, 2], [40, 30], [-40, 44], 'rgba(255, 252, 240, 0.4)'],
-      [[-40, 44], [40, 30], [40, 80], [-40, 80], 'rgba(110, 92, 62, 0.22)'],
-    ];
-    for (const [a, b, c, d, color] of facets) {
+    // Crumple facets: shaded planes between the creases.
+    for (const [quad, color] of [
+      [[[-50, -30], [50, -54], [50, -12], [-50, 8]], 'rgba(110, 92, 62, 0.34)'],
+      [[[-50, 8], [50, -12], [50, 24], [-50, 40]], 'rgba(255, 252, 240, 0.45)'],
+      [[[-50, 40], [50, 24], [50, 80], [-50, 80]], 'rgba(110, 92, 62, 0.26)'],
+    ]) {
       ctx.beginPath();
-      ctx.moveTo(...a);
-      ctx.lineTo(...b);
-      ctx.lineTo(...c);
-      ctx.lineTo(...d);
+      quad.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
       ctx.fillStyle = color;
       ctx.fill();
     }
-    for (const seg of [
-      [[-34, -30], [34, -52]],
-      [[-34, 6], [34, -10]],
-      [[-34, 44], [34, 30]],
-      [[-10, -70], [6, 70]],
+    for (const crease of [
+      [[-44, -30], [44, -52]],
+      [[-44, 8], [44, -12]],
+      [[-44, 40], [44, 24]],
+      [[-8, -76], [6, 76]],
     ]) {
-      line(ctx, seg, 'rgba(120, 100, 70, 0.6)', 1.4);
+      line(ctx, crease, 'rgba(110, 90, 62, 0.7)', 2);
     }
     // Typed lines: words and prices.
-    ctx.fillStyle = 'rgba(30, 20, 16, 0.82)';
-    const rows = [-50, -40, -30, -20, -10, 0];
-    rows.forEach((y, i) => {
-      const w = 12 + r() * 16;
-      ctx.fillRect(-23, y - (i * 1.8) / 3, w, 3.6);
-      ctx.fillRect(10, y - (i * 1.8) / 3 - 1.5, 12, 3.6);
+    ctx.fillStyle = 'rgba(30, 20, 16, 0.88)';
+    [-54, -40, -26].forEach((y, i) => {
+      ctx.fillRect(-28, y, 20 + ((i * 11) % 14), 6.5);
+      ctx.fillRect(10, y - 1, 17, 6.5);
     });
-    ctx.setLineDash([3, 3]);
-    line(ctx, [[-24, 13], [24, 9]], 'rgba(30, 20, 16, 0.7)', 1.6, 'butt');
+    ctx.setLineDash([5, 4]);
+    line(ctx, [[-28, -8], [28, -12]], 'rgba(30, 20, 16, 0.8)', 3, 'butt');
     ctx.setLineDash([]);
-    ctx.fillRect(-23, 22, 18, 5);
+    ctx.fillRect(-28, 10, 20, 8);
     ctx.fillStyle = C.bloodDeep;
-    ctx.fillRect(4, 20, 18, 6);
+    ctx.fillRect(5, 7, 22, 11);
+    ctx.fillStyle = 'rgba(30, 20, 16, 0.45)';
+    ctx.fillRect(-22, 40, 44, 5);
+    ctx.fillRect(-14, 52, 28, 5);
     ctx.restore();
-    ctx.strokeStyle = 'rgba(90, 74, 52, 0.9)';
-    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = 'rgba(80, 64, 44, 0.95)';
+    ctx.lineWidth = 2.6;
     ctx.stroke(outline);
-    // A red ring round the total, the way you'd mark what you owe.
     ctx.beginPath();
-    ctx.ellipse(13, 23, 17, 10, -0.15, 0.3, TAU + 0.6);
+    ctx.ellipse(16, 12.5, 26, 15, -0.12, 0.3, TAU + 0.55);
     ctx.strokeStyle = C.blood;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.stroke();
     ctx.restore();
@@ -436,6 +463,8 @@ const PAINTERS = {
 
   pawn_ticket(ctx) {
     ctx.save();
+    ctx.scale(1.1, 1.1);
+    ctx.translate(2, 6);
     ctx.rotate(0.16);
     // The string, out through the punched hole.
     ctx.beginPath();
@@ -443,7 +472,7 @@ const PAINTERS = {
     ctx.bezierCurveTo(-74, -6, -82, -30, -66, -44);
     ctx.bezierCurveTo(-56, -52, -40, -48, -38, -60);
     ctx.strokeStyle = C.boneDim;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.lineCap = 'round';
     ctx.stroke();
     const k = 9;
@@ -458,43 +487,44 @@ const PAINTERS = {
     ctx.lineTo(-66, -36 + k);
     ctx.closePath();
     fill(ctx, linear(ctx, 0, -36, 0, 36, [
-      [0, '#e6cc96'],
+      [0, '#ead19b'],
       [1, '#c19b5c'],
-    ]), C.manilaDeep, 2.5);
+    ]), C.manilaDeep, 3);
     ctx.strokeStyle = C.bloodDeep;
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 2.2;
     ctx.strokeRect(-28, -28, 86, 56);
     ctx.fillStyle = C.ink;
     ctx.font = typedFont(15);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText('No.', -24, -16);
-    ctx.fillRect(-24, 18, 32, 2.4);
     ctx.textAlign = 'center';
-    scrawlText(ctx, '13', 20, 6, 44, C.blood, { maxWidth: 70 });
-    for (let y = -32; y <= 32; y += 6.4) punch(ctx, () => circle(ctx, -36, y, 1.7));
-    circle(ctx, -52, 0, 10.5);
+    scrawlText(ctx, '13', 22, 6, 50, C.blood, { maxWidth: 72 });
+    for (let y = -32; y <= 32; y += 6.4) punch(ctx, () => circle(ctx, -36, y, 1.8));
+    circle(ctx, -52, 0, 11);
     ctx.strokeStyle = C.manilaDeep;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
     ctx.stroke();
-    punch(ctx, () => circle(ctx, -52, 0, 6.5));
+    punch(ctx, () => circle(ctx, -52, 0, 7));
     // The string, back over the card and through the hole.
     ctx.beginPath();
     ctx.moveTo(-52, 4);
     ctx.quadraticCurveTo(-60, 2, -62, -6);
     ctx.strokeStyle = C.boneDim;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
     ctx.stroke();
     ctx.restore();
   },
 
   brass_knuckles(ctx) {
     ctx.save();
+    ctx.scale(1.18, 1.18);
+    ctx.translate(0, -5);
     ctx.rotate(-0.08);
     const xs = [-45, -15, 15, 45];
     const yR = -14;
     const shape = (extra) => {
-      ctx.lineWidth = 18 + extra;
+      ctx.lineWidth = 19 + extra;
       ctx.lineCap = 'round';
       for (const x of xs) {
         circle(ctx, x, yR, 18.5 + extra / 2);
@@ -509,282 +539,306 @@ const PAINTERS = {
     };
     ctx.fillStyle = ctx.strokeStyle = C.brassDeep;
     shape(6);
-    ctx.fillStyle = ctx.strokeStyle = brassFill(ctx, -34, 46);
+    ctx.fillStyle = ctx.strokeStyle = linear(ctx, 0, -34, 0, 46, [
+      [0, '#f6dea2'],
+      [0.45, '#d2aa62'],
+      [1, '#8a6630'],
+    ]);
     shape(0);
     for (const x of xs) {
       circle(ctx, x, yR, 12);
       ctx.strokeStyle = C.brassDeep;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.5;
       ctx.stroke();
       punch(ctx, () => circle(ctx, x, yR, 10.5));
       ctx.beginPath();
       ctx.arc(x, yR, 15.5, Math.PI * 1.1, Math.PI * 1.7);
       ctx.strokeStyle = 'rgba(255, 244, 214, 0.85)';
-      ctx.lineWidth = 2.4;
+      ctx.lineWidth = 2.8;
       ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.moveTo(-40, 26);
-    ctx.bezierCurveTo(-24, 42, 24, 42, 40, 26);
-    ctx.strokeStyle = 'rgba(255, 244, 214, 0.6)';
-    ctx.lineWidth = 2.4;
-    ctx.stroke();
     ctx.restore();
   },
 
   croupiers_rake(ctx) {
-    // A long stick with a wide flat blade, and the chips it pulls in.
-    for (const [y, face, rim] of [
-      [54, C.blood, C.bone],
-      [44, C.ivory, C.bloodDeep],
-      [34, C.blood, C.bone],
-    ]) {
-      ellipse(ctx, 40, y + 4, 20, 9.5);
-      fill(ctx, '#2a0a0a');
-      ellipse(ctx, 40, y, 20, 9.5);
-      fill(ctx, face, '#2a0a0a', 2);
-      ctx.setLineDash([3.6, 3.8]);
-      ellipse(ctx, 40, y, 13.5, 6);
+    // The croupier's long stick, its flat blade drawing two stacks of chips
+    // in. A long blade and the chips keep it from reading as a hammer.
+    const stick = [[0, 0], [-52, -64]];
+    ctx.lineCap = 'round';
+    line(ctx, stick, C.woodDeep, 15);
+    line(ctx, stick, linear(ctx, 0, 0, -52, -64, [
+      [0, '#c07438'],
+      [1, '#eab074'],
+    ]), 10);
+    seg(ctx, -4, -8, -48, -62, 'rgba(255, 226, 190, 0.55)', 2.2);
+    ctx.save();
+    ctx.translate(4, 4);
+    ctx.rotate(-0.07);
+    // The ferrule where the stick meets the blade.
+    ctx.save();
+    ctx.rotate(Math.atan2(-64, -52) + Math.PI / 2);
+    rrect(ctx, -7.5, 2, 15, 15, 3);
+    fill(ctx, brassFill(ctx, 2, 17), C.brassDeep, 2.5);
+    ctx.restore();
+    rrect(ctx, -60, -6, 120, 13, 4);
+    fill(ctx, linear(ctx, 0, -6, 0, 7, [
+      [0, '#f6eedb'],
+      [1, '#b5a484'],
+    ]), '#3a2a1c', 3);
+    seg(ctx, -54, -2.5, 54, -2.5, 'rgba(255, 255, 250, 0.8)', 2.2);
+    ctx.restore();
+    const chip = (x, y, face, side, rim) => {
+      ellipse(ctx, x, y + 8, 21, 9);
+      fill(ctx, side, '#1c0606', 2.5);
+      ctx.fillStyle = side;
+      ctx.fillRect(x - 21, y, 42, 8);
+      seg(ctx, x - 21, y, x - 21, y + 8, '#1c0606', 2.5);
+      seg(ctx, x + 21, y, x + 21, y + 8, '#1c0606', 2.5);
+      ellipse(ctx, x, y, 21, 9);
+      fill(ctx, face, '#1c0606', 2.5);
+      ctx.setLineDash([4.5, 4]);
+      ellipse(ctx, x, y, 14, 5.6);
       ctx.strokeStyle = rim;
-      ctx.lineWidth = 2.4;
+      ctx.lineWidth = 3;
       ctx.stroke();
       ctx.setLineDash([]);
+    };
+    const red = [C.blood, '#7a0e14', C.bone];
+    const ivory = [C.ivory, '#9c8b6e', C.bloodDeep];
+    for (const [x, y, kind] of [
+      [-26, 48, red],
+      [-26, 39, ivory],
+      [-26, 30, red],
+      [28, 48, ivory],
+      [28, 39, red],
+    ]) {
+      chip(x, y, ...kind);
     }
-    const a = [-66, 50];
-    const e = [24, -34];
-    ctx.lineCap = 'round';
-    line(ctx, [a, e], C.woodDeep, 14);
-    line(ctx, [a, e], linear(ctx, -66, 50, 24, -34, [
-      [0, '#9a5428'],
-      [1, '#d48e50'],
-    ]), 10);
-    seg(ctx, a[0] - 1, a[1] - 3, e[0] - 2, e[1] - 2, 'rgba(255, 226, 190, 0.5)', 1.8);
-    ctx.save();
-    ctx.translate(e[0] + 4, e[1] - 4);
-    ctx.rotate(Math.atan2(e[1] - a[1], e[0] - a[0]));
-    rrect(ctx, -14, -6.5, 15, 13, 2);
-    fill(ctx, brassFill(ctx, -6, 6), C.brassDeep, 2);
-    rrect(ctx, 0, -44, 11, 88, 3);
-    fill(ctx, linear(ctx, 0, 0, 11, 0, [
-      [0, '#fbf3e0'],
-      [1, '#b9a988'],
-    ]), '#4a3a28', 2.5);
-    ctx.restore();
   },
 
   ledger(ctx) {
+    ctx.save();
+    ctx.translate(0, -6);
     ctx.beginPath();
-    ctx.moveTo(-78, -32);
+    ctx.moveTo(-74, -32);
     ctx.lineTo(0, -38);
-    ctx.lineTo(78, -32);
-    ctx.lineTo(80, 54);
+    ctx.lineTo(74, -32);
+    ctx.lineTo(76, 54);
     ctx.lineTo(0, 60);
-    ctx.lineTo(-80, 54);
+    ctx.lineTo(-76, 54);
     ctx.closePath();
-    fill(ctx, C.bloodDeep, '#3a0609', 3);
+    fill(ctx, C.bloodDeep, '#3a0609', 3.5);
     for (const s of [-1, 1]) {
       // A few page edges under the open leaves.
       for (let i = 2; i >= 0; i--) {
         ctx.beginPath();
         ctx.moveTo(s * 2, -36 + i * 2);
-        ctx.quadraticCurveTo(s * 36, -46 + i * 2, s * 72, -34 + i * 2);
-        ctx.lineTo(s * 72, 46 + i * 2.5);
-        ctx.quadraticCurveTo(s * 36, 38 + i * 2.5, s * 2, 50 + i * 2.5);
+        ctx.quadraticCurveTo(s * 34, -46 + i * 2, s * 68, -34 + i * 2);
+        ctx.lineTo(s * 68, 46 + i * 2.5);
+        ctx.quadraticCurveTo(s * 34, 38 + i * 2.5, s * 2, 50 + i * 2.5);
         ctx.closePath();
-        fill(ctx, i ? C.paperShade : C.paper, i ? null : '#6e5f48', 1.6);
+        fill(ctx, i ? C.paperShade : C.paper, i ? null : '#6e5f48', 2);
       }
     }
     ctx.fillStyle = linear(ctx, -14, 0, 14, 0, [
       [0, 'rgba(60, 40, 20, 0)'],
-      [0.5, 'rgba(60, 40, 20, 0.45)'],
+      [0.5, 'rgba(60, 40, 20, 0.5)'],
       [1, 'rgba(60, 40, 20, 0)'],
     ]);
     ctx.fillRect(-14, -44, 28, 96);
-    // Left leaf: two gates of tallies, the way you count repeats.
+    // Left leaf: gates of tallies, the way you count repeats.
     const inkC = '#24160f';
     for (const [x0, y0] of [
-      [-62, -22],
-      [-36, -22],
-      [-62, 8],
+      [-58, -22],
+      [-32, -22],
+      [-58, 10],
     ]) {
       for (let i = 0; i < 4; i++) {
-        seg(ctx, x0 + i * 5.5, y0, x0 + i * 5.5 - 1, y0 + 20, inkC, 3);
+        seg(ctx, x0 + i * 6, y0, x0 + i * 6 - 1, y0 + 22, inkC, 4.2);
       }
-      seg(ctx, x0 - 3, y0 + 16, x0 + 21, y0 + 4, inkC, 3);
+      seg(ctx, x0 - 4, y0 + 18, x0 + 23, y0 + 4, inkC, 4.2);
     }
-    seg(ctx, -36, 12, -36, 28, inkC, 3);
-    seg(ctx, -30, 12, -31, 28, inkC, 3);
-    // Right leaf: ruled columns, and one entry underlined in red.
-    for (let i = 0; i < 6; i++) {
-      const y = -24 + i * 12;
-      seg(ctx, 10, y, 64, y + 1, 'rgba(120, 100, 76, 0.7)', 1.2);
-      ctx.fillStyle = 'rgba(36, 22, 15, 0.8)';
-      ctx.fillRect(12, y - 7, 10 + ((i * 13) % 18), 3);
-      ctx.fillRect(48, y - 7, 12, 3);
+    seg(ctx, -32, 12, -32, 32, inkC, 4.2);
+    seg(ctx, -25, 12, -26, 32, inkC, 4.2);
+    // Right leaf: ruled lines of figures, one entry underlined in red.
+    ctx.fillStyle = 'rgba(36, 22, 15, 0.85)';
+    for (let i = 0; i < 4; i++) {
+      const y = -22 + i * 15;
+      ctx.fillRect(12, y, 12 + ((i * 13) % 16), 4.5);
+      ctx.fillRect(44, y, 14, 4.5);
     }
-    seg(ctx, 44, 38, 64, 37, C.blood, 3.2);
-    band(ctx, 3, 52, 9, 76, 8, 4);
-    fill(ctx, C.blood, '#4a080c', 1.6);
+    seg(ctx, 40, 40, 62, 39, C.blood, 5);
+    band(ctx, 3, 52, 9, 78, 10, 5);
+    fill(ctx, C.blood, '#4a080c', 2);
+    ctx.restore();
   },
 
   abacus(ctx) {
-    rrect(ctx, -64, -50, 128, 100, 6);
+    // Three rods, the beads pushed apart: a count in progress.
+    rrect(ctx, -60, -47, 120, 94, 6);
     ctx.strokeStyle = C.woodDeep;
-    ctx.lineWidth = 15;
+    ctx.lineWidth = 17;
     ctx.stroke();
     ctx.strokeStyle = linear(ctx, 0, -56, 0, 56, [
-      [0, '#c47c42'],
+      [0, '#cf8648'],
       [1, '#7a3e1c'],
     ]);
-    ctx.lineWidth = 10;
+    ctx.lineWidth = 11;
     ctx.stroke();
     for (const [x, y] of [
-      [-64, -50],
-      [64, -50],
-      [-64, 50],
-      [64, 50],
+      [-60, -47],
+      [60, -47],
+      [-60, 47],
+      [60, 47],
     ]) {
-      rrect(ctx, x - 7, y - 7, 14, 14, 3);
-      fill(ctx, brassFill(ctx, y - 7, y + 7), C.brassDeep, 2);
+      rrect(ctx, x - 7.5, y - 7.5, 15, 15, 3);
+      fill(ctx, brassFill(ctx, y - 7.5, y + 7.5), C.brassDeep, 2.5);
     }
+    const pitch = 17;
     const rows = [
-      { y: -28, color: C.bone, xs: [-48, -36, -24, 30, 42] },
-      { y: -9, color: C.blood, xs: [-48, -36, 6, 18, 30, 42] },
-      { y: 10, color: C.bone, xs: [-48, -6, 6, 18, 30, 42] },
-      { y: 29, color: C.blood, xs: [-48, -36, -24, -12, 42] },
+      { y: -24, color: C.bone, left: 3, right: 2 },
+      { y: 0, color: C.blood, left: 2, right: 3 },
+      { y: 24, color: C.bone, left: 4, right: 1 },
     ];
-    for (const { y, color, xs } of rows) {
+    for (const { y, color, left, right } of rows) {
       ctx.fillStyle = C.boneDim;
-      ctx.fillRect(-58, y - 1.3, 116, 2.6);
+      ctx.fillRect(-53, y - 1.8, 106, 3.6);
+      const xs = [
+        ...Array.from({ length: left }, (_, i) => -44 + i * pitch),
+        ...Array.from({ length: right }, (_, i) => 44 - i * pitch),
+      ];
       for (const x of xs) {
-        ellipse(ctx, x, y, 6, 8);
-        fill(ctx, color, color === C.bone ? '#5a4c38' : '#3a0609', 1.8);
-        ellipse(ctx, x - 2, y - 3, 1.8, 2.4);
+        ellipse(ctx, x, y, 8.2, 10.5);
+        fill(ctx, color, color === C.bone ? '#4a3c2a' : '#3a0609', 2.4);
+        ellipse(ctx, x - 2.5, y - 3.5, 2.2, 3);
         fill(ctx, 'rgba(255, 250, 240, 0.7)');
       }
     }
   },
 
   wheel_of_fortune(ctx) {
-    const cy = 8;
-    const R = 56;
-    const n = 12;
+    // A carnival wheel with its pointer. Eight wide segments: twelve thin
+    // ones blur to pink at the table.
+    const cy = 9;
+    const R = 62;
+    const n = 8;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU - Math.PI / 2;
       ctx.beginPath();
       ctx.moveTo(0, cy);
       ctx.arc(0, cy, R, a, a + TAU / n);
       ctx.closePath();
-      fill(ctx, i % 2 ? '#ddd1b6' : C.blood);
+      fill(ctx, i % 2 ? '#e4d8bd' : C.blood);
     }
-    ctx.strokeStyle = C.brassDeep;
-    ctx.lineWidth = 2;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU - Math.PI / 2;
-      seg(ctx, 0, cy, Math.cos(a) * R, cy + Math.sin(a) * R, C.brassDeep, 2.2);
+      seg(ctx, 0, cy, Math.cos(a) * R, cy + Math.sin(a) * R, C.brassDeep, 3.2);
     }
     circle(ctx, 0, cy, R);
     ctx.strokeStyle = C.brassDeep;
-    ctx.lineWidth = 11;
+    ctx.lineWidth = 14;
     ctx.stroke();
     ctx.strokeStyle = brassFill(ctx, cy - R, cy + R);
-    ctx.lineWidth = 7;
+    ctx.lineWidth = 9;
     ctx.stroke();
     for (let i = 0; i < n; i++) {
       const a = (i / n) * TAU - Math.PI / 2;
-      circle(ctx, Math.cos(a) * R, cy + Math.sin(a) * R, 2.8);
-      fill(ctx, C.bone);
+      circle(ctx, Math.cos(a) * R, cy + Math.sin(a) * R, 3.8);
+      fill(ctx, C.bone, C.brassDeep, 1.5);
     }
-    circle(ctx, 0, cy, 12);
-    fill(ctx, brassFill(ctx, cy - 12, cy + 12), C.brassDeep, 2.5);
-    circle(ctx, 0, cy, 4);
+    circle(ctx, 0, cy, 15);
+    fill(ctx, brassFill(ctx, cy - 15, cy + 15), C.brassDeep, 3);
+    circle(ctx, 0, cy, 5);
     fill(ctx, C.soot);
     // The pointer, at twelve o'clock.
     ctx.beginPath();
-    ctx.moveTo(-11, cy - R - 18);
-    ctx.lineTo(11, cy - R - 18);
-    ctx.lineTo(0, cy - R + 10);
+    ctx.moveTo(-14, cy - R - 21);
+    ctx.lineTo(14, cy - R - 21);
+    ctx.lineTo(0, cy - R + 13);
     ctx.closePath();
-    fill(ctx, brassFill(ctx, cy - R - 18, cy - R + 10), C.brassDeep, 2.5);
+    fill(ctx, brassFill(ctx, cy - R - 21, cy - R + 13), C.brassDeep, 3);
   },
 
   glass_eye(ctx, r) {
-    circle(ctx, 0, 0, 58);
-    fill(ctx, radial(ctx, -20, -22, 4, 0, 0, 62, [
+    const R = 70;
+    circle(ctx, 0, 0, R);
+    fill(ctx, radial(ctx, -24, -26, 4, 0, 0, R + 4, [
       [0, '#fffaf0'],
       [0.45, '#ebe0c9'],
       [0.82, '#a99a80'],
       [1, '#54473a'],
     ]));
     // Veins, from the back of the eye toward the iris.
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * TAU + 0.4 + r() * 0.3;
-      let x = Math.cos(a) * 56;
-      let y = Math.sin(a) * 56;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU + 0.5 + r() * 0.3;
+      let x = Math.cos(a) * (R - 2);
+      let y = Math.sin(a) * (R - 2);
       const pts = [[x, y]];
       for (let j = 0; j < 4; j++) {
-        x += (-Math.cos(a) * 6 + (r() - 0.5) * 7) * 1;
-        y += (-Math.sin(a) * 6 + (r() - 0.5) * 7) * 1;
+        x += -Math.cos(a) * 6.5 + (r() - 0.5) * 8;
+        y += -Math.sin(a) * 6.5 + (r() - 0.5) * 8;
         pts.push([x, y]);
       }
-      line(ctx, pts, i % 2 ? C.blood : C.bloodDeep, 1.8);
+      line(ctx, pts, i % 2 ? C.blood : C.bloodDeep, 2.6);
     }
-    const ix = 7;
-    const iy = 5;
-    circle(ctx, ix, iy, 26);
-    fill(ctx, radial(ctx, ix, iy, 4, ix, iy, 26, [
+    const ix = 8;
+    const iy = 6;
+    const ir = 32;
+    circle(ctx, ix, iy, ir);
+    fill(ctx, radial(ctx, ix, iy, 4, ix, iy, ir, [
       [0, '#ffd77a'],
       [0.55, C.amber],
       [1, C.amberDeep],
     ]));
     ctx.strokeStyle = 'rgba(110, 50, 10, 0.55)';
-    ctx.lineWidth = 1.3;
-    for (let i = 0; i < 28; i++) {
-      const a = (i / 28) * TAU;
+    ctx.lineWidth = 1.8;
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * TAU;
       ctx.beginPath();
-      ctx.moveTo(ix + Math.cos(a) * 12, iy + Math.sin(a) * 12);
-      ctx.lineTo(ix + Math.cos(a) * 24, iy + Math.sin(a) * 24);
+      ctx.moveTo(ix + Math.cos(a) * 15, iy + Math.sin(a) * 15);
+      ctx.lineTo(ix + Math.cos(a) * 29, iy + Math.sin(a) * 29);
       ctx.stroke();
     }
-    circle(ctx, ix, iy, 26);
+    circle(ctx, ix, iy, ir);
     ctx.strokeStyle = '#2e1404';
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 4.5;
     ctx.stroke();
-    circle(ctx, ix, iy, 11.5);
+    circle(ctx, ix, iy, 14);
     fill(ctx, C.soot);
-    ellipse(ctx, ix - 9, iy - 10, 6.5, 4.5, -0.6);
+    ellipse(ctx, ix - 11, iy - 12, 8, 5.5, -0.6);
     fill(ctx, '#fffbf2');
     ctx.beginPath();
-    ctx.arc(0, 0, 50, Math.PI * 1.08, Math.PI * 1.36);
-    ctx.strokeStyle = 'rgba(255, 255, 250, 0.7)';
-    ctx.lineWidth = 3;
+    ctx.arc(0, 0, R - 9, Math.PI * 1.08, Math.PI * 1.36);
+    ctx.strokeStyle = 'rgba(255, 255, 250, 0.75)';
+    ctx.lineWidth = 3.6;
     ctx.lineCap = 'round';
     ctx.stroke();
   },
 
   piggy_bank(ctx) {
     ctx.save();
-    ctx.translate(-4, 6);
+    ctx.scale(1.13, 1.13);
+    ctx.translate(-2, 1);
     const body = linear(ctx, 0, -40, 0, 48, [
-      [0, '#f7eedb'],
-      [0.55, '#d8c8a8'],
+      [0, '#f8efdc'],
+      [0.55, '#dccdad'],
       [1, C.porcelainShade],
     ]);
-    const edge = '#4e4232';
+    const edge = '#43382a';
     for (const x of [-30, 14]) {
       rrect(ctx, x, 24, 12, 26, 4);
-      fill(ctx, '#9a8a6c', edge, 2);
+      fill(ctx, '#9a8a6c', edge, 2.4);
     }
     ctx.beginPath();
     ctx.moveTo(-50, -2);
     ctx.bezierCurveTo(-64, -12, -72, 4, -62, 8);
     ctx.bezierCurveTo(-54, 10, -56, -6, -66, -6);
     ctx.strokeStyle = edge;
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 7;
     ctx.lineCap = 'round';
     ctx.stroke();
     ctx.strokeStyle = '#d8c8a8';
-    ctx.lineWidth = 3.4;
+    ctx.lineWidth = 3.6;
     ctx.stroke();
     // Body and head drawn as one shape, so the outline runs round both.
     const pig = new Path2D();
@@ -796,7 +850,7 @@ const PAINTERS = {
     pig.lineTo(46, -22);
     pig.closePath();
     ctx.strokeStyle = edge;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 6;
     ctx.stroke(pig);
     ctx.fillStyle = body;
     ctx.fill(pig);
@@ -808,84 +862,78 @@ const PAINTERS = {
     fill(ctx, '#b49c7a');
     for (const x of [-22, 20]) {
       rrect(ctx, x, 26, 13, 28, 4);
-      fill(ctx, body, edge, 2);
+      fill(ctx, body, edge, 2.4);
       ctx.fillStyle = '#6b5c46';
       ctx.fillRect(x + 1, 49, 11, 4);
     }
-    ellipse(ctx, 59, -2, 9, 13);
-    fill(ctx, '#e6d6b8', edge, 2.4);
-    for (const y of [-6, 3]) {
-      ellipse(ctx, 61, y, 1.8, 2.6);
+    ellipse(ctx, 59, -2, 10, 14);
+    fill(ctx, '#e6d6b8', edge, 3);
+    for (const y of [-7, 3]) {
+      ellipse(ctx, 61, y, 2.2, 3.2);
       fill(ctx, C.soot);
     }
-    circle(ctx, 40, -11, 3.4);
+    circle(ctx, 40, -11, 4);
     fill(ctx, C.soot);
     // A coin half into the slot.
     ctx.save();
     ctx.beginPath();
     ctx.rect(-40, -90, 60, 58);
     ctx.clip();
-    circle(ctx, -10, -42, 15);
-    fill(ctx, brassFill(ctx, -58, -27), C.brassDeep, 2.5);
-    circle(ctx, -10, -42, 9.5);
+    circle(ctx, -10, -43, 16);
+    fill(ctx, brassFill(ctx, -59, -27), C.brassDeep, 3);
+    circle(ctx, -10, -43, 10);
     ctx.strokeStyle = 'rgba(106, 74, 31, 0.85)';
-    ctx.lineWidth = 2.2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(-10, -42, 12.5, Math.PI * 1.1, Math.PI * 1.5);
-    ctx.strokeStyle = 'rgba(255, 246, 220, 0.85)';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.6;
     ctx.stroke();
     ctx.restore();
-    rrect(ctx, -28, -34, 36, 6, 3);
+    rrect(ctx, -29, -35, 38, 7, 3);
     fill(ctx, '#140c08');
     ctx.beginPath();
     ctx.ellipse(-6, 4, 44, 30, 0, Math.PI * 1.1, Math.PI * 1.45);
     ctx.strokeStyle = 'rgba(255, 252, 244, 0.85)';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.4;
     ctx.stroke();
     ctx.restore();
   },
 
   twin_mirrors(ctx) {
+    ctx.save();
+    ctx.scale(1.16, 1.16);
+    ctx.translate(0, -6);
     for (const s of [-1, 1]) {
       ctx.save();
       ctx.translate(s * 25, -16);
       ctx.rotate(s * -0.34);
-      rrect(ctx, -5, 28, 10, 44, 4);
-      fill(ctx, brassFill(ctx, 28, 72), C.brassDeep, 2.4);
-      circle(ctx, 0, 74, 6);
-      fill(ctx, brassFill(ctx, 68, 80), C.brassDeep, 2.4);
-      rrect(ctx, -8, 25, 16, 9, 3);
-      fill(ctx, '#8a6630', C.brassDeep, 2);
-      ellipse(ctx, 0, 0, 25, 32);
-      fill(ctx, brassFill(ctx, -32, 32), C.brassDeep, 3);
-      ellipse(ctx, 0, 0, 18.5, 25.5);
+      rrect(ctx, -6, 28, 12, 44, 4);
+      fill(ctx, brassFill(ctx, 28, 72), C.brassDeep, 2.8);
+      circle(ctx, 0, 74, 7);
+      fill(ctx, brassFill(ctx, 67, 81), C.brassDeep, 2.8);
+      rrect(ctx, -9, 25, 18, 9, 3);
+      fill(ctx, '#8a6630', C.brassDeep, 2.2);
+      ellipse(ctx, 0, 0, 26, 33);
+      fill(ctx, brassFill(ctx, -33, 33), C.brassDeep, 3.5);
+      ellipse(ctx, 0, 0, 19, 26);
       fill(ctx, linear(ctx, -18 * s, -26, 18 * s, 26, [
-        [0, '#f2efe8'],
-        [0.5, '#b4b0a8'],
-        [1, '#5e5b56'],
-      ]), '#3a2c18', 2);
+        [0, '#ece8df'],
+        [0.5, '#aca8a0'],
+        [1, '#58554f'],
+      ]), '#3a2c18', 2.4);
       ctx.save();
-      ellipse(ctx, 0, 0, 18.5, 25.5);
+      ellipse(ctx, 0, 0, 19, 26);
       ctx.clip();
-      seg(ctx, -16 * s, 14, 8 * s, -24, 'rgba(255, 255, 255, 0.9)', 4.5);
-      seg(ctx, -6 * s, 20, 14 * s, -12, 'rgba(255, 255, 255, 0.55)', 2);
+      seg(ctx, -16 * s, 14, 8 * s, -24, 'rgba(255, 255, 255, 0.85)', 6);
+      seg(ctx, -5 * s, 21, 15 * s, -11, 'rgba(255, 255, 255, 0.5)', 2.6);
       ctx.restore();
-      ctx.fillStyle = 'rgba(255, 240, 200, 0.75)';
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * TAU;
-        circle(ctx, Math.cos(a) * 22, Math.sin(a) * 29, 1.3);
-        ctx.fill();
-      }
       ctx.restore();
     }
+    ctx.restore();
   },
 
   house_key(ctx) {
     ctx.save();
     ctx.rotate(Math.PI / 4);
-    ctx.translate(-4, 0);
+    ctx.scale(1.18, 1.18);
+    ctx.translate(8, 0);
     const shape = (extra) => {
       const e = extra / 2;
       for (const [x, y, rad] of [
@@ -897,27 +945,31 @@ const PAINTERS = {
         circle(ctx, x, y, rad + e);
         ctx.fill();
       }
-      rrect(ctx, -33 - e, -9 - e, 6 + extra, 18 + extra, 2);
+      rrect(ctx, -33 - e, -10 - e, 7 + extra, 20 + extra, 2);
       ctx.fill();
-      rrect(ctx, -32 - e, -5 - e, 92 + extra, 10 + extra, 4);
+      rrect(ctx, -32 - e, -6 - e, 92 + extra, 12 + extra, 4);
       ctx.fill();
-      rrect(ctx, -24 - e, -7.5 - e, 5 + extra, 15 + extra, 2);
+      rrect(ctx, -24 - e, -8.5 - e, 6 + extra, 17 + extra, 2);
       ctx.fill();
       ctx.beginPath();
       ctx.moveTo(34 - e, 3);
       ctx.lineTo(58 + e, 3);
-      ctx.lineTo(58 + e, 28 + e);
-      ctx.lineTo(51 - e, 28 + e);
+      ctx.lineTo(58 + e, 29 + e);
+      ctx.lineTo(51 - e, 29 + e);
       ctx.lineTo(51 - e, 20 - e);
       ctx.lineTo(45 + e, 20 - e);
-      ctx.lineTo(45 + e, 28 + e);
-      ctx.lineTo(34 - e, 28 + e);
+      ctx.lineTo(45 + e, 29 + e);
+      ctx.lineTo(34 - e, 29 + e);
       ctx.closePath();
       ctx.fill();
     };
     ctx.fillStyle = C.brassDeep;
     shape(6);
-    ctx.fillStyle = brassFill(ctx, -30, 30);
+    ctx.fillStyle = linear(ctx, 0, -30, 0, 30, [
+      [0, '#f6dea2'],
+      [0.45, '#d2aa62'],
+      [1, '#8a6630'],
+    ]);
     shape(0);
     punch(ctx, () => circle(ctx, -50, 0, 8.5));
     for (const [x, y] of [
@@ -925,17 +977,17 @@ const PAINTERS = {
       [-52, 18],
       [-70, 0],
     ]) {
-      punch(ctx, () => circle(ctx, x, y, 3.6));
+      punch(ctx, () => circle(ctx, x, y, 3.8));
     }
-    circle(ctx, -50, 0, 10.5);
+    circle(ctx, -50, 0, 11);
     ctx.strokeStyle = C.brassDeep;
-    ctx.lineWidth = 2.6;
+    ctx.lineWidth = 3;
     ctx.stroke();
-    seg(ctx, -18, -2.5, 56, -2.5, 'rgba(255, 244, 214, 0.8)', 2);
+    seg(ctx, -18, -3, 56, -3, 'rgba(255, 244, 214, 0.85)', 2.4);
     ctx.beginPath();
     ctx.arc(-48, 0, 15, Math.PI * 1.05, Math.PI * 1.55);
-    ctx.strokeStyle = 'rgba(255, 244, 214, 0.8)';
-    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = 'rgba(255, 244, 214, 0.85)';
+    ctx.lineWidth = 2.8;
     ctx.stroke();
     ctx.restore();
   },
@@ -946,12 +998,12 @@ const PAINTERS = {
 function paintUnknown(ctx) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  scrawlText(ctx, '?', 2, 8, 104, C.bone);
+  scrawlText(ctx, '?', 2, 8, 112, C.bone);
 }
 
 // Warm light some curios throw onto the enamel around them.
 const GLOWS = {
-  matchbook: { x: 32, y: -46, r: 44, color: 'rgba(235, 162, 50, 0.3)' },
+  matchbook: { x: 43, y: -52, r: 52, color: 'rgba(235, 162, 50, 0.32)' },
 };
 
 // ---- Ink treatment ------------------------------------------------------------------
@@ -1010,12 +1062,13 @@ function dryBrush(canvas, seed, angle) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'destination-out';
-  for (let i = 0; i < 80; i++) {
-    ctx.globalAlpha = 0.1 + r() * 0.28;
+  // Light enough that the silhouette stays solid when the face is shrunk.
+  for (let i = 0; i < 50; i++) {
+    ctx.globalAlpha = 0.08 + r() * 0.22;
     ctx.save();
     ctx.translate(r() * w, r() * w);
     ctx.rotate(angle + (r() - 0.5) * 0.12);
-    ctx.fillRect(0, 0, (16 + r() * 70) * k, (0.7 + r() * 1.3) * k);
+    ctx.fillRect(0, 0, (16 + r() * 60) * k, (0.7 + r() * 1.2) * k);
     ctx.restore();
   }
   ctx.restore();
@@ -1041,10 +1094,58 @@ function paintCurio(id, size, seed, reflected) {
   return layer;
 }
 
+/** The curio's silhouette in one flat colour. */
+function silhouette(curio, color) {
+  const out = makeCanvas(curio.width);
+  const ctx = out.getContext('2d');
+  ctx.drawImage(curio, 0, 0);
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, out.width, out.height);
+  return out;
+}
+
+/** Enamel: warm black, lighter where the lamp would catch it. */
+function paintEnamel(ctx, r) {
+  ctx.fillStyle = radial(ctx, -26, -30, 6, 0, 0, 104, [
+    [0, '#33251d'],
+    [0.6, '#1b1310'],
+    [1, '#0b0807'],
+  ]);
+  ctx.fillRect(-100, -100, 200, 200);
+  for (let i = 0; i < 160; i++) {
+    ctx.fillStyle = r() < 0.5 ? `rgba(237, 229, 211, ${r() * 0.04})` : `rgba(0, 0, 0, ${r() * 0.25})`;
+    const a = r() * TAU;
+    const d = Math.sqrt(r()) * 96;
+    ctx.fillRect(Math.cos(a) * d, Math.sin(a) * d, 0.8 + r() * 3, 0.8 + r() * 3);
+  }
+}
+
+/**
+ * Silvered glass: what Twin Mirrors shows when it copies. The only face that
+ * is not dark enamel, so a copy reads as a reflection even when the curio is
+ * too small to make out.
+ */
+function paintSilver(ctx, r) {
+  ctx.fillStyle = radial(ctx, -30, -36, 4, 0, 0, 104, [
+    [0, '#c9c4b9'],
+    [0.5, '#8c877e'],
+    [1, '#3a3733'],
+  ]);
+  ctx.fillRect(-100, -100, 200, 200);
+  // Foxing: the silvering gone dark in spots, as old mirrors do.
+  for (let i = 0; i < 26; i++) {
+    const a = r() * TAU;
+    const d = 40 + Math.sqrt(r()) * 56;
+    ellipse(ctx, Math.cos(a) * d, Math.sin(a) * d, 2 + r() * 6, 1.5 + r() * 4, a);
+    fill(ctx, `rgba(40, 34, 28, ${0.12 + r() * 0.2})`);
+  }
+}
+
 /**
  * Paint a talisman's face (the enamel disc and its curio) into a size × size
  * context. Transparent outside the disc. `reflected` paints it as Twin Mirrors
- * shows it: mirrored, behind a silvered glint.
+ * shows it: mirrored, on silvered glass, behind a glint.
  */
 export function paintTalismanFace(ctx, id, size, { reflected = false } = {}) {
   const seed = seedOf(id);
@@ -1059,26 +1160,15 @@ export function paintTalismanFace(ctx, id, size, { reflected = false } = {}) {
   circle(ctx, 0, 0, 100);
   ctx.clip();
 
-  // Enamel: warm black, lighter where the lamp would catch it.
-  ctx.fillStyle = radial(ctx, -26, -30, 6, 0, 0, 104, [
-    [0, '#33251d'],
-    [0.6, '#1b1310'],
-    [1, '#0b0807'],
-  ]);
-  ctx.fillRect(-100, -100, 200, 200);
-  for (let i = 0; i < 160; i++) {
-    ctx.fillStyle = r() < 0.5 ? `rgba(237, 229, 211, ${r() * 0.04})` : `rgba(0, 0, 0, ${r() * 0.25})`;
-    const a = r() * TAU;
-    const d = Math.sqrt(r()) * 96;
-    ctx.fillRect(Math.cos(a) * d, Math.sin(a) * d, 0.8 + r() * 3, 0.8 + r() * 3);
-  }
+  if (reflected) paintSilver(ctx, r);
+  else paintEnamel(ctx, r);
   circle(ctx, 0, 0, 90);
-  ctx.strokeStyle = 'rgba(237, 229, 211, 0.85)';
-  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = reflected ? 'rgba(255, 252, 244, 0.9)' : 'rgba(237, 229, 211, 0.85)';
+  ctx.lineWidth = 2.6;
   ctx.stroke();
   circle(ctx, 0, 0, 85.5);
-  ctx.strokeStyle = 'rgba(179, 169, 147, 0.28)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = reflected ? 'rgba(30, 26, 22, 0.4)' : 'rgba(179, 169, 147, 0.28)';
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 
   const glow = GLOWS[id];
@@ -1091,24 +1181,28 @@ export function paintTalismanFace(ctx, id, size, { reflected = false } = {}) {
     ctx.fillRect(-100, -100, 200, 200);
   }
 
-  // The curio, over its own soot shadow so it stands off the enamel.
+  // The curio, inside a soot keyline and over its own shadow, so it stands off
+  // the enamel (and the silver) at any size.
   const curio = paintCurio(id, size, seed, reflected);
-  const shadow = makeCanvas(size);
-  const sctx = shadow.getContext('2d');
-  sctx.drawImage(curio, 0, 0);
-  sctx.globalCompositeOperation = 'source-in';
-  sctx.fillStyle = 'rgba(2, 1, 1, 0.85)';
-  sctx.fillRect(0, 0, size, size);
+  const soot = silhouette(curio, 'rgba(2, 1, 1, 1)');
+  const keyW = Math.max(1, size * (reflected ? 0.011 : 0.006));
   ctx.save();
   ctx.setTransform(base);
-  ctx.filter = `blur(${Math.max(1, size * 0.004)}px)`;
-  ctx.drawImage(shadow, size * 0.008, size * 0.012);
+  ctx.filter = `blur(${Math.max(1, size * 0.005)}px)`;
+  ctx.globalAlpha = reflected ? 0.9 : 0.85;
+  ctx.drawImage(soot, size * 0.01, size * 0.014);
   ctx.filter = 'none';
+  ctx.globalAlpha = reflected ? 1 : 0.8;
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * TAU;
+    ctx.drawImage(soot, Math.cos(a) * keyW, Math.sin(a) * keyW);
+  }
+  ctx.globalAlpha = 1;
   ctx.drawImage(curio, 0, 0);
   ctx.restore();
 
   // Wear: a few scratches through the enamel and the paint alike.
-  ctx.globalAlpha = 0.24;
+  ctx.globalAlpha = 0.22;
   for (let i = 0; i < 4; i++) {
     const a = r() * TAU;
     const d = 30 + r() * 50;
@@ -1128,19 +1222,18 @@ export function paintTalismanFace(ctx, id, size, { reflected = false } = {}) {
   }
 
   if (reflected) {
-    ctx.fillStyle = 'rgba(225, 222, 214, 0.08)';
-    ctx.fillRect(-100, -100, 200, 200);
+    // The glass over the reflection: two bright slants and a dimmer one.
+    ctx.save();
+    ctx.rotate(0.62);
     for (const [x, w, a] of [
-      [-30, 16, 0.12],
-      [-6, 5, 0.2],
-      [36, 9, 0.08],
+      [-44, 20, 0.2],
+      [-16, 7, 0.3],
+      [40, 11, 0.12],
     ]) {
-      ctx.save();
-      ctx.rotate(0.6);
-      ctx.fillStyle = `rgba(245, 242, 235, ${a})`;
+      ctx.fillStyle = `rgba(255, 253, 248, ${a})`;
       ctx.fillRect(x, -110, w, 220);
-      ctx.restore();
     }
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -1167,7 +1260,9 @@ const FACE_R = 0.0274; // the enamel, inside the bezel
 const FACE_Z = 0.0024;
 const RING = { r: 0.0052, tube: 0.0013 };
 const DISC_Y = -0.0432; // disc centre below the hang point
-const REST_GLOW = 0.07; // enough for a face to read at the edge of the lamp's pool
+const REST_GLOW = 0.1; // enough for a face to read at the edge of the lamp's pool
+const FLASH_GLOW = 1.25; // the face at a trigger's peak: past the bloom threshold, still legible
+const HALO_SIZE = 0.12; // the flash's halo, across (the disc is 0.064)
 
 let shared = null;
 function geometries() {
@@ -1199,13 +1294,32 @@ function geometries() {
   const lug = new THREE.CylinderGeometry(0.0031, 0.0031, 0.0046, 16);
   lug.rotateX(Math.PI / 2);
   lug.translate(0, DISC_Y + CHARM.radius + 0.0009, 0);
-  shared = { body, face, ring, lug };
+  shared = { body, face, ring, lug, halo: haloTexture() };
   return shared;
+}
+
+/** A soft warm disc for the flash: bright just outside the bezel, gone by the edge. */
+function haloTexture() {
+  const canvas = makeCanvas(128);
+  const ctx = canvas.getContext('2d');
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+  g.addColorStop(0.5, 'rgba(255, 255, 255, 0.85)');
+  g.addColorStop(0.62, 'rgba(255, 255, 255, 0.4)');
+  g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 function defaultBrass() {
   return new THREE.MeshStandardMaterial({ color: 0xc39a5c, metalness: 1, roughness: 0.3 });
 }
+
+// Twin Mirrors' bezel while it shows a copy: the brass gone to silver.
+const SILVER = new THREE.Color(0xd9d6cf);
 
 /**
  * A talisman as a hanging charm. The group's origin is the hang point (the
@@ -1252,12 +1366,39 @@ export function buildTalismanMesh(id, { brass } = {}) {
     group.add(mesh);
   }
 
+  // The flash's halo: behind the disc, so only a ring of light shows round
+  // the bezel. Added on top of the scene and bright enough to bloom. Not a
+  // mesh, and never hit by the pointer.
+  const haloMat = new THREE.SpriteMaterial({
+    map: geo.halo,
+    color: 0xffb060,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  const halo = new THREE.Sprite(haloMat);
+  halo.scale.setScalar(HALO_SIZE);
+  halo.position.set(0, DISC_Y, -CHARM.depth);
+  halo.visible = false;
+  halo.raycast = () => {};
+  group.add(halo);
+
   let glow = 0;
   let dim = false;
   let faceId = id;
   const applyGlow = () => {
-    enamel.emissiveIntensity = (dim ? 0 : REST_GLOW) + glow * 0.95;
-    rim.emissiveIntensity = glow * 0.55;
+    enamel.emissiveIntensity = (dim ? 0 : REST_GLOW) + glow * FLASH_GLOW;
+    rim.emissiveIntensity = glow * 0.9;
+    halo.visible = glow > 0.01;
+    haloMat.opacity = Math.min(1, glow) * 0.85;
+    haloMat.color.setRGB(1.5, 0.82, 0.32).multiplyScalar(0.6 + Math.min(1, glow) * 0.6);
+  };
+  const applyLook = () => {
+    rim.color.copy(rimColor);
+    if (faceId !== id) rim.color.lerp(SILVER, 0.7);
+    if (dim) rim.color.multiplyScalar(0.7);
+    enamel.color.setScalar(dim ? 0.68 : 1);
   };
 
   group.userData = {
@@ -1273,17 +1414,18 @@ export function buildTalismanMesh(id, { brass } = {}) {
       const t = talismanFaceTexture(want, { reflected: want !== id });
       enamel.map = t;
       enamel.emissiveMap = t;
+      applyLook();
     },
     setDim(on) {
       dim = !!on;
-      enamel.color.setScalar(dim ? 0.68 : 1);
-      rim.color.copy(rimColor).multiplyScalar(dim ? 0.7 : 1);
+      applyLook();
       applyGlow();
     },
     /** Release this charm's own materials (textures and geometry are shared). */
     dispose() {
       rim.dispose();
       enamel.dispose();
+      haloMat.dispose();
     },
   };
   return group;

@@ -188,8 +188,18 @@ async function init() {
   const wake = () => audio.start();
   window.addEventListener('pointerdown', wake);
   window.addEventListener('keydown', wake);
-  hud.refs.navLeft.addEventListener('click', () => game.turn(-1));
-  hud.refs.navRight.addEventListener('click', () => game.turn(1));
+  // A clicked arrow must not keep focus: with three stations it stays on
+  // screen, and a focused button would swallow Space and the game keys.
+  for (const [btn, dir] of [
+    [hud.refs.navLeft, -1],
+    [hud.refs.navRight, 1],
+  ]) {
+    btn.addEventListener('pointerdown', (e) => e.preventDefault());
+    btn.addEventListener('click', (e) => {
+      e.currentTarget.blur();
+      if (!modalOpen()) game.turn(dir);
+    });
+  }
 
   // ---- Start -----------------------------------------------------------------
   game.boot();

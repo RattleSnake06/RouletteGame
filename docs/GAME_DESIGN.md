@@ -767,7 +767,10 @@ bounces, never the result.
 - **Notes (tooltips):** hover any object, talisman, chip or felt number for a
   note scrawled beside it, with a scratch leading back to the thing it describes
   (anchored to the object, not the pointer). Tab walks the same notes at each
-  station, so everything shown on hover is reachable without a mouse.
+  station, so everything shown on hover is reachable without a mouse: at the
+  table the talismans, the Bell, the plaques, the spots holding chips and the
+  outside bets (Enter on a bet places a chip); at the Cabinet the compartments,
+  the crank and the chart.
   - *Talisman:* name, rarity as tally strokes, its rule, its state ("2 charges",
     "holds 14", "copying Red Ribbon") and what it sells for, in brass.
   - *Compartment:* the same, with the price; dim with "2 short" when you cannot

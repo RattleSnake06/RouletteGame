@@ -19,6 +19,8 @@ const PACKAGE_KEYS = ['long', 'short', 'sitout'];
 // The stations, left to right as the player turns. Turning never wraps.
 const VIEWS = ['cage', 'table', 'cabinet'];
 const VIEW_NAMES = { cage: 'Cage', table: 'Table', cabinet: 'Cabinet' };
+// Outside bets Tab walks at the table, after the spots that hold chips.
+const FOCUS_BETS = ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'dozen:2', 'dozen:3', 'column:1', 'column:2', 'column:3'];
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -35,6 +37,9 @@ export class Game {
     this.seen = new Set(); // one-time hints already shown this session
     this.focus = null; // keyboard focus: { view, index }
     this.noteTarget = null; // the object whose note is up
+    this.lifted = null; // the rail talisman raised by keyboard focus
+    // Bumped by a new run, so a spin or timer from the old run stops short.
+    this.runId = 0;
     this._screen = new THREE.Vector3();
   }
 
@@ -56,15 +61,19 @@ export class Game {
     if (this.state.phase === PHASE.GAME_OVER) {
       this.power = 0.15;
       this.busy = true;
-      setTimeout(() => this.showCollected(), 600);
+      const id = this.runId;
+      setTimeout(() => id === this.runId && this.showCollected(), 600);
     }
   }
 
   newRun() {
+    this.runId += 1;
+    this.clearFocus();
     this.state = createRun({ seed: randomSeed() });
     this.save();
     this.power = 1;
     this.busy = false;
+    this.hud.setMode('play');
     this.lighting.set('table');
     this.setLocked(false);
     this.syncAll();
@@ -209,6 +218,7 @@ export class Game {
   turnTo(view) {
     if (this.busy && view !== 'table') return;
     if (view === this.view && this.director.current === view) return;
+    this.clearFocus();
     this.view = view;
     this.clearNote();
     this.hud.setView(view);
@@ -290,6 +300,8 @@ export class Game {
         return { spec: crankNote(s), world: this.cabinet.crankWorldPosition() };
       case 'chart':
         return { spec: chartNote(s), world: this.cabinet.chartWorldPosition() };
+      case 'bet':
+        return { spec: betNote(s, target.betId), world: this.table.spotWorldPosition(target.betId) };
       default:
         return null;
     }
@@ -297,6 +309,8 @@ export class Game {
 
   showNote(target, ev) {
     this.noteTarget = target;
+    // A focused bet shows its factors on the plaques, as hovering it does.
+    this.rail.setPlaques(target.kind === 'bet' ? (previewBet(this.state, target.betId) ?? baseFactors()) : baseFactors());
     const { spec = null, world = null } = this.noteFor(target) ?? {};
     const anchor = this.screenPosition(world) ?? (ev ? { x: ev.clientX, y: ev.clientY } : null);
     this.hud.note(spec, anchor);
@@ -316,7 +330,8 @@ export class Game {
   /** Values changed under an open note: rewrite it. */
   refreshNote() {
     if (!this.noteTarget) return;
-    if (this.noteTarget.kind === 'talisman' && !this.state.rail.some((t) => t.uid === this.noteTarget.uid)) {
+    const { kind, uid } = this.noteTarget;
+    if ((kind === 'talisman' || kind === 'tag') && !this.state.rail.some((t) => t.uid === uid)) {
       this.clearNote();
       return;
     }
@@ -331,11 +346,16 @@ export class Game {
   /** What Tab walks through at each station (doc 9.10: hover must be reachable by focus). */
   focusables() {
     if (this.view === 'table') {
+      // The spots holding chips first, then the outside bets: what a bet pays
+      // with the rail as it is must be reachable without a mouse (doc 8.4).
+      const held = [...new Set(Object.values(this.state.placements))];
+      const bets = [...held, ...FOCUS_BETS.filter((b) => !held.includes(b))];
       return [
         ...this.state.rail.map((t) => ({ kind: 'talisman', uid: t.uid })),
         { kind: 'bell' },
         { kind: 'plaque', plaque: 'stake' },
         { kind: 'plaque', plaque: 'odds' },
+        ...bets.map((betId) => ({ kind: 'bet', betId })),
       ];
     }
     if (this.view === 'cabinet') {
@@ -354,23 +374,31 @@ export class Game {
   }
 
   setFocus(focus) {
-    const prev = this.focusedTarget();
-    if (prev?.kind === 'talisman') this.rail.lift(prev.uid, false);
+    this.lower();
     this.focus = focus;
     const target = this.focusedTarget();
     if (!target) {
       this.focus = null;
       return;
     }
-    if (target.kind === 'talisman') this.rail.lift(target.uid, true);
+    if (target.kind === 'talisman') {
+      this.rail.lift(target.uid, true);
+      this.lifted = target.uid;
+    }
     this.showNote(target);
   }
 
   clearFocus() {
+    this.lower();
     if (!this.focus) return;
-    const target = this.focusedTarget();
-    if (target?.kind === 'talisman') this.rail.lift(target.uid, false);
     this.focus = null;
+    this.rail.setPlaques(baseFactors());
+  }
+
+  /** Lower the talisman keyboard focus raised, wherever focus has gone since. */
+  lower() {
+    if (this.lifted) this.rail.lift(this.lifted, false);
+    this.lifted = null;
   }
 
   focusedTarget() {
@@ -386,6 +414,7 @@ export class Game {
     else if (target.kind === 'bell') this.ringBell();
     else if (target.kind === 'slot') this.buy(target.slot);
     else if (target.kind === 'crank') this.restock();
+    else if (target.kind === 'bet') this.onClickBet(target.betId);
     return true;
   }
 
@@ -535,7 +564,8 @@ export class Game {
     this.audio.collected();
     this.power = 0.12;
     this.turnTo('table');
-    setTimeout(() => this.showCollected(), 1800);
+    const id = this.runId;
+    setTimeout(() => id === this.runId && this.showCollected(), 1800);
   }
 
   showCollected() {
@@ -602,8 +632,7 @@ export class Game {
     this.cabinet.pulse(slot);
     const name = getTalisman(bought.id).name;
     this.hud.toast(sold ? `${getTalisman(sold.id).name} sold. ${name} hangs on the rail.` : `${name} hangs on the rail.`, 2200);
-    this.syncItems();
-    this.syncStatus();
+    this.syncAll();
     // It swings when you next look at the rail.
     this.rail.pulse(bought.uid, 0.8);
   }
@@ -622,14 +651,18 @@ export class Game {
     this.audio.crank();
     this.cabinet.restockAnim();
     this.hud.strikeCoins();
+    this.syncAll();
     this.hud.setCoins(this.state.coins, { animate: true });
-    this.syncItems();
-    this.syncStatus();
   }
 
   /** A click on a rail talisman: its card, with Sell and (for actives) Ring. */
+  /** A talisman still on the rail (one just smashed may linger on screen a moment). */
+  onRail(uid) {
+    return this.state.rail.some((t) => t.uid === uid);
+  }
+
   openTalisman(uid) {
-    if (this.busy || this.menuClose) return;
+    if (this.busy || this.menuClose || !this.onRail(uid)) return;
     const v = railView(this.state).find((x) => x.uid === uid);
     if (!v) return;
     this.clearNote();
@@ -648,7 +681,7 @@ export class Game {
 
   confirmSell(uid) {
     const v = railView(this.state).find((x) => x.uid === uid);
-    if (!v || this.busy) return;
+    if (!v || this.busy || this.menuClose) return;
     showModal({
       kicker: 'The rail',
       title: `Sell ${v.name}?`,
@@ -661,30 +694,30 @@ export class Game {
   }
 
   sell(uid) {
+    if (this.busy || !this.onRail(uid)) return;
     const events = this.dispatch({ type: 'sell', uid });
     if (!events) return;
     const sold = events.find((e) => e.type === 'sold');
     this.audio.sell();
     this.hud.toast(`${getTalisman(sold.id).name} sold for ${plural(sold.refund, 'token')}.`);
     this.clearFocus();
-    this.syncItems();
-    this.syncStatus();
+    this.syncAll();
   }
 
   moveTalisman(uid, to) {
-    if (this.busy) return false;
+    if (this.busy || !this.onRail(uid) || to >= this.state.rail.length) return false;
     const events = this.dispatch({ type: 'moveTalisman', uid, to });
     if (!events) return false;
     this.seen.add('moved');
     if (events.length) this.audio.chip();
-    this.syncItems();
-    this.updateHint();
+    // Order can change the interest rate (Twin Mirrors copying a Pawn Ticket).
+    this.syncAll();
     return true;
   }
 
   /** The Bell: the next talisman in line, or the one whose tag was clicked. */
   ringBell(uid) {
-    if (this.busy || this.menuClose) return;
+    if (this.busy || this.menuClose || (uid && !this.onRail(uid))) return;
     const events = this.dispatch(uid ? { type: 'ringBell', uid } : { type: 'ringBell' });
     if (!events) {
       this.bell.ring(false);
@@ -720,15 +753,18 @@ export class Game {
         );
       }
     }
-    this.hud.setCoins(this.state.coins, { animate: true });
     if (smashed) {
       this.audio.smash();
-      // Let the pig shake once before it leaves its hook.
-      setTimeout(() => this.syncItems(), 450);
+      // The coins count, so the Cage and the night cards update now; the pig
+      // shakes once before it leaves its hook.
+      this.syncStatus();
+      if (this.state.phase === PHASE.ROUND_START) this.table.showPackages(this.state);
+      const id = this.runId;
+      setTimeout(() => id === this.runId && this.syncItems(), 450);
     } else {
-      this.syncItems();
+      this.syncAll();
     }
-    this.updateHint();
+    this.hud.setCoins(this.state.coins, { animate: true });
   }
 
   // ---- Spinning -------------------------------------------------------------
@@ -809,7 +845,7 @@ export class Game {
       this.hud.flavor(
         [
           [`${first.number} `, colorTone(first.color)],
-          ['pays nothing...', 'dim'],
+          [result.foreseen ? 'as foreseen, pays nothing...' : 'pays nothing...', 'dim'],
         ],
         1100,
       );
@@ -832,7 +868,8 @@ export class Game {
     this.hud.flavor(
       [
         [`${result.number} `, colorTone(result.color)],
-        [result.foreseen ? `${result.color}, as foreseen` : result.color, 'dim'],
+        // After a re-throw the Eye's landing was thrown away: this one was not foreseen.
+        [result.foreseen && !first ? `${result.color}, as foreseen` : result.color, 'dim'],
       ],
       1300,
     );
