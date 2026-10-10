@@ -179,7 +179,7 @@ export class Game {
     } else if (s.phase === PHASE.ROUND_START) hint = 'Choose how to spend the night: click a card, or press [1], [2] or [3].';
     else if (s.phase === PHASE.BETTING && chipsOnTable(s).length === 0) hint = 'Click the felt to place a chip.';
     else if (s.phase === PHASE.BETTING && s.rail.length > 1 && !this.seen.has('moved')) {
-      hint = 'Drag talismans along the rail to reorder them. They act left to right.';
+      hint = 'Talismans act left to right: drag them to reorder.';
     } else if (s.phase === PHASE.BETTING && bellView(s).head) hint = 'Fling the wheel, or press [Space] to spin. [B] rings the Bell.';
     else if (s.phase === PHASE.BETTING) hint = 'Fling the wheel, or press [Space] to spin.';
     else if (s.phase === PHASE.NIGHT_OVER) hint = 'The night is over. Bank your coins at the Cage, then press [E] to end the night.';
