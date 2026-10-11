@@ -110,15 +110,16 @@ export function createCage({ materials, interaction, callbacks }) {
   // ---- The 666 counter ------------------------------------------------------
   // Green, because it belongs to the House. Dark and hidden until the Devil is live.
   const devilT = makeCanvasTexture(512, 300);
-  const devilMat = new THREE.MeshStandardMaterial({ map: devilT.tex, emissiveMap: devilT.tex, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.5 });
+  const devilMat = new THREE.MeshStandardMaterial({ map: devilT.tex, emissiveMap: devilT.tex, emissive: 0xffffff, emissiveIntensity: 0.45, roughness: 0.5 });
   const devilBox = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.16, 0.03), [wood, wood, wood, wood, devilMat, wood]);
-  devilBox.position.set(0.42, 1.13, 0.1);
+  // On the ledge in front of the bars, right of the teller's window.
+  devilBox.position.set(0.42, 1.13, 0.29);
   devilBox.rotation.x = -0.25;
   devilBox.userData.role = 'devil-counter';
   devilBox.visible = false;
   group.add(devilBox);
   const devilLight = new THREE.PointLight(0x45c27a, 0, 0.8, 2);
-  devilLight.position.set(0.42, 1.18, 0.22);
+  devilLight.position.set(0.42, 1.18, 0.4);
   group.add(devilLight);
   let devilShown = null;
   let devilFlare = 0;
@@ -261,8 +262,8 @@ export function createCage({ materials, interaction, callbacks }) {
 
   function update(dt) {
     devilFlare = Math.max(0, devilFlare - dt * 1.2);
-    devilMat.emissiveIntensity = 0.9 + devilFlare * 1.4;
-    devilLight.intensity = devilBox.visible ? 0.18 + devilFlare * 0.8 : 0;
+    devilMat.emissiveIntensity = 0.45 + devilFlare * 0.5;
+    devilLight.intensity = devilBox.visible ? 0.12 + devilFlare * 0.5 : 0;
     for (const b of buttons) {
       const target = b.hover && b.enabled && !locked ? 0.55 : 0.2;
       b.mat.emissiveIntensity += (target - b.mat.emissiveIntensity) * (1 - Math.exp(-dt * 12));

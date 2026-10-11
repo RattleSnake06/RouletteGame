@@ -312,7 +312,8 @@ export function createTable({ materials, interaction, callbacks }) {
   }
   function boardWorldPosition(out = new THREE.Vector3()) {
     group.updateMatrixWorld();
-    return board.localToWorld(out.set(-0.08, 0.2, 0));
+    // Low on the board's left edge, so its note clears the HUD at the top.
+    return board.localToWorld(out.set(-0.09, -0.12, 0));
   }
   redrawMarquee();
 

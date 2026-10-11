@@ -43,10 +43,10 @@ function burnTexture(text) {
   ctx.font = '700 170px Oswald, "Arial Narrow", sans-serif';
   ctx.shadowColor = '#45c27a';
   ctx.shadowBlur = 40;
-  ctx.fillStyle = '#7dffb0';
+  ctx.fillStyle = '#45c27a';
   ctx.fillText(text, 256, 132);
   ctx.shadowBlur = 0;
-  ctx.fillStyle = '#e6ffef';
+  ctx.fillStyle = '#9dffc4';
   ctx.fillText(text, 256, 132);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -63,7 +63,7 @@ export function createSparks(scene) {
   const points = new THREE.Points(
     geo,
     new THREE.PointsMaterial({
-      size: 0.075,
+      size: 0.16,
       map: dot,
       vertexColors: true,
       transparent: true,
@@ -95,17 +95,17 @@ export function createSparks(scene) {
 
   // The Devil's mark, reused.
   const burnMat = new THREE.SpriteMaterial({ map: burnTexture('666'), transparent: true, depthWrite: false, opacity: 0, toneMapped: false });
-  burnMat.color.setRGB(1.6, 1.6, 1.6);
+  burnMat.color.setRGB(0.7, 1.5, 0.95); // green, and just bright enough to bloom
   const burn = new THREE.Sprite(burnMat);
   burn.visible = false;
   burn.raycast = () => {};
   burn.renderOrder = 7;
-  burn.scale.set(1.3, 0.65, 1);
+  burn.scale.set(1.7, 0.85, 1);
   scene.add(burn);
   const burnState = { t: -1, base: new THREE.Vector3() };
 
   /** Sparks thrown off a point, in one kind's colour. */
-  function burst(at, kind = 'lean', { count = 16, speed = 1.5 } = {}) {
+  function burst(at, kind = 'lean', { count = 22, speed = 2 } = {}) {
     const base = KINDS[kind] ?? KINDS.lean;
     for (let i = 0; i < count; i++) {
       const idx = next;
@@ -123,7 +123,7 @@ export function createSparks(scene) {
     nextFlash = (nextFlash + 1) % FLASHES;
     f.sprite.position.copy(at);
     f.sprite.position.y += 0.06;
-    f.sprite.scale.setScalar(0.55);
+    f.sprite.scale.setScalar(0.9);
     f.mat.color.copy(base);
     f.mat.opacity = 1;
     f.sprite.visible = true;
@@ -163,7 +163,7 @@ export function createSparks(scene) {
       if (!f.sprite.visible) continue;
       f.life -= dt;
       f.mat.opacity = Math.max(0, f.life / 0.18);
-      f.sprite.scale.setScalar(0.55 + (0.18 - f.life) * 1.6);
+      f.sprite.scale.setScalar(0.9 + (0.18 - f.life) * 2.4);
       if (f.life <= 0) f.sprite.visible = false;
     }
     if (burnState.t >= 0) {
