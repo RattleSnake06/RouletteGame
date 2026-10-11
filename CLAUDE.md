@@ -97,6 +97,15 @@ change.
   smoke test's own server is set up this way.
 - **Stop servers by PID** (`echo $!` when starting one). `pkill -f` and
   `pgrep -f` with a pattern also match the shell running the command and kill it.
+  Start Vite as `node node_modules/vite/bin/vite.js …`, not `npx vite`: with
+  `npx`, `$!` is the wrapper's PID, killing it leaves the server running, and a
+  restart on the same port then fails quietly and the old code keeps being served.
+- **CSS fades advance only when a frame is drawn.** In software WebGL a frame can
+  take seconds, so a note (0.12 s fade) may still be half transparent seconds
+  after it appears. Wait several frames before screenshotting a note.
+- **Per-frame animations run in slow motion** (each frame's step is capped at
+  1/20 s): a newly hung charm takes a dozen frames to slide onto its hook, and
+  the Devil's blackout and burn last far longer than in a real browser.
 - **Pipes hide exit codes:** `npm run smoke | tail` exits 0 even when the test
   fails. Read the last lines for "Smoke test passed." or check the exit code first.
 - **Useful page hooks** (dev build): `window.__roulette` has `game`, `rail`,
