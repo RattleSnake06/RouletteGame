@@ -147,7 +147,8 @@ describe('review fixes', () => {
     const { rarityOdds } = await import('../../src/core/selectors.js');
     let s = createRun({ seed: 'ODDS' });
     for (const id of ['red_ribbon', 'horseshoe', 'matchbook', 'lucky_penny', 'crumpled_receipt', 'pawn_ticket']) s = grantTalisman(s, id);
-    expect(rarityOdds(s).common).toBe(0);
-    expect(rarityOdds(s).legendary).toBeCloseTo(0.6 / 5.8, 9);
+    // Three commons are left in the pool (Pocket Watch, Salt Cellar, Lodestone).
+    expect(rarityOdds(s).common).toBeCloseTo(3 / 11.1, 9);
+    expect(rarityOdds(s).legendary).toBeCloseTo(0.6 / 11.1, 9);
   });
 });

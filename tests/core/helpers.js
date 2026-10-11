@@ -24,11 +24,18 @@ export function setup({ seed = 'TALISMAN-TEST', rail = [], chips = {}, coins = 1
   return s;
 }
 
-/** Spins once with the ball forced into the pocket holding `n`. */
+/** The run without the House's luck: no Leans to come and no pity built up. */
+export const noHouseLuck = (state) => ({ ...state, leans: { debt: [], night: null }, missStreak: 0 });
+
+/**
+ * Spins once with the ball forced into the pocket holding `n`. The House's
+ * Leans and pity are switched off so the ball stays there; talismans that add
+ * Nudge still act.
+ */
 export function spinOn(state, n) {
   let s = state;
   if (s.phase !== 'betting') s = play(s, { type: 'choosePackage', packageId: 'long' }).state;
-  s = { ...s, foreseen: { pocketIndex: pocketOf(n), by: null } };
+  s = { ...noHouseLuck(s), foreseen: { pocketIndex: pocketOf(n), by: null } };
   return play(s, { type: 'spin' });
 }
 

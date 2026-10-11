@@ -3,8 +3,10 @@ import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
 import { getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
+import { devilChanceFor } from './devil.js';
 import { interestRateFor, lifecycle } from './effects.js';
 import { add, gt, gte, lte, max, mul, sub } from './num.js';
+import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
 import { resolveSpin } from './resolve.js';
 import { seedStreams } from './rng.js';
 import { copyTally, emptyRoundTally, emptyTally } from './tally.js';
@@ -29,7 +31,7 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 2;
+export const RUN_VERSION = 3;
 const HISTORY_LENGTH = 40;
 
 const noEvents = () => {};
@@ -60,6 +62,10 @@ export function createRun({ seed }) {
     cabinet: emptyCabinet(),
     foreseen: null,
     armed: { rethrow: null },
+    debtSpins: 0, // spins so far this debt (debt 1's Leans count them)
+    leans: { debt: [], night: null }, // the House's Leans still to come (doc 5.6)
+    missStreak: 0, // spins in a row that paid nothing (pity)
+    devil: { firedThisDebt: false },
     tally: emptyTally(),
     history: [],
     lastSpin: null,
@@ -87,6 +93,9 @@ export function newStats() {
     restocksPaid: 0,
     tokensEarned: 0,
     tokensSpent: 0,
+    leans: 0,
+    hops: 0,
+    devils: 0,
   };
 }
 
@@ -100,13 +109,20 @@ export const isFinalNight = (state) => state.round === ECONOMY.roundsPerDebt;
 export const chipsOnTable = (state) => state.chips.filter((c) => state.placements[c.id]);
 export const nextRestockCost = (state) => restockCost(state.debt, state.cabinet.paidRestocks);
 export const interestRate = (state) => interestRateFor(state, ECONOMY.interestRate);
-
+/** The next spin's Nudge: { total, lean, pity, charms, clockwise, straightOnly, kind }. */
+export const nextNudge = (state) => nudgeFor(state);
+/** The Devil's chance on the next throw (0 until debt 2 is paid). */
+export const devilChance = (state) => devilChanceFor(state);
+export const isCursed = (inst) => !!getTalisman(inst.id)?.cursed;
 // --- Lifecycle --------------------------------------------------------------
 
 /** A new debt: the debt's tally, restock prices and Bell charges start over. */
 function beginDebt(s, emit) {
   s.tally = { ...s.tally, debt: { numbers: {} } };
   s.cabinet.paidRestocks = 0;
+  s.debtSpins = 0;
+  s.leans = { debt: rollDebtLeans(s), night: null };
+  s.devil = { ...s.devil, firedThisDebt: false };
   const refilled = [];
   for (const inst of s.rail) {
     const def = getTalisman(inst.id);
@@ -144,6 +160,8 @@ export function copyRun(state) {
     rail: state.rail.map((t) => ({ ...t, data: copyData(t.data) })),
     cabinet: copyCabinet(state.cabinet),
     armed: { ...state.armed },
+    leans: { debt: state.leans.debt.map((l) => ({ ...l })), night: state.leans.night && { ...state.leans.night } },
+    devil: { ...state.devil },
     tally: copyTally(state.tally),
     history: [...state.history],
     stats: { ...state.stats },
@@ -177,7 +195,7 @@ export function grantTalisman(state, id) {
   if (!def) throw new Error(`Unknown talisman: ${id}`);
   if (state.rail.length >= state.railHooks) throw new Error('No free hook on the rail');
   const s = copyRun(state);
-  hang(s, def, priceOf(def.rarity), noEvents);
+  hang(s, def, def.cursed ? 0 : priceOf(def.rarity), noEvents);
   s.cabinet.slots = s.cabinet.slots.map((x) => (x.kind === 'talisman' && x.id === id ? { kind: 'talisman', id: null, sold: true } : x));
   return s;
 }
@@ -220,6 +238,7 @@ const HANDLERS = {
     s.stats.tokensEarned += pkg.tokens;
     s.spinsLeft = pkg.spins;
     s.spinsTonight = pkg.spins;
+    s.leans = { ...s.leans, night: rollNightLean(s, pkg.spins) };
     if (pkg.spins === 0) {
       s.satOut += 1;
       s.phase = PHASE.NIGHT_OVER;
@@ -264,7 +283,8 @@ const HANDLERS = {
     result.total = sub(s.coins, coinsBefore);
 
     s.spinsLeft -= 1;
-    s.history.push({ number: result.number, color: result.color });
+    s.debtSpins += 1;
+    s.history.push(result.devil ? { number: result.number, color: result.color, devil: true } : { number: result.number, color: result.color });
     if (s.history.length > HISTORY_LENGTH) s.history.shift();
     s.lastSpin = result;
     s.stats.spins += 1;
@@ -296,6 +316,7 @@ const HANDLERS = {
     emit({ type: 'tokens', amount: ECONOMY.nightTokens, reason: 'night' });
 
     lifecycle(s, 'roundEnd', emit);
+    s.leans = { ...s.leans, night: null };
     // Values won tonight (Matchbook) burn out with the night.
     for (const chip of s.chips) {
       if (!chip.roundValue) continue;
@@ -359,6 +380,7 @@ const HANDLERS = {
     const price = priceOf(def.rarity);
     const selling = sellUid ? state.rail.find((t) => t.uid === sellUid) : null;
     if (sellUid && !selling) throw new Error(`Unknown talisman: ${sellUid}`);
+    if (selling && isCursed(selling)) return reject(state, 'It will not come off the hook.', 'cursed');
     const refund = selling ? sellValueOf(selling.price) : 0;
     if (state.tokens + refund < price) return reject(state, 'Not enough tokens.', 'noTokens');
     if (state.rail.length - (selling ? 1 : 0) >= state.railHooks) {
@@ -380,7 +402,10 @@ const HANDLERS = {
   },
 
   sell(state, { uid }) {
-    if (!state.rail.some((t) => t.uid === uid)) throw new Error(`Unknown talisman: ${uid}`);
+    const inst = state.rail.find((t) => t.uid === uid);
+    if (!inst) throw new Error(`Unknown talisman: ${uid}`);
+    // Cursed talismans keep their hook for the rest of the run (doc 5.8).
+    if (isCursed(inst)) return reject(state, 'It will not come off the hook.', 'cursed');
     const s = copyRun(state);
     const events = [];
     sellOne(s, uid, (e) => events.push(e));

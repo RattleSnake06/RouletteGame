@@ -5,6 +5,7 @@ import { TALISMAN_LIST } from './talismans.js';
 
 const DEFAULTS = {
   tags: [],
+  cursed: false,
   inCabinet: true,
   copyable: true,
   copies: null,

@@ -3,12 +3,13 @@ import { getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, sellValueOf } from './economy.js';
 import { decimalText, isBig, num } from './num.js';
 import { newStats } from './run.js';
+import { rollDebtLeans } from './nudge.js';
 import { emptyTally } from './tally.js';
 
 // Runs save as versioned JSON. Big money values are stored as { $d: "1.2e500" };
 // everything else in the run state is plain data.
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export function serializeRun(state) {
   // JSON.stringify calls Decimal#toJSON before the replacer sees the value,
@@ -73,6 +74,22 @@ const MIGRATIONS = {
       stats: { ...newStats(), ...state.stats },
     };
     if (s.phase !== 'gameOver') restockSlots(s);
+    return s;
+  },
+  // Phase 3: Nudge, the Lean, pity and the Devil.
+  2(state) {
+    const s = {
+      ...state,
+      version: 3,
+      // Only debt 1's Leans count spins of the debt, and every spin so far was in it.
+      debtSpins: state.debt === 1 ? state.stats.spins : 0,
+      leans: { debt: [], night: null },
+      missStreak: 0,
+      devil: { firedThisDebt: false },
+      stats: { ...newStats(), ...state.stats },
+    };
+    // Debt 1 keeps its teaching Leans; tonight's Lean of a later debt, never rolled, is skipped.
+    if (s.debt === 1) s.leans.debt = rollDebtLeans(s);
     return s;
   },
 };

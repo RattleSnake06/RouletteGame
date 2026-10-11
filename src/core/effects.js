@@ -16,6 +16,10 @@ import { add } from './num.js';
 //     chipMult    per paying line     ctx.mul(x)
 //     chipPaid    per paying line     ctx.addChipValue(n), ctx.bonusCoins(n), ctx.bonusTokens(n)
 //     chipLost    per losing chip     ctx.bonusCoins(n), ctx.bonusTokens(n)
+//   pure luck (nudge.js, devil.js; also shown before the spin):
+//     nudge        per spin           ctx.addNudge(n), ctx.clockwiseOnly(), ctx.straightOnly(),
+//                                     ctx.noPity(); reads ctx.lean, ctx.pity, ctx.spin
+//     devilChance  per spin           ctx.addChance(p), ctx.mulChance(x)
 //   commit (applied to the draft at once):
 //     runStart, debtStart, roundStart, beforeSpin, afterSpin, roundEnd,
 //     debtPaid, purchased, sold       ctx.gainCoins(n), ctx.gainTokens(n), ctx.setData(k, v)

@@ -31,11 +31,11 @@ export const PACKAGES = {
   sitout: { id: 'sitout', name: 'Sit out', spins: 0, tokens: 0 },
 };
 
-const DEBT_TABLE = [
+export const DEBT_TABLE = [
   { owed: 60, restock: 2 },
-  { owed: 180, restock: 5 },
+  { owed: 333, restock: 5 }, // half of 666 (Phase 3 tuning; drafted as 180)
   { owed: 666, restock: 15 },
-  { owed: 2500, restock: 50 },
+  { owed: 1332, restock: 50 }, // twice 666 (Phase 3 tuning; drafted as 2,500)
   { owed: 12000, restock: 200 },
   { owed: 36000, restock: 700 },
   { owed: 120000, restock: 2000 },

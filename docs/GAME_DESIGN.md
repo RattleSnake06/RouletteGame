@@ -4,9 +4,10 @@
 Decisions made so far are listed under [Decisions](#12-decisions).
 
 Status: Phase 1 (the core loop) and Phase 2 (talismans, the Curio Cabinet,
-tokens and the Bell) are built; see [10](#10-roadmap). Every number here is a
-first draft meant to be tuned with the balance simulator described in
-[9.8](#98-testing-and-the-balance-simulator).
+tokens and the Bell) are built. Phase 3 (Nudge, the Lean, pity, the Devil) has its
+rules, tests and tuning in place and its presentation under way; see
+[10](#10-roadmap). Every number here is a first draft meant to be tuned with the
+balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
 **Contents**
 
@@ -185,15 +186,15 @@ At the start of each round, choose one:
 | **Short night** | 3 | 3 × spin cost | +1 token now |
 | **Sit out** | 0 | none | +3 tokens when the debt is paid |
 
-Debt table (first draft). Spin cost follows Fibonacci, a small detail players can
-spot.
+Debt table (first draft, debts 2 and 4 tuned in Phase 3). Spin cost follows
+Fibonacci, a small detail players can spot.
 
 | Debt | Owed | Spin cost | Restock base |
 |---|---|---|---|
 | 1 | 60 | 1 | 2 |
-| 2 | 180 | 2 | 5 |
+| 2 | **333** | 2 | 5 |
 | 3 | **666** | 3 | 15 |
-| 4 | 2,500 | 5 | 50 |
+| 4 | **1,332** | 5 | 50 |
 | 5 | 12,000 | 8 | 200 |
 | 6 | 36,000 | 13 | 700 |
 | 7 | 120,000 | 21 | 2,000 |
@@ -231,6 +232,22 @@ under their Phase 2 targets (9.8). Debt 3 (666 owed) is a wall without Leans and
 Nudge: the spec predicted it, and Phase 3 is where it gets tuned. The debt table
 stays as drafted until then. Strongest alone: the Glass Eye (a sure straight-up
 once a debt). Weakest early: Horseshoe and Wheel of Fortune.
+
+**Phase 3 simulator result** (Leans, pity, Nudge, the Devil and eight new
+talismans; 2,000 runs per bot). Luck turned out far stronger than the first
+draft assumed. One point of Nudge lets every straight-up reach two more pockets,
+so a straight-up's expected return grows with 2N + 1, and spreading straight-ups
+around the wheel (the skill 5.6 describes) turns a +5 Lean into a near-certain
+36× hit. With the drafted numbers, a bot with no talismans that simply played
+the Leans paid debt 2 almost every time, and pity (which a straight-up player
+earns on most spins) was worth a Lean every few spins. The numbers in 5.6 and
+6.1 were cut to fit, and debts 2 and 4 moved to half and twice 666 (the owner
+allowed the debt table to change if luck alone could not shape the curve, with
+debt 3 fixed at 666). The best bot, which plays every Lean with straight-ups
+spread around the wheel when that pays more, now pays debt 1 in about 99% of
+runs, debt 2 in 70%, debt 3 in 29% and debt 4 in 10%, all inside the Phase 3
+targets (9.8). The Devil fires at least once in about 17% of its runs; a bot
+that banks after every spin loses little to it.
 
 ### 5.3 The table: chips and bets
 
@@ -361,6 +378,15 @@ already on the best reachable pocket, it stays. Every hop shows a spark and a ti
 - This creates roulette's own placement skill: **spread straight-ups around the
   wheel**, not the table, so any Nudge has something to reach.
 - Some items restrict direction or target (Compass, Lodestone) to create builds.
+  A restriction applies to all of the spin's Nudge, the Lean's and pity's too.
+- "Pays the most" counts every coin the landing would bring: chip payouts plus
+  coins from talismans (Lucky Penny). The search is pure: it scores each pocket
+  with the same payout plan the spin uses (`core/nudge.js`).
+- **Nudge is worth a lot.** Each point lets every straight-up reach two more
+  pockets, so with chips spread around the wheel a straight-up's expected return
+  grows with 2N + 1, and +1 Nudge on every spin already makes an even-money bet pay
+  every time (red and black alternate round the wheel). The numbers below are
+  tuned to that (5.2, Phase 3 simulator result).
 
 **The Lean** is spontaneous Nudge from the House.
 
@@ -368,16 +394,28 @@ already on the best reachable pocket, it stays. Every hop shows a spark and a ti
   LEAN lamp lights on the results board *before* you bet. You can move chips onto
   riskier bets for that spin. Clover Pit's sparks arrive mid-spin; ours give you a
   betting decision.
-- **Debt 1 (teaching):** Leans on spins 2, 5, 9, 14 and 20 of the debt, each +5
-  Nudge, with the whole schedule shifted by 0 or 1 at random.
+- **Debt 1 (teaching):** Leans on spins 2, 5, 9, 14 and 20 of the debt, each +2
+  Nudge (drafted +5), with the whole schedule shifted by 0 or 1 at random. The
+  count runs across the debt's nights, so a Lean can be announced at the end of
+  one night for the first spin of the next.
 - **From debt 2:** each long night has one Lean on a random spin after the first;
   a short night gets one on a coin flip. Strength +3 to +5, and +3 more if it
-  falls on the round's last spin. **From debt 5** the House grows stingy and Leans
-  come only every other round. Because each Lean is announced a spin ahead,
-  players learn to hold Bell charges and risky chips for it.
-- **Pity:** after 3 misses in a row, +4 Nudge, then +2 more for each further
-  miss until something pays. Pity shows a different, colder spark, so players do
-  not confuse it with a Lean.
+  falls on the night's last spin. **From debt 5** the House grows stingy and Leans
+  come only every other night of the run (debt 5: nights 1 and 3; debt 6: night
+  2; and so on). Because each Lean is announced a spin ahead, players learn to
+  hold Bell charges and risky chips for it.
+- **Pity:** after 5 misses in a row, +1 Nudge, then +1 more for each further miss
+  until something pays (drafted: after 3, +4 then +2). A straight-up player
+  misses most spins, so the drafted pity worked like a free Lean every few spins.
+  Pity shows a different, colder spark, so players do not confuse it with a
+  Lean. The count runs across nights and debts, and a Devil's spin counts as a
+  miss.
+- **Where it shows:** the results board carries the LEAN lamp with the Lean's
+  strength, the next spin's total Nudge and pity (5.11). The wheel's bulb hums
+  brighter in the dark and the wheel creaks when a Lean is announced.
+- The Lean's spin and strength are rolled from the `lean` stream: debt 1's
+  schedule when the debt begins, a later night's Lean when the night is chosen.
+  Nothing about a Lean changes where the ball is drawn.
 
 ### 5.7 The Devil
 
@@ -386,9 +424,17 @@ you: a green "666" counter appears on the Cage and the Devil is live.
 
 - **Chance:** 1.5% at debt 3, +0.5% per later debt, plus cursed engravings and
   pockets, minus items (Salt Cellar, Evil Eye). **Cap 25%.** The current chance is
-  always shown on the counter.
-- **Rolled after Nudge, and Nudge cannot touch it.**
-- **When it fires:** the number under the ball burns away to "666", the bulb goes
+  always shown on the counter. Talismans adjust it in rail order, so a Salt Cellar
+  left of an Evil Eye is worth more than one to its right ((1.5 − 0.5) ÷ 2 = 0.5%,
+  against 1.5 ÷ 2 − 0.5 = 0.25%). Before the Devil is live nothing changes it.
+- **Rolled after Nudge, and Nudge cannot touch it.** It is rolled once per throw
+  from the `devil` stream (twice on a Wheel of Fortune re-throw), and only while
+  the chance is above zero.
+- **When it fires:** the spin pays nothing (no talisman's payout hook runs, so
+  no Lucky Penny refunds), an armed Wheel of Fortune is spent without a re-throw,
+  the landing is not counted for the Ledger and the Abacus, and the board shows
+  666 in green. After-spin hooks still run (the Piggy Bank still grows). The
+  number under the ball burns away to "666", the bulb goes
   out, and **every coin in hand is lost**. Deposits are safe, which is why
   banking matters.
 - **Aftermath:** if you have not visited Madame Zero yet this debt, she now deals
@@ -409,19 +455,21 @@ reorder it (or Tab to it and press [ or ]).
 
 **Selling** returns half the price paid, rounded down, at least 1 token (common
 1, uncommon 2, rare 3, legendary 4). Each talisman remembers what it cost. A
-sold talisman can be offered again.
+sold talisman can be offered again. **Cursed talismans cannot be sold**, nor
+traded in for a purchase: once hung, they keep their hook for the rest of the
+run (owner's decision, 12).
 
 **The Curio Cabinet** is a low glass counter with 4 lit compartments: 3 talismans
 and 1 **oddity** (a chip, a piece of wheel work, a record or a bet level). Until
 oddities exist (Phase 5), the 4th compartment is boarded up: "not yet".
 
-| Rarity | Price (tokens) | Relative weight | Chance, first compartment (Phase 2 pool) |
+| Rarity | Price (tokens) | Relative weight | Chance, first compartment (Phase 3 pool) |
 |---|---|---|---|
-| Common | 3 | 1.00 | 50.8% |
-| Uncommon | 4 | 0.85 | 28.8% |
-| Rare | 6 | 0.60 | 15.3% |
-| Legendary | 9 | 0.30 | 5.1% |
-| Cursed | from black cards only | none | none |
+| Common | 3 | 1.00 | 52.6% |
+| Uncommon | 4 | 0.85 | 29.8% |
+| Rare | 6 | 0.60 | 14.0% |
+| Legendary | 9 | 0.30 | 3.5% |
+| Cursed | from black cards only (Phase 4) | none | none |
 
 Rarity works by reroll, as in Clover Pit: pick a random item, then reroll it with
 probability 1 − weight (stream `cabinet`). Nothing on the rail is offered, and
@@ -505,14 +553,25 @@ wait: the first 15 needed corners and interest more than a second colour or zero
 item. Their data lives in `src/core/content/talismans.js`; the rows below are
 the rules as built.
 
+**Built in Phase 3 (8):** Pocket Watch, Salt Cellar, Lodestone (common); Rabbit's
+Foot, Evil Eye (uncommon); Compass (rare); Bone Dice and Black Candle (cursed,
+never offered by the Cabinet; black cards deal them from Phase 4, and until then
+only the debug helper hangs them). The luck items' numbers and rarities were
+tuned with the simulator, because a point of Nudge is worth far more than the
+first draft assumed (5.6). The rule that came out of it: a restricted Nudge is
+cheaper than a free one. Lodestone's +1 reaches only straight-ups (and confines
+every hop of the spin, the House's included, so it costs an outside player their
+Leans), so it is common; Rabbit's Foot's plain +1 is uncommon; Compass's +3
+clockwise is rare.
+
 | Talisman | Rarity | Effect | Plays with |
 |---|---|---|---|
-| Rabbit's Foot | Common | +1 Nudge | luck |
+| Rabbit's Foot | Uncommon | +1 Nudge (drafted common) | luck |
 | Lucky Penny | Common | Each losing chip refunds 1 coin | economy |
 | Red Ribbon | Common | Chips on red bets +1 Stake | red |
 | Black Cat | Common | Chips on black bets ×2. Every 13th spin, −3 Nudge. | black, risk |
 | Horseshoe | Common | Straight-up odds +12 | inside bets |
-| Pocket Watch | Common | First spin of each round +4 Nudge | timing |
+| Pocket Watch | Common | First spin of each night +3 Nudge (drafted +4) | timing |
 | Salt Cellar | Common | Devil chance −0.5% | safety |
 | Pawn Ticket | Common | Interest +2% | economy |
 | Crumpled Receipt | Common | +1 token at the end of each round | tokens |
@@ -529,9 +588,9 @@ the rules as built.
 | Brass Knuckles | Uncommon | Corner chips ×2 (First Four is not a corner) | inside bets |
 | Thirteen Ball | Uncommon | Result 13: everything pays ×13, and Nudge never moves the ball off 13 | jackpot |
 | Fortune Cookie | Uncommon | Each spin names a random number; straight-ups on it pay ×7 | variance |
-| Compass | Uncommon | +4 Nudge, clockwise hops only | luck |
+| Compass | Rare | +3 Nudge, clockwise hops only (drafted uncommon, +4) | luck |
 | Ivory Ball | Rare | Launch a second ball every spin | multi-ball |
-| Lodestone | Rare | +3 Nudge, but Nudge only moves toward straight-up chips | luck |
+| Lodestone | Common | +1 Nudge, but Nudge only moves onto straight-up chips (drafted rare, +3) | luck |
 | Gilder's Knife | Rare | Once per round, gild the pocket the ball lands on | wheel-building |
 | Snakeskin | Rare | Unlocks the Snake bet; Snake chips +2 Stake | special bets |
 | Croupier's Glove | Rare | Unlocks sector bets; sector chips ×1.5 | special bets |
@@ -545,7 +604,7 @@ the rules as built.
 | Metronome | Legendary | Every 4th spin of a round is a Lean | timing |
 | Twin Mirrors | Legendary | Copies the talisman to its right (not Bell abilities, purchases or sales; mirrors skip mirrors) | combos |
 | Loaded Wheel | Legendary | On purchase, widen all red pockets +0.5 | wheel-building |
-| Bone Dice | Cursed | +4 Stake; Devil chance +2% | Devil |
+| Bone Dice | Cursed | Winning chips +4 Stake; Devil chance +2% | Devil |
 | Black Candle | Cursed | Leans are twice as strong; no pity | Devil, timing |
 
 **Build families this pool supports:** colour stacking, straight-up hunting with
@@ -860,8 +919,8 @@ src/
     bets.js         bet types, coverage, odds, levels
     resolve.js      one spin -> result + events
     payout.js       a spin's payout plan: hits, chip lines, talisman triggers (pure)
-    nudge.js
-    devil.js
+    nudge.js        the Lean, pity, Nudge totals and the hop search
+    devil.js        the Devil's chance and roll
     economy.js      debts, spin costs, interest, restock and reroll costs, prices
     run.js          run state machine and actions
     effects.js      hook dispatch and rail order
@@ -906,8 +965,18 @@ The actions are `choosePackage`, `placeChip`, `removeChip`, `deposit`, `spin`,
 `sell`, `moveTalisman`, `restock` and `ringBell` (with an optional `uid`). The
 Phase 2 actions work in every phase but `gameOver`. A refused action returns a
 `rejected` event with a reason and a `code` (`noTokens`, `railFull`, `soldOut`,
-`noCoins`, `wrongPhase`, `notUsable`, `empty`). A new run runs its hooks in
-order: run start, debt start, then the first night's start.
+`noCoins`, `wrongPhase`, `notUsable`, `empty`, and from Phase 3 `cursed` for
+selling or trading in a cursed talisman). A new run runs its hooks in order: run
+start, debt start, then the first night's start.
+
+From Phase 3 a run also holds `debtSpins` (spins this debt, for debt 1's
+Leans), `leans` (`debt`: debt 1's schedule by spin of the debt; `night`: the
+night's Lean by spin of the night), `missStreak` (pity) and `devil`
+(`firedThisDebt`, for Madame Zero's black cards in Phase 4). A spin's result
+carries its `luck` (Nudge and what it is made of), `hops` (one per ball that
+moved: from, to, path) and `firstHops` for a re-throw's first throw,
+`devilChance`, and `devil` and `lost` when the Devil fires. The detail events
+add `nudged` (a ball's hops) and `devil`. Saves are version 3.
 
 ### 9.4 Randomness
 
@@ -967,10 +1036,14 @@ Hook points:
   as hit, e.g. Croupier's Rake), `ballLanded`, `covers` (a bet counts as covering
   the hit, e.g. House Key on zero), `chipStake`, `chipOdds`, `chipMult`,
   `chipPaid`, `chipLost`.
+- *Luck (pure, Phase 3; shown before the spin and applied during it):* `nudge`
+  (`addNudge`, `clockwiseOnly`, `straightOnly`, `noPity`; it reads the coming
+  Lean, pity and which spin of the night and debt is next) and `devilChance`
+  (`addChance`, `mulChance`, applied in rail order).
 - *Commit (they change the run straight away):* `runStart`, `debtStart`,
-  `roundStart`, `beforeSpin` (Nudge, Devil chance from Phase 3), `afterSpin`,
-  `roundEnd` (tokens), `debtPaid`, `purchased`, `sold`; `interestRate` adds to the
-  Cage's rate; `bell` is the talisman's own ring.
+  `roundStart`, `beforeSpin`, `afterSpin`, `roundEnd` (tokens), `debtPaid`,
+  `purchased`, `sold`; `interestRate` adds to the Cage's rate; `bell` is the
+  talisman's own ring.
 
 Talismans act in rail order. Within a chip's line, each talisman in turn adds
 its Stake, then its odds, then its multipliers ("rail-major"), so the events
@@ -996,6 +1069,15 @@ play back strictly left to right. Every hook that changes something emits a
   along with each talisman's pick rate and lift, how often the rail acts per spin,
   token flow and the biggest spins. `--bot solo:<id>` plays with one talisman
   granted, to judge each alone; `--set key=value` overrides an economy number.
+- **Phase 3 targets** (the best bot, with Leans, pity, Nudge and the Devil):
+  debt 1 ≥ 90%, debt 2 60–75%, debt 3 25–40%, debt 4 5–15%. Bots that play the
+  Lean compare their usual layout with straight-ups spread around the wheel
+  whenever the next spin has Nudge, by exact expected value, and take the better;
+  they hold the Wheel of Fortune for a spin with Nudge, and once the Devil is live
+  they bank after every spin. `--set luck.<key>=…`, `devil.<key>=…` and
+  `debt.<n>=…` override the luck table, the Devil and what a debt owes;
+  `--no-new` keeps the bots off the Phase 3 talismans, to measure the House's
+  luck alone; `solo:none` is a bot with no talismans that plays the Lean.
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1093,6 +1175,26 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
    trade-in card for a full rail, and a smoke test that buys, restocks, rings and
    sells.
 
+### Phase 3 breakdown
+
+1. Core: the Lean (debt 1's schedule, later nights' Leans, the stingy House from
+   debt 5) on its own stream, pity, Nudge totals from pure `nudge` hooks and the
+   hop search (`nudge.js`), the Devil's chance and roll (`devil.js`), the spin's
+   new order (land, Nudge, Devil, pay, re-throw), the eight talismans, cursed
+   talismans that cannot be sold, save version 3. Exact-EV tests with Nudge, one
+   test per rule, golden runs with and without the House's luck.
+2. Simulator: bots that play the Lean by exact expected value, hold the Wheel of
+   Fortune for Nudge and bank against the Devil; overrides for the luck table,
+   the Devil and the debt table; tuning to the Phase 3 targets.
+3. View: Nudge hops pocket to pocket in the rotor's frame with sparks (warm for
+   a Lean, cold for pity, brass for a talisman) and ticks; the results board's
+   LEAN lamp, Nudge and pity, with the bulb's hum and the wheel's creak; the
+   green 666 counter on the Cage; the Devil's burn and blackout, with a safety
+   setting for flashing lights; the eight charms, the cursed ones on green-black
+   enamel and iron.
+4. Notes for the board, the 666 counter and the new talismans; cursed talismans
+   offer no sale; a smoke test that plays a Lean, a pity spin and the Devil.
+
 ---
 
 ## 11. Risks
@@ -1123,3 +1225,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 8 | Wheel of Fortune | **Ring before the spin to arm it.** If that spin pays nothing, the ball is thrown again; the charge is spent even when the spin pays. (5.8) |
 | 9 | The Cabinet's 4th compartment | **Boarded up until oddities exist (Phase 5).** (5.8) |
 | 10 | The Bell | **One talisman per ring, the leftmost that can answer.** A talisman's tag rings for that one; the Piggy Bank answers only its own tag. (5.8) |
+| 11 | Where cursed talismans come from | **Black cards only (Phase 4).** Bone Dice and Black Candle are built in Phase 3 but never offered; until black cards exist, only the debug helper hangs them. (5.8, 6.1) |
+| 12 | Selling a cursed talisman | **It cannot be sold or traded in.** It keeps its hook for the rest of the run. (5.8) |
+| 13 | Phase 3 talismans | **The luck and safety eight:** Rabbit's Foot, Pocket Watch, Compass, Lodestone, Salt Cellar, Evil Eye, Bone Dice, Black Candle. (6.1) |
+| 14 | Phase 3 tuning | **Tune the Phase 3 numbers first; change the debt table only if that is not enough; debt 3 stays 666.** Targets for the best bot: debt 1 ≥ 90%, debt 2 60–75%, debt 3 25–40%, debt 4 5–15%. Outcome: debt 2 owes 333 and debt 4 1,332. (5.2, 9.8) |

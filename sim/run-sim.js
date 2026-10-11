@@ -6,32 +6,54 @@
 //   npm run sim -- --bot solo:glass_eye  one talisman from the first spin
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
+//   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
+//   npm run sim -- --set debt.2=240       override what a debt owes
 
 import { TALISMANS, getTalisman } from '../src/core/content/index.js';
-import { ECONOMY, priceOf } from '../src/core/economy.js';
+import { DEVIL, devilLive } from '../src/core/devil.js';
+import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
+import { LUCK, nudgeFor, nudgeLandings } from '../src/core/nudge.js';
 import { add, format, gt, gte, lt, sub, toNumber } from '../src/core/num.js';
+import { evaluate } from '../src/core/payout.js';
 import { PHASE, act, canAfford, costOf, createRun, grantTalisman, isFinalNight, nextRestockCost, owed } from '../src/core/run.js';
 import { bellView, cabinetView } from '../src/core/selectors.js';
+import { EUROPEAN_ORDER } from '../src/core/wheel.js';
 
-const args = Object.fromEntries(
-  process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]?.startsWith('--') ? true : (all[i + 1] ?? true)]] : acc), []),
-);
+// --flag value pairs; a flag given more than once (--set) collects its values.
+const args = {};
+process.argv.slice(2).forEach((a, i, all) => {
+  if (!a.startsWith('--')) return;
+  const key = a.slice(2);
+  const value = all[i + 1]?.startsWith('--') ? true : (all[i + 1] ?? true);
+  args[key] = key in args ? [args[key]].flat().concat(value) : value;
+});
 const RUNS = Number(args.runs ?? 2000);
 const MAX_DEBT = Number(args['max-debt'] ?? 6);
 const TEMPO = !!args.tempo;
+// --no-new: bots never buy the Phase 3 talismans (to measure the House's luck alone).
+const PHASE3_ITEMS = ['rabbits_foot', 'pocket_watch', 'salt_cellar', 'evil_eye', 'compass', 'lodestone'];
+const NO_NEW = !!args['no-new'];
+const TABLES = { luck: LUCK, devil: DEVIL };
 for (const kv of [args.set].flat().filter((x) => typeof x === 'string')) {
   const [k, v] = kv.split('=');
-  ECONOMY[k] = Number(v);
+  const [table, key] = k.includes('.') ? k.split('.') : ['economy', k];
+  // --set debt.2=240 changes what debt 2 owes.
+  if (table === 'debt') {
+    DEBT_TABLE[Number(key) - 1].owed = Number(v);
+    continue;
+  }
+  const target = TABLES[table] ?? ECONOMY;
+  target[key] = v.includes(',') ? v.split(',').map(Number) : Number(v);
 }
 
-// Phase 2 targets for the best bot (doc 10): debt 1 ≥ 85%, debt 2 50–65%,
-// debt 3 15–30%, debt 4 < 5%. Leans, Nudge (Phase 3) and chips and wheel work
-// (Phase 5) carry the later debts.
+// Phase 3 targets for the best bot (doc 9.8): debt 1 ≥ 90%, debt 2 60–75%,
+// debt 3 25–40%, debt 4 5–15%. Chips and wheel work (Phase 5) carry the later
+// debts.
 const TARGETS = [
-  [1, 0.85, 1],
-  [2, 0.5, 0.65],
-  [3, 0.15, 0.3],
-  [4, 0, 0.05],
+  [1, 0.9, 1],
+  [2, 0.6, 0.75],
+  [3, 0.25, 0.4],
+  [4, 0.05, 0.15],
 ];
 
 // --- Where chips go ---------------------------------------------------------
@@ -44,6 +66,8 @@ const LAYOUT = {
   inside: (i) => `straight:${STRAIGHTS[i % STRAIGHTS.length]}`,
   corner: (i) => CORNERS[i % CORNERS.length],
   zero: (i) => `straight:${STRAIGHTS[i % STRAIGHTS.length]}`,
+  // Straight-ups evenly around the wheel, so any Nudge has something to reach.
+  spread: (i, k) => `straight:${EUROPEAN_ORDER[Math.floor((i * 37) / k + 4) % 37]}`,
 };
 
 const owns = (s, id) => s.rail.some((t) => t.id === id);
@@ -60,34 +84,41 @@ function layoutFor(s, fallback) {
 // --- Bots -------------------------------------------------------------------
 
 const LISTS = {
-  red: ['red_ribbon', 'matchbook', 'twin_mirrors', 'glass_eye', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny'],
-  outside: ['abacus', 'matchbook', 'ledger', 'twin_mirrors', 'glass_eye', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'lucky_penny'],
-  inside: ['croupiers_rake', 'horseshoe', 'house_key', 'twin_mirrors', 'glass_eye', 'lucky_penny', 'wheel_of_fortune', 'ledger', 'pawn_ticket', 'crumpled_receipt'],
+  red: ['red_ribbon', 'matchbook', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'lucky_penny'],
+  outside: ['abacus', 'matchbook', 'ledger', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny'],
+  inside: ['croupiers_rake', 'horseshoe', 'lodestone', 'house_key', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'compass', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'ledger', 'pawn_ticket', 'crumpled_receipt'],
+  luck: ['lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'twin_mirrors', 'pocket_watch', 'glass_eye', 'wheel_of_fortune', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt'],
 };
-const TIER = ['glass_eye', 'red_ribbon', 'matchbook', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'ledger', 'horseshoe', 'brass_knuckles', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny'];
-const FAMILY_OF = { red_ribbon: 'red', matchbook: 'red', abacus: 'outside', croupiers_rake: 'inside', horseshoe: 'inside', house_key: 'inside', brass_knuckles: 'inside' };
+const TIER = ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny'];
+const FAMILY_OF = { red_ribbon: 'red', matchbook: 'red', abacus: 'outside', croupiers_rake: 'inside', horseshoe: 'inside', house_key: 'inside', brass_knuckles: 'inside', lodestone: 'inside', compass: 'inside' };
+// Once the Devil is live, safety comes first: these jump to the front of any list.
+const SAFETY = ['evil_eye', 'salt_cellar'];
+const withSafety = (s, list) => (devilLive(s) ? [...SAFETY, ...list.filter((id) => !SAFETY.includes(id))] : list);
 
 const BOTS = {
   'no items': { layout: 'red', wants: () => [] },
-  'red builder': { layout: 'red', wants: () => LISTS.red },
-  'outside builder': { layout: 'outside', wants: () => LISTS.outside },
-  'inside builder': { layout: 'inside', wants: () => LISTS.inside },
+  'red builder': { layout: 'red', leans: true, wants: (s) => withSafety(s, LISTS.red) },
+  'outside builder': { layout: 'outside', leans: true, wants: (s) => withSafety(s, LISTS.outside) },
+  'inside builder': { layout: 'inside', leans: true, wants: (s) => withSafety(s, LISTS.inside) },
+  'luck builder': { layout: 'spread', leans: true, wants: (s) => withSafety(s, LISTS.luck) },
   adaptive: {
     layout: 'red',
+    leans: true,
     // The first purchase picks the family; after that, that family's list.
     wants: (s) => {
       const family = s.rail.map((t) => FAMILY_OF[t.id]).find(Boolean);
-      return family ? LISTS[family] : TIER;
+      return withSafety(s, family ? LISTS[family] : TIER);
     },
   },
-  'greedy buyer': { layout: 'red', greedy: true, wants: () => TALISMANS.map((d) => d.id) },
+  'greedy buyer': { layout: 'red', greedy: true, wants: () => TALISMANS.filter((d) => d.inCabinet).map((d) => d.id) },
 };
 
 function botFor(name) {
+  if (name === 'solo:none') return { layout: 'red', leans: true, wants: () => [] };
   if (name.startsWith('solo:')) {
     const id = name.slice(5);
     if (!getTalisman(id)) throw new Error(`No talisman ${id}`);
-    return { layout: 'red', solo: id, wants: () => [] };
+    return { layout: 'red', leans: true, solo: id, wants: () => [] };
   }
   return BOTS[name];
 }
@@ -102,12 +133,38 @@ function step(state, action, tally) {
   return r.state;
 }
 
-function placeChips(s, layout) {
-  const pick = LAYOUT[layoutFor(s, layout)];
-  s.chips.forEach((chip, i) => {
-    const betId = pick(i);
-    if (s.placements[chip.id] !== betId) s = step(s, { type: 'placeChip', chipId: chip.id, betId });
-  });
+const placementsFor = (s, layout) => Object.fromEntries(s.chips.map((chip, i) => [chip.id, LAYOUT[layout](i, s.chips.length)]));
+
+/** Exact expected chip payout of a layout over every landing, with this Nudge. */
+function nudgedEv(s, layout, luck) {
+  const probe = { ...s, placements: placementsFor(s, layout) };
+  let total = 0;
+  for (let i = 0; i < probe.wheel.pockets.length; i++) {
+    const { landings } = nudgeLandings(probe, [{ ball: 0, pocketIndex: i }], luck);
+    total += toNumber(evaluate(probe, landings).chipTotal);
+  }
+  return total / probe.wheel.pockets.length;
+}
+
+/**
+ * The bot's layout for the next spin. A bot that plays the Lean compares its
+ * usual layout with straight-ups spread around the wheel whenever the next
+ * spin has real Nudge (a Lean, pity, a Pocket Watch) and takes the better.
+ */
+function chooseLayout(s, bot) {
+  if (bot.layout === 'spread') return 'spread';
+  const usual = layoutFor(s, bot.layout);
+  if (!bot.leans) return usual;
+  const luck = nudgeFor(s);
+  if (luck.total < 1) return usual;
+  return nudgedEv(s, 'spread', luck) > nudgedEv(s, usual, luck) ? 'spread' : usual;
+}
+
+function placeChips(s, bot) {
+  const want = placementsFor(s, chooseLayout(s, bot));
+  for (const chip of s.chips) {
+    if (s.placements[chip.id] !== want[chip.id]) s = step(s, { type: 'placeChip', chipId: chip.id, betId: want[chip.id] });
+  }
   return s;
 }
 
@@ -119,7 +176,7 @@ const rank = (list, id) => {
 /** Buys what the bot wants, trading in its weakest talisman when the rail is full. */
 function shop(s, bot, log) {
   for (let guard = 0; guard < 6; guard++) {
-    const list = bot.wants(s);
+    const list = NO_NEW ? bot.wants(s).filter((id) => !PHASE3_ITEMS.includes(id)) : bot.wants(s);
     if (!list.length) return s;
     const view = cabinetView(s);
     const offers = view.slots.filter((o) => o.kind === 'talisman' && o.id && list.includes(o.id));
@@ -171,7 +228,11 @@ function arrangeMirrors(s, list) {
   return step(s, { type: 'moveTalisman', uid: mirror.uid, to });
 }
 
-/** Bell use: the Glass Eye on the final night's first spin, Wheel of Fortune near the end, the pig when it matters. */
+/**
+ * Bell use: the Glass Eye on the final night's first spin; the Wheel of
+ * Fortune held for a spin with real Nudge (a re-throw gets the Nudge again),
+ * or near the end; the pig when it matters.
+ */
 function bell(s, bot, log, { finalNight, spinsLeft }) {
   for (const inst of s.rail) {
     if (inst.id === 'piggy_bank' && gt(inst.data.value, 0)) {
@@ -183,14 +244,15 @@ function bell(s, bot, log, { finalNight, spinsLeft }) {
   const head = bellView(s).head;
   if (!head) return s;
   const inst = s.rail.find((t) => t.uid === head);
-  if (bot.greedy || (inst.id === 'glass_eye' && finalNight) || (inst.id === 'wheel_of_fortune' && finalNight && spinsLeft <= 2)) {
+  const nudged = bot.leans && spinsLeft > 0 && nudgeFor(s).total >= 3;
+  if (bot.greedy || (inst.id === 'glass_eye' && finalNight) || (inst.id === 'wheel_of_fortune' && ((finalNight && spinsLeft <= 2) || nudged))) {
     s = step(s, { type: 'ringBell' }, log);
   }
   return s;
 }
 
 function newMetrics() {
-  return { spins: 0, paying: 0, payouts: [], triggerSpins: 0, dry: 0, maxDry: 0, jackpot: 0, bells: 0, restocks: 0, tokensIn: 0, tokensOut: 0 };
+  return { spins: 0, paying: 0, payouts: [], triggerSpins: 0, dry: 0, maxDry: 0, jackpot: 0, bells: 0, restocks: 0, tokensIn: 0, tokensOut: 0, leans: 0, hops: 0, devils: 0, devilRuns: 0, lost: 0 };
 }
 
 function playRun(seed, bot, m, picks, firstPicks) {
@@ -215,7 +277,7 @@ function playRun(seed, bot, m, picks, firstPicks) {
     s = step(s, { type: 'choosePackage', packageId: pkg }, log);
     const finalNight = isFinalNight(s);
     while (s.phase === PHASE.BETTING) {
-      s = placeChips(s, bot.layout);
+      s = placeChips(s, bot);
       s = bell(s, bot, log, { finalNight, spinsLeft: s.spinsLeft });
       // Glass Eye: every chip goes on the foreseen number for one spin.
       const seen = s.foreseen;
@@ -234,7 +296,13 @@ function playRun(seed, bot, m, picks, firstPicks) {
       } else m.maxDry = Math.max(m.maxDry, ++m.dry);
       if (r.events.some((e) => e.type === 'trigger')) m.triggerSpins += 1;
       m.jackpot = Math.max(m.jackpot, toNumber(res.total) / toNumber(owed(s)));
+      if (res.devil) m.lost += toNumber(res.lost);
       log(r.events);
+      // With the Devil live, coins in hand are at risk: bank all but the next night.
+      if (devilLive(s) && s.spinsLeft > 0) {
+        const keep = finalNight ? 0 : costOf(s, 'long');
+        if (gt(s.coins, keep)) s = step(s, { type: 'deposit', amount: sub(s.coins, keep) });
+      }
     }
     s = bell(s, bot, log, { finalNight, spinsLeft: 0 });
     s = shop(s, bot, log);
@@ -245,6 +313,10 @@ function playRun(seed, bot, m, picks, firstPicks) {
   }
   m.tokensIn += s.stats.tokensEarned;
   m.tokensOut += s.stats.tokensSpent;
+  m.leans += s.stats.leans;
+  m.hops += s.stats.hops;
+  m.devils += s.stats.devils;
+  if (s.stats.devils) m.devilRuns += 1;
   return s;
 }
 
@@ -273,8 +345,8 @@ function runBot(name) {
 // --- Report -----------------------------------------------------------------
 
 const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
-console.log(`${RUNS} runs per bot · Phase 2 rules (talismans, Cabinet, Bell; no Leans, Nudge or Devil)${TEMPO ? ' · tempo' : ''}\n`);
-const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock'];
+console.log(`${RUNS} runs per bot · Phase 3 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil)${TEMPO ? ' · tempo' : ''}\n`);
+const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
 console.log(header.join(' '));
 const results = names.map(runBot);
 for (const r of results) {
@@ -289,12 +361,15 @@ for (const r of results) {
       String(m.maxDry).padStart(4),
       (m.bells / RUNS).toFixed(1).padStart(6),
       (m.restocks / RUNS).toFixed(1).padStart(8),
+      (m.leans / RUNS).toFixed(1).padStart(6),
+      (m.hops / RUNS).toFixed(0).padStart(5),
+      pct(m.devilRuns).padStart(6),
     ].join(' '),
   );
 }
 
 const best = results.find((r) => r.name === 'adaptive') ?? results[0];
-console.log(`\nPhase 2 targets for "${best.name}":`);
+console.log(`\nPhase 3 targets for "${best.name}":`);
 for (const [d, lo, hi] of TARGETS) {
   if (d > MAX_DEBT) continue;
   const share = best.paid[d] / RUNS;

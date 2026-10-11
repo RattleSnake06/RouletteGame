@@ -3,9 +3,21 @@ import { num } from '../../src/core/num.js';
 import { act, createRun, grantTalisman } from '../../src/core/run.js';
 import { deserializeRun, serializeRun } from '../../src/core/save.js';
 
+const PHASE3_FIELDS = ['debtSpins', 'leans', 'missStreak', 'devil'];
+
+/** A save as Phase 2 wrote it: version 2, none of the Phase 3 fields. */
+function asVersion2(state) {
+  const data = JSON.parse(serializeRun(state));
+  data.v = 2;
+  for (const k of PHASE3_FIELDS) delete data.state[k];
+  for (const k of ['leans', 'hops', 'devils']) delete data.state.stats[k];
+  data.state.version = 2;
+  return data;
+}
+
 /** A save as Phase 1 wrote it: version 1, none of the Phase 2 fields. */
 function asVersion1(state) {
-  const data = JSON.parse(serializeRun(state));
+  const data = asVersion2(state);
   data.v = 1;
   for (const k of ['railHooks', 'rail', 'nextUid', 'cabinet', 'foreseen', 'armed', 'tally']) delete data.state[k];
   data.state.version = 1;
@@ -67,7 +79,7 @@ describe('saves', () => {
     const v1 = asVersion1(advance(createRun({ seed: 'TEST-SAVE' }), [{ type: 'choosePackage', packageId: 'long' }]));
     const a = deserializeRun(JSON.stringify(v1));
     const b = deserializeRun(JSON.stringify(v1));
-    expect(a.version).toBe(2);
+    expect(a.version).toBe(3);
     expect(a.rail).toEqual([]);
     expect(a.railHooks).toBe(6);
     expect(a.cabinet.slots.slice(0, 3).every((s) => s.kind === 'talisman' && s.id)).toBe(true);
@@ -77,6 +89,29 @@ describe('saves', () => {
     expect(a.armed).toEqual({ rethrow: null });
     // It plays on: the next spin works.
     const next = act(advance(a, [{ type: 'placeChip', chipId: 'c1', betId: 'red' }]), { type: 'spin' });
+    expect(next.events[0].type).toBe('spin');
+  });
+
+  it('migrates a Phase 2 save: debt 1 keeps its teaching Leans and its count of spins', () => {
+    const played = advance(createRun({ seed: 'TEST-SAVE' }), [
+      { type: 'choosePackage', packageId: 'long' },
+      { type: 'placeChip', chipId: 'c1', betId: 'red' },
+      { type: 'spin' },
+      { type: 'spin' },
+    ]);
+    const v2 = asVersion2(played);
+    const a = deserializeRun(JSON.stringify(v2));
+    expect(a.version).toBe(3);
+    expect(a.debtSpins).toBe(2);
+    expect(a.leans.debt).toHaveLength(5);
+    expect(a.leans.night).toBe(null);
+    expect(a.missStreak).toBe(0);
+    expect(a.devil).toEqual({ firedThisDebt: false });
+    expect(a.stats).toMatchObject({ leans: 0, hops: 0, devils: 0, spins: 2 });
+    expect(deserializeRun(JSON.stringify(v2))).toEqual(a);
+    const later = asVersion2({ ...played, debt: 3 });
+    expect(deserializeRun(JSON.stringify(later))).toMatchObject({ debtSpins: 0, leans: { debt: [], night: null } });
+    const next = act(a, { type: 'spin' });
     expect(next.events[0].type).toBe('spin');
   });
 

@@ -1,10 +1,15 @@
+import { getBet } from '../bets.js';
+import { devilLive } from '../devil.js';
 import { add, format, gt, mul } from '../num.js';
 import { neighbourIndex } from '../wheel.js';
 
-// The first fifteen talismans (design doc 6.1, Phase 2). Each is data plus
-// hooks; src/core/effects.js and payout.js decide when the hooks run.
+// The talismans (design doc 6.1): the first fifteen from Phase 2, then the
+// luck and Devil items of Phase 3. Each is data plus hooks; src/core/effects.js,
+// payout.js, nudge.js and devil.js decide when the hooks run.
 //
-//   rarity     common | uncommon | rare | legendary
+//   rarity     common | uncommon | rare | legendary | cursed
+//   cursed     true: never offered by the Cabinet, and it cannot be sold
+//   inCabinet  false: never offered (cursed ones come from black cards, Phase 4)
 //   tags       build families (the sim's bots and, later, the Almanac)
 //   copyable   false: Twin Mirrors cannot copy it
 //   copies     'right' for Twin Mirrors
@@ -18,6 +23,8 @@ import { neighbourIndex } from '../wheel.js';
 // new talismans, never reorder.
 
 const greenZero = (pocket) => pocket.color === 'green';
+const asleep = (state) => (devilLive(state) ? null : 'The Devil is not here yet.');
+const hasStraight = (state) => state.chips.some((c) => state.placements[c.id] && getBet(state.placements[c.id]).kind === 'straight');
 
 export const TALISMAN_LIST = [
   {
@@ -232,6 +239,116 @@ export const TALISMAN_LIST = [
     hooks: {
       covers(ctx) {
         if (ctx.hit.primary && greenZero(ctx.hit.pocket)) ctx.cover();
+      },
+    },
+  },
+  // --- Phase 3: luck and the Devil (append only) ------------------------------
+  {
+    id: 'rabbits_foot',
+    name: "Rabbit's Foot",
+    rarity: 'uncommon',
+    tags: ['luck'],
+    text: '+1 Nudge on every spin.',
+    hooks: {
+      nudge(ctx) {
+        ctx.addNudge(1);
+      },
+    },
+  },
+  {
+    id: 'pocket_watch',
+    name: 'Pocket Watch',
+    rarity: 'common',
+    tags: ['luck', 'timing'],
+    text: 'The first spin of each night: +3 Nudge.',
+    hooks: {
+      nudge(ctx) {
+        if (ctx.spin.ofNight === 1) ctx.addNudge(3);
+      },
+    },
+  },
+  {
+    id: 'salt_cellar',
+    name: 'Salt Cellar',
+    rarity: 'common',
+    tags: ['safety'],
+    text: "The Devil's chance −0.5%.",
+    status: (data, state) => asleep(state),
+    hooks: {
+      devilChance(ctx) {
+        ctx.addChance(-0.005);
+      },
+    },
+  },
+  {
+    id: 'evil_eye',
+    name: 'Evil Eye',
+    rarity: 'uncommon',
+    tags: ['safety'],
+    text: "Halves the Devil's chance.",
+    status: (data, state) => asleep(state),
+    hooks: {
+      devilChance(ctx) {
+        ctx.mulChance(0.5);
+      },
+    },
+  },
+  {
+    id: 'compass',
+    name: 'Compass',
+    rarity: 'rare',
+    tags: ['luck', 'wheel'],
+    text: '+3 Nudge, but the ball only hops clockwise.',
+    hooks: {
+      nudge(ctx) {
+        ctx.addNudge(3);
+        ctx.clockwiseOnly();
+      },
+    },
+  },
+  {
+    id: 'lodestone',
+    name: 'Lodestone',
+    rarity: 'common',
+    tags: ['luck', 'inside'],
+    text: '+1 Nudge, but the ball only hops onto straight-up chips.',
+    status: (data, state) => (hasStraight(state) ? null : 'No straight-up chip to pull toward.'),
+    hooks: {
+      nudge(ctx) {
+        ctx.addNudge(1);
+        ctx.straightOnly();
+      },
+    },
+  },
+  {
+    id: 'bone_dice',
+    name: 'Bone Dice',
+    rarity: 'cursed',
+    cursed: true,
+    inCabinet: false,
+    tags: ['devil'],
+    text: "Winning chips +4 Stake. The Devil's chance +2%.",
+    hooks: {
+      chipStake(ctx) {
+        ctx.addStake(4);
+      },
+      devilChance(ctx) {
+        ctx.addChance(0.02);
+      },
+    },
+  },
+  {
+    id: 'black_candle',
+    name: 'Black Candle',
+    rarity: 'cursed',
+    cursed: true,
+    inCabinet: false,
+    tags: ['devil', 'luck', 'timing'],
+    text: 'Leans are twice as strong. No pity.',
+    hooks: {
+      nudge(ctx) {
+        if (ctx.lean > 0) ctx.addNudge(ctx.lean);
+        ctx.noPity();
       },
     },
   },

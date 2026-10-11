@@ -2,7 +2,9 @@ import { bellQueue, canAnswer } from './bell.js';
 import { betCovers, getBet } from './bets.js';
 import { getTalisman } from './content/index.js';
 import { RARITY, priceOf, sellValueOf } from './economy.js';
+import { devilChanceFor, devilLive } from './devil.js';
 import { copyTarget } from './effects.js';
+import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
 import { nextRestockCost } from './run.js';
@@ -26,7 +28,8 @@ export function railView(state) {
       charges: inst.charges,
       maxCharges: def?.charges?.max ?? null,
       status: def?.status ? def.status(inst.data, state, inst) : null,
-      sellValue: sellValueOf(inst.price),
+      cursed: !!def?.cursed,
+      sellValue: def?.cursed ? null : sellValueOf(inst.price),
       copying: target?.id ?? null,
       dim: mirror && !target,
       active: !!def?.bell,
@@ -79,6 +82,23 @@ export function cabinetView(state) {
     canRestock: gte(state.coins, nextRestockCost(state)),
     nextRestockCost: restockCost(state.debt, state.cabinet.paidRestocks + 1),
     rarityOdds: rarityOdds(state),
+  };
+}
+
+/**
+ * The House's luck as the room shows it, for the next spin: the Nudge (with
+ * what it is made of and what restricts it) and the Devil's chance.
+ */
+export function luckView(state) {
+  const charms = [];
+  const nudge = nudgeFor(state, (e) => charms.push({ uid: e.src.uid, id: e.src.id, as: e.src.as, effect: e.effect, amount: e.amount ?? null }));
+  const devil = [];
+  const chance = devilChanceFor(state, (e) => devil.push({ uid: e.src.uid, id: e.src.id, as: e.src.as, effect: e.effect, amount: e.amount }));
+  return {
+    ...nudge,
+    charmSources: charms,
+    missStreak: state.missStreak,
+    devil: { live: devilLive(state), chance, sources: devil, firedThisDebt: state.devil.firedThisDebt },
   };
 }
 
