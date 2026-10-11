@@ -106,8 +106,11 @@ try {
   s = await state();
   check(s.placed === 3, 'clicking the felt placed three chips');
   await page.keyboard.press('KeyF');
+  let leanSpins = 0;
   for (let i = 0; i < 7; i++) {
     const before = await state();
+    // Debt 1 teaches the Lean: the lamp is lit (and the bulb hums) before the spin it falls on.
+    const lit = await game(() => window.__roulette.lighting.lean);
     await page.keyboard.press('Space');
     await page.waitForTimeout(500);
     await idle();
@@ -115,7 +118,13 @@ try {
     check(after.spinsLeft === before.spinsLeft - 1 && after.coins === before.coins + after.last.total, `spin ${i + 1} paid ${after.last.total}, coins ${before.coins} → ${after.coins}`);
     const ballPocket = await game(() => window.__roulette.ball.pocket);
     check(ballPocket === after.last.pocket, `the ball rests in the decided pocket (${ballPocket})`);
+    const lean = await game(() => window.__roulette.game.state.lastSpin.luck.lean);
+    if (lean) {
+      leanSpins += 1;
+      check(lit, `the LEAN lamp was lit before the Lean spin (+${lean})`);
+    }
   }
+  check(leanSpins === 2, `the first night held two teaching Leans (${leanSpins})`);
   s = await state();
   check(s.phase === 'nightOver', 'the night is over after seven spins');
 
@@ -188,8 +197,60 @@ try {
   s = await state();
   check(s.debt === 2 && s.round === 1, 'debt 2 begins');
 
-  // Debt 2: sit out every night and get collected.
-  for (let n = 0; n < 3; n++) {
+  // Phase 3: a cursed talisman will not be sold; the Devil takes the coins in
+  // hand and lights the 666 counter; pity nudges after a run of misses.
+  await game(() => {
+    const r = window.__roulette;
+    r.debug.grant('bone_dice');
+    r.debug.addCoins(40);
+  });
+  await frames();
+  it = await items();
+  const dice = it.rail.find((t) => t.id === 'bone_dice');
+  check(!!dice, 'a cursed Bone Dice hangs on the rail');
+  await click(await game((uid) => window.__roulette.game.screenPosition(window.__roulette.rail.talismanWorldPosition(uid)), dice.uid), 'the Bone Dice');
+  await page.waitForSelector('.modal-card', { timeout: 10000 });
+  check((await page.$('.modal-card button:has-text("Sell")')) === null, 'its card offers no sale');
+  await page.click('.modal-card button:has-text("Keep")');
+  await page.waitForTimeout(300);
+  await game((uid) => window.__roulette.game.confirmSell(uid), dice.uid);
+  check((await items()).rail.some((t) => t.id === 'bone_dice'), 'asking to sell it leaves it on its hook');
+  await page.keyboard.press('Digit2');
+  s = await state();
+  check(s.phase === 'betting' && s.spinsLeft === 3, 'a short night at debt 2');
+  await game(() => window.__roulette.debug.devil());
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(500);
+  await idle();
+  const devil = await game(() => {
+    const r = window.__roulette;
+    let counter = false;
+    r.cage.group.traverse((o) => o.userData.role === 'devil-counter' && o.visible && (counter = true));
+    const s = r.game.state;
+    return { fired: s.lastSpin.devil, coins: s.coins, lost: s.lastSpin.lost, last: s.history.at(-1), counter };
+  });
+  check(devil.fired && devil.coins === 0 && devil.lost > 0 && devil.last.devil, `the Devil fired and took ${devil.lost} coins`);
+  check(devil.counter, 'the green 666 counter shows on the Cage');
+  await game(() => {
+    const r = window.__roulette;
+    r.debug.calm();
+    r.debug.misses(6);
+  });
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(500);
+  await idle();
+  const pity = await game(() => window.__roulette.game.state.lastSpin.luck);
+  check(pity.pity === 2, `six misses in a row gave pity +${pity.pity}`);
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(500);
+  await idle();
+  s = await state();
+  check(s.phase === 'nightOver', 'the short night is over');
+  await page.keyboard.press('KeyE');
+  await page.waitForTimeout(500);
+
+  // Debt 2: sit out the other nights and get collected.
+  for (let n = 0; n < 2; n++) {
     await page.keyboard.press('Digit3');
     await page.keyboard.press('KeyE');
     await page.waitForTimeout(400);

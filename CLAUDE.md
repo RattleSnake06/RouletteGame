@@ -47,10 +47,13 @@ roadmap.
 
 ## Status
 
-Phase 1 (core loop) and Phase 2 (talismans, the Curio Cabinet, tokens and the
-Bell) are done. Next is Phase 3: Nudge, telegraphed Leans, pity and the Devil.
-With talismans the best simulator bot pays debt 1 in about 82% of runs and
-debt 2 in about 44%; debt 3 is a wall until Phase 3 (see `npm run sim`).
+Phases 1 (core loop), 2 (talismans, the Curio Cabinet, tokens and the Bell)
+and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done.
+Next is Phase 4: Madame Zero, fortunes (white and black cards), engravings and
+records. The best simulator bot pays debts 1–4 in about 99%, 70%, 29% and 10% of
+runs, inside the Phase 3 targets (see `npm run sim`). One point of Nudge is worth
+a lot (a straight-up's return grows with 2N + 1): re-run the sim after any luck
+change.
 
 ## Commands
 
@@ -61,8 +64,10 @@ debt 2 in about 44%; debt 3 is a wall until Phase 3 (see `npm run sim`).
 - `npm run sim` runs the balance simulator. Re-run it after any economy change.
 - `npm run smoke` plays a debt end to end in headless Chromium; set
   `CHROME_PATH` (in the cloud container: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
-- In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`
-  and `grant(id)` (hang a talisman for free) for testing.
+- In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`,
+  `grant(id)` (hang a talisman for free, cursed ones included), `lean(n)` (a
+  Lean on the next spin), `misses(n)` (to try pity), and `devil()` / `calm()`
+  (the Devil fires on every throw, or goes back to normal) for testing.
 
 ## Conventions
 
@@ -100,5 +105,7 @@ debt 2 in about 44%; debt 3 is a wall until Phase 3 (see `npm run sim`).
   `cabinet.slotWorldPosition(i)` and `table.spotWorldPosition(betId)` give click
   targets; interactive meshes carry `userData.role` (`night-card`, `end-card`,
   `cage-button`, `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
-  `talisman-mesh`).
+  `talisman-mesh`, `board`, `devil-counter`). `table.boardWorldPosition()` and
+  `cage.devilWorldPosition()` anchor their notes; `lighting.lean` says whether
+  the LEAN lamp is lit.
   `debug.grant(id)` hangs a talisman and marks its Cabinet offer sold.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getTalisman } from '../core/content/index.js';
 import { rng, seedOf } from '../ui/marks.js';
 import { INK, paintScratch, scrawlText, typedFont } from './ink.js';
 
@@ -12,7 +13,8 @@ import { INK, paintScratch, scrawlText, typedFont } from './ink.js';
 // silhouette in bone, brass or red that fills the enamel, inside a soot
 // keyline; the fine detail is for the Cabinet's close look. Twin Mirrors'
 // copies sit on silvered glass instead of enamel, so a copy never passes for
-// the real thing. No green anywhere: green belongs to the House.
+// the real thing. Green belongs to the House: only the cursed charms carry it,
+// on blackened iron with green-black enamel.
 
 /** Charm size in metres: the disc's outer radius and its thickness. */
 export const CHARM = { radius: 0.032, depth: 0.008 };
@@ -991,6 +993,336 @@ const PAINTERS = {
     ctx.stroke();
     ctx.restore();
   },
+
+  // ---- Phase 3: luck and the Devil ----
+
+  rabbits_foot(ctx) {
+    // A furry foot on a brass keychain cap, toes down.
+    ctx.save();
+    ctx.rotate(-0.32);
+    const fur = new Path2D();
+    fur.moveTo(-17, -40);
+    fur.bezierCurveTo(-30, -6, -40, 34, -26, 62);
+    fur.bezierCurveTo(-14, 80, 18, 82, 28, 62);
+    fur.bezierCurveTo(40, 36, 30, -6, 17, -40);
+    fur.closePath();
+    ctx.strokeStyle = '#43382a';
+    ctx.lineWidth = 6;
+    ctx.stroke(fur);
+    ctx.fillStyle = linear(ctx, -36, 0, 36, 0, [
+      [0, '#cdbd9c'],
+      [0.45, '#f1e7d2'],
+      [1, '#9c8b6e'],
+    ]);
+    ctx.fill(fur);
+    // Tufts of fur along the sides and the toes.
+    for (let i = 0; i < 9; i++) {
+      const t = i / 8;
+      const y = -24 + t * 84;
+      const w = 24 + Math.sin(t * Math.PI) * 10;
+      seg(ctx, -w * 0.7, y, -w * 0.25, y + 9, 'rgba(110, 92, 66, 0.7)', 2.4);
+      seg(ctx, w * 0.7, y, w * 0.25, y + 9, 'rgba(110, 92, 66, 0.7)', 2.4);
+    }
+    for (const x of [-14, 0, 14]) seg(ctx, x, 66, x * 1.1, 78, '#43382a', 3.4);
+    // The cap and its ring.
+    rrect(ctx, -21, -56, 42, 22, 5);
+    fill(ctx, brassFill(ctx, -56, -34), C.brassDeep, 3);
+    for (const y of [-49, -42]) seg(ctx, -17, y, 17, y, 'rgba(106, 74, 31, 0.8)', 2);
+    circle(ctx, 0, -68, 11);
+    ctx.strokeStyle = C.brassDeep;
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    ctx.strokeStyle = C.brass;
+    ctx.lineWidth = 4.5;
+    ctx.stroke();
+    seg(ctx, -12, -18, -18, 30, 'rgba(255, 252, 244, 0.7)', 3.2);
+    ctx.restore();
+  },
+
+  pocket_watch(ctx) {
+    const R = 60;
+    // Bow and crown on top.
+    circle(ctx, 0, -R - 20, 12);
+    ctx.strokeStyle = C.brassDeep;
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    ctx.strokeStyle = C.brass;
+    ctx.lineWidth = 4.5;
+    ctx.stroke();
+    rrect(ctx, -9, -R - 12, 18, 16, 3);
+    fill(ctx, brassFill(ctx, -R - 12, -R + 4), C.brassDeep, 2.6);
+    circle(ctx, 0, 4, R + 8);
+    fill(ctx, brassFill(ctx, -R, R + 12), C.brassDeep, 4);
+    circle(ctx, 0, 4, R - 2);
+    fill(ctx, radial(ctx, -16, -14, 4, 0, 4, R, [
+      [0, '#fbf5e8'],
+      [0.7, '#e3d6ba'],
+      [1, '#a99a80'],
+    ]), '#5a4630', 2.4);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU;
+      const long = i % 3 === 0;
+      const r0 = long ? R - 18 : R - 12;
+      seg(ctx, Math.cos(a) * r0, 4 + Math.sin(a) * r0, Math.cos(a) * (R - 7), 4 + Math.sin(a) * (R - 7), C.ink, long ? 4.5 : 2.6);
+    }
+    // Hands at a minute to midnight.
+    seg(ctx, 0, 4, -4, 4 - 40, C.ink, 5);
+    seg(ctx, 0, 4, -10, 4 - 28, C.blood, 6);
+    circle(ctx, 0, 4, 5.5);
+    fill(ctx, C.ink);
+    ctx.beginPath();
+    ctx.arc(0, 4, R + 3, Math.PI * 1.1, Math.PI * 1.4);
+    ctx.strokeStyle = 'rgba(255, 244, 214, 0.8)';
+    ctx.lineWidth = 3.4;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  },
+
+  salt_cellar(ctx) {
+    // An open porcelain cellar heaped with salt, a pinch spilled beside it.
+    const edge = '#43382a';
+    const bowl = new Path2D();
+    bowl.moveTo(-58, -4);
+    bowl.bezierCurveTo(-54, 34, -30, 44, 0, 44);
+    bowl.bezierCurveTo(30, 44, 54, 34, 58, -4);
+    bowl.closePath();
+    // Foot.
+    rrect(ctx, -26, 40, 52, 16, 6);
+    fill(ctx, '#bcae90', edge, 3);
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 6;
+    ctx.stroke(bowl);
+    ctx.fillStyle = linear(ctx, -58, 0, 58, 0, [
+      [0, '#a99a80'],
+      [0.4, '#f6efe0'],
+      [1, '#8f8068'],
+    ]);
+    ctx.fill(bowl);
+    // A blood band round the rim, as on old cellars.
+    ctx.save();
+    ctx.clip(bowl);
+    ctx.fillStyle = C.bloodDeep;
+    ctx.fillRect(-60, 6, 120, 8);
+    ctx.restore();
+    // The heap.
+    ctx.beginPath();
+    ctx.moveTo(-54, -4);
+    ctx.bezierCurveTo(-36, -44, 30, -50, 54, -4);
+    ctx.closePath();
+    fill(ctx, '#fbf8f0', '#7a6e5c', 3);
+    ellipse(ctx, 0, -4, 58, 9);
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    // Grains: on the heap and spilled at the left.
+    const grains = [
+      [-20, -22], [6, -30], [22, -18], [-6, -16], [12, -38], [-30, -12],
+      [-66, 50], [-56, 58], [-74, 60], [-62, 66], [-48, 64],
+    ];
+    for (const [x, y] of grains) {
+      rrect(ctx, x - 2.5, y - 2.5, 5, 5, 1);
+      fill(ctx, '#fffdf6', '#6e6252', 1.2);
+    }
+    seg(ctx, -40, 4, -34, 24, 'rgba(255, 255, 250, 0.8)', 3.4);
+  },
+
+  evil_eye(ctx) {
+    // A nazar: rings of glass round a dark pupil, strung on a brass loop.
+    const R = 66;
+    circle(ctx, 0, 0, R + 6);
+    fill(ctx, brassFill(ctx, -R - 6, R + 6), C.brassDeep, 3);
+    circle(ctx, 0, 0, R);
+    fill(ctx, radial(ctx, -18, -20, 6, 0, 0, R, [
+      [0, '#3d63ad'],
+      [0.75, '#1f3b78'],
+      [1, '#101f42'],
+    ]));
+    circle(ctx, 0, 0, R * 0.62);
+    fill(ctx, '#f4efe2', '#0f1a33', 2.6);
+    circle(ctx, 0, 0, R * 0.42);
+    fill(ctx, radial(ctx, -6, -6, 2, 0, 0, R * 0.42, [
+      [0, '#a9c6ec'],
+      [1, '#5d86c4'],
+    ]));
+    circle(ctx, 0, 0, R * 0.2);
+    fill(ctx, C.soot);
+    ellipse(ctx, -9, -10, 6, 4, -0.6);
+    fill(ctx, 'rgba(255, 255, 255, 0.9)');
+    ctx.beginPath();
+    ctx.arc(0, 0, R - 8, Math.PI * 1.08, Math.PI * 1.42);
+    ctx.strokeStyle = 'rgba(220, 235, 255, 0.7)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  },
+
+  compass(ctx) {
+    const R = 66;
+    circle(ctx, 0, 0, R + 8);
+    fill(ctx, brassFill(ctx, -R - 8, R + 8), C.brassDeep, 4);
+    circle(ctx, 0, 0, R - 1);
+    fill(ctx, radial(ctx, -14, -16, 4, 0, 0, R, [
+      [0, '#f8f1e0'],
+      [1, '#b9aa8c'],
+    ]), '#5a4630', 2.4);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * TAU;
+      const r0 = i % 4 === 0 ? R - 18 : R - 10;
+      seg(ctx, Math.cos(a) * r0, Math.sin(a) * r0, Math.cos(a) * (R - 5), Math.sin(a) * (R - 5), C.ink, i % 4 === 0 ? 4 : 2);
+    }
+    // An arrow round the rim: it only turns one way.
+    ctx.beginPath();
+    ctx.arc(0, 0, R - 26, -Math.PI * 0.15, Math.PI * 0.55);
+    ctx.strokeStyle = 'rgba(122, 56, 24, 0.75)';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    const ea = Math.PI * 0.55;
+    const ex = Math.cos(ea) * (R - 26);
+    const ey = Math.sin(ea) * (R - 26);
+    ctx.beginPath();
+    ctx.moveTo(ex - 9, ey - 4);
+    ctx.lineTo(ex + 2, ey + 9);
+    ctx.lineTo(ex + 8, ey - 7);
+    ctx.closePath();
+    fill(ctx, 'rgba(122, 56, 24, 0.85)');
+    // The needle: blood to the north, bone to the south.
+    ctx.save();
+    ctx.rotate(0.5);
+    ctx.beginPath();
+    ctx.moveTo(0, -R + 12);
+    ctx.lineTo(11, 0);
+    ctx.lineTo(-11, 0);
+    ctx.closePath();
+    fill(ctx, C.blood, '#4a080c', 2.6);
+    ctx.beginPath();
+    ctx.moveTo(0, R - 12);
+    ctx.lineTo(11, 0);
+    ctx.lineTo(-11, 0);
+    ctx.closePath();
+    fill(ctx, '#e9dcbf', '#43382a', 2.6);
+    ctx.restore();
+    circle(ctx, 0, 0, 6);
+    fill(ctx, brassFill(ctx, -6, 6), C.brassDeep, 2);
+  },
+
+  lodestone(ctx, r) {
+    // A black magnetic stone, iron filings bristling where they cling.
+    const pts = [];
+    for (let i = 0; i < 11; i++) {
+      const a = (i / 11) * TAU;
+      const d = 50 + r() * 14;
+      pts.push([Math.cos(a) * d * 1.08, 6 + Math.sin(a) * d * 0.86]);
+    }
+    const stone = new Path2D();
+    stone.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i <= pts.length; i++) {
+      const [x, y] = pts[i % pts.length];
+      const [px, py] = pts[i - 1];
+      stone.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+    }
+    stone.closePath();
+    // Filings first, standing off the stone like hair.
+    for (let i = 0; i < 46; i++) {
+      const a = r() * TAU;
+      const d0 = 50 + r() * 8;
+      const len = 10 + r() * 16;
+      const x0 = Math.cos(a) * d0 * 1.05;
+      const y0 = 6 + Math.sin(a) * d0 * 0.84;
+      seg(ctx, x0, y0, x0 + Math.cos(a) * len, y0 + Math.sin(a) * len, i % 3 ? '#b4aca2' : '#6f6860', 2.2);
+    }
+    ctx.strokeStyle = '#0a0807';
+    ctx.lineWidth = 6;
+    ctx.stroke(stone);
+    ctx.fillStyle = radial(ctx, -20, -14, 4, 0, 6, 70, [
+      [0, '#5c5650'],
+      [0.6, '#2b2724'],
+      [1, '#121010'],
+    ]);
+    ctx.fill(stone);
+    // Glints of iron in the stone.
+    for (let i = 0; i < 9; i++) {
+      const x = (r() - 0.5) * 70;
+      const y = 6 + (r() - 0.5) * 56;
+      rrect(ctx, x, y, 4 + r() * 5, 2.5, 1);
+      fill(ctx, 'rgba(210, 204, 196, 0.6)');
+    }
+    // A brass pin stuck fast to it.
+    ctx.save();
+    ctx.rotate(-0.7);
+    rrect(ctx, -3, -86, 6, 46, 2);
+    fill(ctx, brassFill(ctx, -86, -40), C.brassDeep, 2);
+    circle(ctx, 0, -88, 6);
+    fill(ctx, C.blood, '#4a080c', 2);
+    ctx.restore();
+  },
+
+  bone_dice(ctx) {
+    // Two old bone dice, cracked, the pips gone green.
+    const die = (x, y, rot, size, pips) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      rrect(ctx, -size / 2, -size / 2, size, size, size * 0.18);
+      fill(ctx, linear(ctx, -size / 2, -size / 2, size / 2, size / 2, [
+        [0, '#f3ead3'],
+        [0.6, '#d8c9a5'],
+        [1, '#8f7f60'],
+      ]), '#3a2f22', 4);
+      const q = size * 0.27;
+      for (const [px, py] of pips) {
+        circle(ctx, px * q, py * q, size * 0.09);
+        fill(ctx, '#0d1a12');
+        circle(ctx, px * q - 1, py * q - 1, size * 0.045);
+        fill(ctx, 'rgba(69, 194, 122, 0.85)');
+      }
+      ctx.restore();
+    };
+    die(-26, 18, -0.28, 66, [[-1, -1], [0, 0], [1, 1]]);
+    die(30, -20, 0.36, 60, [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]]);
+    // A crack through the nearer die.
+    line(ctx, [[-50, -4], [-38, 8], [-30, 4], [-20, 22], [-10, 26]], '#3a2f22', 2.6);
+  },
+
+  black_candle(ctx) {
+    // A stub of black wax with a green flame.
+    const W = 30;
+    ctx.fillStyle = radial(ctx, 0, -50, 2, 0, -50, 44, [
+      [0, 'rgba(69, 194, 122, 0.55)'],
+      [1, 'rgba(69, 194, 122, 0)'],
+    ]);
+    circle(ctx, 0, -50, 44);
+    ctx.fill();
+    // The holder.
+    ellipse(ctx, 0, 62, 50, 13);
+    fill(ctx, brassFill(ctx, 49, 75), C.brassDeep, 3);
+    rrect(ctx, -W, -26, W * 2, 88, 6);
+    fill(ctx, linear(ctx, -W, 0, W, 0, [
+      [0, '#2a2622'],
+      [0.35, '#4a443e'],
+      [1, '#0c0a09'],
+    ]), '#000', 3);
+    // Drips down the side.
+    for (const [x, len] of [[-18, 30], [-2, 18], [14, 40]]) {
+      rrect(ctx, x, -28, 9, len, 4.5);
+      fill(ctx, '#3a3530');
+      circle(ctx, x + 4.5, -28 + len, 5.5);
+      fill(ctx, '#3a3530');
+    }
+    ellipse(ctx, 0, -26, W, 8);
+    fill(ctx, '#55504a', '#000', 2);
+    seg(ctx, 0, -28, 1, -40, C.soot, 3.5);
+    // The flame.
+    ctx.beginPath();
+    ctx.moveTo(1, -38);
+    ctx.bezierCurveTo(-16, -50, -6, -72, 3, -86);
+    ctx.bezierCurveTo(12, -70, 18, -50, 1, -38);
+    fill(ctx, linear(ctx, 0, -86, 0, -38, [
+      [0, '#c8ffd9'],
+      [0.5, '#45c27a'],
+      [1, '#1c6a3e'],
+    ]), '#0d3a20', 2);
+    seg(ctx, -22, -10, -22, 40, 'rgba(255, 255, 255, 0.25)', 3);
+  },
 };
 
 // Anything without a painter yet (a content id from a later phase): a plain
@@ -1121,6 +1453,22 @@ function paintEnamel(ctx, r) {
   }
 }
 
+/** Cursed enamel: green-black, as if something had grown in it. */
+function paintCursedEnamel(ctx, r) {
+  ctx.fillStyle = radial(ctx, -26, -30, 6, 0, 0, 104, [
+    [0, '#1d3325'],
+    [0.6, '#0e1a13'],
+    [1, '#050806'],
+  ]);
+  ctx.fillRect(-100, -100, 200, 200);
+  for (let i = 0; i < 160; i++) {
+    ctx.fillStyle = r() < 0.5 ? `rgba(69, 194, 122, ${r() * 0.06})` : `rgba(0, 0, 0, ${r() * 0.3})`;
+    const a = r() * TAU;
+    const d = Math.sqrt(r()) * 96;
+    ctx.fillRect(Math.cos(a) * d, Math.sin(a) * d, 0.8 + r() * 3, 0.8 + r() * 3);
+  }
+}
+
 /**
  * Silvered glass: what Twin Mirrors shows when it copies. The only face that
  * is not dark enamel, so a copy reads as a reflection even when the curio is
@@ -1160,10 +1508,12 @@ export function paintTalismanFace(ctx, id, size, { reflected = false } = {}) {
   circle(ctx, 0, 0, 100);
   ctx.clip();
 
+  const cursed = !!getTalisman(id)?.cursed;
   if (reflected) paintSilver(ctx, r);
+  else if (cursed) paintCursedEnamel(ctx, r);
   else paintEnamel(ctx, r);
   circle(ctx, 0, 0, 90);
-  ctx.strokeStyle = reflected ? 'rgba(255, 252, 244, 0.9)' : 'rgba(237, 229, 211, 0.85)';
+  ctx.strokeStyle = reflected ? 'rgba(255, 252, 244, 0.9)' : cursed ? 'rgba(69, 194, 122, 0.7)' : 'rgba(237, 229, 211, 0.85)';
   ctx.lineWidth = 2.6;
   ctx.stroke();
   circle(ctx, 0, 0, 85.5);
@@ -1320,6 +1670,8 @@ function defaultBrass() {
 
 // Twin Mirrors' bezel while it shows a copy: the brass gone to silver.
 const SILVER = new THREE.Color(0xd9d6cf);
+// A cursed charm's bezel: blackened iron, and its flash burns green.
+const IRON = new THREE.Color(0x3b3a36);
 
 /**
  * A talisman as a hanging charm. The group's origin is the hang point (the
@@ -1335,8 +1687,13 @@ export function buildTalismanMesh(id, { brass } = {}) {
   group.name = `talisman:${id}`;
 
   // Each charm owns its brass and enamel so it can flash on its own.
+  const cursed = !!getTalisman(id)?.cursed;
   const rim = (brass ?? defaultBrass()).clone();
-  rim.emissive = new THREE.Color(0xffb46a);
+  if (cursed) {
+    rim.color.copy(IRON);
+    rim.roughness = 0.55;
+  }
+  rim.emissive = new THREE.Color(cursed ? 0x45c27a : 0xffb46a);
   rim.emissiveIntensity = 0;
   const rimColor = rim.color.clone();
   const tex = talismanFaceTexture(id);
@@ -1392,7 +1749,8 @@ export function buildTalismanMesh(id, { brass } = {}) {
     rim.emissiveIntensity = glow * 0.9;
     halo.visible = glow > 0.01;
     haloMat.opacity = Math.min(1, glow) * 0.85;
-    haloMat.color.setRGB(1.5, 0.82, 0.32).multiplyScalar(0.6 + Math.min(1, glow) * 0.6);
+    if (cursed) haloMat.color.setRGB(0.4, 1.5, 0.75).multiplyScalar(0.6 + Math.min(1, glow) * 0.6);
+    else haloMat.color.setRGB(1.5, 0.82, 0.32).multiplyScalar(0.6 + Math.min(1, glow) * 0.6);
   };
   const applyLook = () => {
     rim.color.copy(rimColor);

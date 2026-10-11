@@ -6,6 +6,7 @@ import { DIM, pocketAngle } from './wheel.js';
 //   orbit   the ball rides the track against the rotor, slowing
 //   drop    it spirals in across the number ring
 //   settle  it bounces through a few pockets and stops in the target pocket
+//   hop     Nudge: it creeps pocket to pocket over the frets (doc 9.6, step 4)
 //
 // The orbit is aimed using the rotor's predicted angle so the ball reaches the
 // pockets about DELTA_NOM short of its target. The settle phase then runs in
@@ -45,6 +46,20 @@ export class BallAnimator {
     return this.mode !== 'rest';
   }
 
+  /**
+   * Nudge hops: from the pocket it rests in, along `path` (pocket indices,
+   * one per hop), each a small jump over the fret, in the rotor's frame.
+   * `onHop(i)` fires as the ball lands in each pocket. Resolves at the last.
+   */
+  hop(path, { time = 0.12, onHop } = {}) {
+    if (!path.length) return Promise.resolve();
+    this.hopping = { path, i: 0, t: 0, time, onHop, from: this.pocket };
+    this.mode = 'hop';
+    return new Promise((resolve) => {
+      this._resolve = resolve;
+    });
+  }
+
   restAt(pocketIndex) {
     this.mode = 'rest';
     this.pocket = pocketIndex;
@@ -76,6 +91,32 @@ export class BallAnimator {
       this._place(this.spin.angle + pocketAngle(this.pocket), DIM.ballRestRadius, REST_Y);
       return;
     }
+    if (this.mode === 'hop') {
+      const h = this.hopping;
+      h.t += dt;
+      const u = Math.min(1, h.t / h.time);
+      const a0 = pocketAngle(h.from);
+      let delta = pocketAngle(h.path[h.i]) - a0;
+      delta = mod(delta + Math.PI, TAU) - Math.PI; // the short way round
+      const eased = smooth(u);
+      this._place(this.spin.angle + a0 + delta * eased, DIM.ballRestRadius - 0.03 * Math.sin(Math.PI * u), REST_Y + 0.07 * Math.sin(Math.PI * u));
+      if (u >= 1) {
+        this.pocket = h.path[h.i];
+        h.onHop?.(h.i);
+        h.from = this.pocket;
+        h.i += 1;
+        h.t = 0;
+        if (h.i >= h.path.length) {
+          this.mode = 'rest';
+          this.hopping = null;
+          const resolve = this._resolve;
+          this._resolve = null;
+          resolve?.();
+        }
+      }
+      return;
+    }
+
     const f = this.flight;
     f.tau += dt;
 

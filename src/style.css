@@ -750,6 +750,10 @@ img.mark {
   font-size: 2.6em;
 }
 
+.note-body .rarity.cursed {
+  color: var(--green);
+}
+
 .note-body .line,
 .note-body .status,
 .note-body .source {

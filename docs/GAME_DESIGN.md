@@ -3,10 +3,9 @@
 *Rien ne va plus* is the croupier's call when betting closes: "no more bets".
 Decisions made so far are listed under [Decisions](#12-decisions).
 
-Status: Phase 1 (the core loop) and Phase 2 (talismans, the Curio Cabinet,
-tokens and the Bell) are built. Phase 3 (Nudge, the Lean, pity, the Devil) has its
-rules, tests and tuning in place and its presentation under way; see
-[10](#10-roadmap). Every number here is a first draft meant to be tuned with the
+Status: Phase 1 (the core loop), Phase 2 (talismans, the Curio Cabinet,
+tokens and the Bell) and Phase 3 (Nudge, the Lean, pity, the Devil, cursed
+talismans) are built; see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
 **Contents**
@@ -533,7 +532,11 @@ soundtrack inside the build. Drafts in 6.3.
   a number, repaint a pocket), bet levels, records.
 - **Boards in the room:**
   - **Results board:** a mechanical flip board showing the last 12 numbers with
-    colours, spins left and the LEAN lamp.
+    colours, spins left and the LEAN lamp. *As built (Phase 3):* the board at the
+    table's right shows the LEAN lamp (dark glass, or amber with the Lean's
+    strength, and a bulb on top that hums), the next spin's total Nudge, pity in
+    cold blue when it is building, and the last 8 numbers, a Devil's spin as a
+    green 666. The spins left are on the HUD's tally.
   - **Stats chalkboard:** the live chance of each number, colour, dozen and column.
   - **Payout placard:** current odds per bet type, with levels.
 
@@ -827,20 +830,34 @@ bounces, never the result.
   note scrawled beside it, with a scratch leading back to the thing it describes
   (anchored to the object, not the pointer). Tab walks the same notes at each
   station, so everything shown on hover is reachable without a mouse: at the
-  table the talismans, the Bell, the plaques, the spots holding chips and the
-  outside bets (Enter on a bet places a chip); at the Cabinet the compartments,
-  the crank and the chart.
+  table the talismans, the Bell, the plaques, the board, the spots holding chips
+  and the outside bets (Enter on a bet places a chip); at the Cabinet the
+  compartments, the crank and the chart; at the Cage the 666 counter once it is
+  lit.
   - *Talisman:* name, rarity as tally strokes, its rule, its state ("2 charges",
-    "holds 14", "copying Red Ribbon") and what it sells for, in brass.
+    "holds 14", "copying Red Ribbon") and what it sells for, in brass. A cursed
+    one shows "cursed" in green instead of a tally and no price: it will not
+    come off the hook.
   - *Compartment:* the same, with the price; dim with "2 short" when you cannot
     pay, and a warning when the rail is full.
   - *Bet spot:* what it pays with the rail as it is: "pays ~~36×~~ 48×", with
     "+12 Horseshoe" in small print. The plaques show that bet's STAKE and ODDS.
   - *Crank, chart, Bell, plaques:* what they do and cost.
+  - *Board:* the coming Lean, what the next spin's Nudge is made of ("Nudge 4
+    next spin: Lean 3, Rabbit's Foot 1"), any restriction (Compass, Lodestone),
+    and the misses so far toward pity.
+  - *666 counter:* the Devil's chance on every throw, what it costs when it
+    fires, and the talismans that change it.
 - **Payout playback:** talismans shake and flash on their hooks as they act, left
   to right, with a small brass note of what they added ("+1 Stake", "×2"); the
   plaques tick through each chip's factors; chips glow and pop their payouts.
   Long cascades compress so playback never passes 2.5 seconds.
+- **Luck playback (Phase 3):** Nudge plays where it acts, before the payout: the
+  talismans that lent Nudge shake as the ball starts to creep, and every hop
+  throws sparks (warm for a Lean, cold blue-white for pity, brass for a
+  talisman) with a tick. When the Devil fires, a green 666 burns over the
+  pocket, the bulb pops and every light in the hall goes out for a moment, the
+  coins fall to nothing and the 666 counter blazes.
 - **Menus:** pause, settings, run summary, Almanac. These are written on the
   dark too: the room falls away behind a soot veil, the title is scrawled (a paid
   debt is struck out with "paid" after it), figures sit in a ledger with nicked
@@ -885,7 +902,8 @@ bounces, never the result.
 ### 8.7 Accessibility
 
 - A **flicker and blackout safety toggle**, because the bulb effects are
-  photosensitivity risks.
+  photosensitivity risks. *As built (Phase 3):* "Flashing lights" in the pause
+  menu; off, the Devil's blackout fades down and up with no stutter.
 - Colour-blind support: red pockets carry a diamond pip, black ones none, on the
   wheel and on the felt.
 - Text size, subtitles, full keyboard play, reduced motion, hold or toggle for
@@ -1130,7 +1148,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **0. Wheel** (done) | Room, wheel, mouse spin | ✓ |
 | **1. Core loop** (done) | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
 | **2. Builds** (done) | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
-| **3. Luck and risk** | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
+| **3. Luck and risk** (done) | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |

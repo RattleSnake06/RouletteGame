@@ -401,7 +401,8 @@ export function createHud(root = document.body) {
    * note stays put while the pointer moves over the object.
    *
    *   title    scrawled name
-   *   rarity   'common' | 'uncommon' | 'rare' | 'legendary': tally strokes and the word
+   *   rarity   'common' | 'uncommon' | 'rare' | 'legendary': tally strokes and the word;
+   *            'cursed': the word alone, in the House's green
    *   pays     { odds, base, sources: [[label, text]] }: a bet's effective odds,
    *            the printed odds struck through when talismans change them
    *   lines    typed sentences (plain text)
@@ -422,7 +423,10 @@ export function createHud(root = document.body) {
       noteKey = key;
       body.textContent = '';
       body.appendChild(el('div', 'what scrawl', escapeHtml(spec.title)));
-      if (spec.rarity) {
+      if (spec.rarity === 'cursed') {
+        // No tally: the House's mark is its colour.
+        body.appendChild(el('div', 'rarity cursed typed', '<span>cursed</span>'));
+      } else if (spec.rarity) {
         const row = el('div', 'rarity typed');
         const n = RARITY_MARKS[spec.rarity] ?? 1;
         row.append(markImg(tally(n, n, 61 + n, { color: INK.brass, h: 34, gap: 10, w: 3.6 }), 'rarity-marks', 0.012), el('span', '', spec.rarity));

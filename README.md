@@ -4,9 +4,9 @@ A roulette roguelike. A giant roulette wheel alone in a dark hall under a single
 bulb, a debt you have to pay, and three nights to pay it.
 
 The plan for the full game is in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md).
-**Phases 1 and 2 are playable:** the core loop, plus talismans, the Curio
-Cabinet, tokens and the Bell. Luck and risk (Nudge, Leans, the Devil) arrive in
-Phase 3.
+**Phases 1 to 3 are playable:** the core loop; talismans, the Curio Cabinet,
+tokens and the Bell; and luck and risk: Nudge, the House's Leans, pity and the
+Devil. Madame Zero and her fortunes arrive in Phase 4.
 
 ## Run it
 
@@ -34,10 +34,17 @@ seed; it only applies when no run is in progress.
 5. **Ring the Bell** (B, or click it) to wake an active talisman: the Glass Eye
    shows where the next ball lands; the Wheel of Fortune throws a losing ball
    again; the Piggy Bank smashes when you click its own tag.
-6. **Bank at the Cage** (turn left with A or the ◀ button). Banked coins earn 5%
+6. **Watch the board for the Lean.** When the LEAN lamp on the results board
+   lights (the wheel creaks and its bulb hums), the House will nudge the next
+   ball: it may hop that many pockets along the wheel to whichever pays the most.
+   Spread straight-ups around the wheel so the hop has something to reach. After
+   a run of misses, pity nudges the ball too.
+7. **Bank at the Cage** (turn left with A or the ◀ button). Banked coins earn 5%
    at the end of each night and count toward the debt, but they cannot come back
-   out. Every night that ends also pays a token.
-7. **End the night.** After the third night the Cage collects what you owe. Fall
+   out. Every night that ends also pays a token. Once the second debt is paid, a
+   green 666 counter lights there: on any throw the Devil may burn the number
+   away and take every coin in hand. Banked coins are safe.
+8. **End the night.** After the third night the Cage collects what you owe. Fall
    short and the run is over.
 
 | Key | Action |
@@ -47,7 +54,7 @@ seed; it only applies when no run is in progress.
 | 1 / 2 / 3 | Long night / short night / sit out; at the Cabinet, buy |
 | R | Restock the Cabinet (at the Cabinet) |
 | B | Ring the Bell |
-| Tab / Shift+Tab | Walk the talismans, Bell, plaques and bets (or the Cabinet) |
+| Tab / Shift+Tab | Walk the talismans, Bell, plaques, board and bets (or the Cabinet, or the 666 counter) |
 | Enter | Open, buy, ring or place a chip on what is focused |
 | [ / ] | Move the focused talisman along the rail |
 | Delete | Sell the focused talisman |

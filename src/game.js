@@ -6,10 +6,10 @@ import { baseFactors } from './core/payout.js';
 import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
-import { bellView, cabinetView, previewBet, railView } from './core/selectors.js';
+import { bellView, cabinetView, luckView, previewBet, railView } from './core/selectors.js';
 import { playPayout } from './playback.js';
 import { showModal } from './ui/hud.js';
-import { bellNote, betNote, chartNote, crankNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
+import { bellNote, betNote, boardNote, chartNote, crankNote, devilNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
 // Glue between the rules (core/run.js) and the room. Every player action goes
 // through dispatch(), which applies it to the run, saves, and returns the
@@ -43,6 +43,11 @@ export class Game {
     // Bumped by a new run, so a spin or timer from the old run stops short.
     this.runId = 0;
     this._screen = new THREE.Vector3();
+    this._ballAt = new THREE.Vector3();
+    // Whether the LEAN lamp was lit at the last sync (null: not synced yet, so
+    // a Lean already waiting in a loaded run lights without the creak).
+    this.leanShown = null;
+    this.justSpun = false;
   }
 
   // ---- Lifecycle ------------------------------------------------------------
@@ -70,6 +75,7 @@ export class Game {
 
   newRun() {
     this.runId += 1;
+    this.leanShown = null;
     this.clearFocus();
     this.state = createRun({ seed: randomSeed() });
     this.save();
@@ -113,6 +119,39 @@ export class Game {
     if (s.phase === PHASE.NIGHT_OVER && !this.busy) this.table.showEndCard(this.endCardLine());
     else this.table.hideEndCard();
     this.syncStatus();
+    this.syncLuck();
+  }
+
+  /**
+   * The House's luck as the room shows it (doc 5.6, 5.7): the board's LEAN
+   * lamp, Nudge and pity, the wheel's hum, and the 666 counter on the Cage.
+   */
+  syncLuck() {
+    const s = this.state;
+    const luck = luckView(s);
+    this.table.setLuck(luck);
+    this.cage.setDevil(luck.devil);
+    const lean = s.phase !== PHASE.GAME_OVER && luck.lean > 0;
+    this.lighting.setLean(lean && !this.busy);
+    if (lean && this.leanShown === false) this.announceLean();
+    this.leanShown = lean;
+  }
+
+  /** A Lean ahead: the wheel creaks and the bulb hums, after the payout has had its moment. */
+  announceLean() {
+    const id = this.runId;
+    const delay = this.justSpun ? 1.5 : 0.1;
+    setTimeout(() => {
+      if (id !== this.runId || this.busy || !(luckView(this.state).lean > 0)) return;
+      this.audio.lean();
+      this.hud.flavor(
+        [
+          ['The wheel creaks. ', 'dim'],
+          ['The House leans.', 'bone'],
+        ],
+        2200,
+      );
+    }, delay * 1000);
   }
 
   /** The rail, the Bell, the Cabinet, tokens and the Glass Eye's mark. */
@@ -306,6 +345,10 @@ export class Game {
         return { spec: chartNote(s), world: this.cabinet.chartWorldPosition() };
       case 'bet':
         return { spec: betNote(s, target.betId), world: this.table.spotWorldPosition(target.betId) };
+      case 'board':
+        return { spec: boardNote(s), world: this.table.boardWorldPosition() };
+      case 'devil':
+        return { spec: devilNote(s), world: this.cage.devilWorldPosition() };
       default:
         return null;
     }
@@ -359,12 +402,14 @@ export class Game {
         { kind: 'bell' },
         { kind: 'plaque', plaque: 'stake' },
         { kind: 'plaque', plaque: 'odds' },
+        { kind: 'board' },
         ...bets.map((betId) => ({ kind: 'bet', betId })),
       ];
     }
     if (this.view === 'cabinet') {
       return [...this.state.cabinet.slots.map((_, slot) => ({ kind: 'slot', slot })), { kind: 'crank' }, { kind: 'chart' }];
     }
+    if (this.view === 'cage' && luckView(this.state).devil.live) return [{ kind: 'devil' }];
     return [];
   }
 
@@ -607,7 +652,7 @@ export class Game {
     const offer = cabinetView(s).slots[slot];
     if (!offer) return;
     if (offer.id && !offer.hookFree) {
-      const best = Math.max(0, ...railView(s).map((v) => v.sellValue));
+      const best = Math.max(0, ...railView(s).map((v) => v.sellValue ?? 0));
       if (s.tokens + best >= offer.price) {
         this.askTradeIn(slot, offer);
         return;
@@ -625,7 +670,8 @@ export class Game {
       actions: [
         { label: 'Keep looking', primary: true },
         ...rail
-          .filter((v) => this.state.tokens + v.sellValue >= offer.price)
+          // A cursed talisman will not come off its hook.
+          .filter((v) => v.sellValue !== null && this.state.tokens + v.sellValue >= offer.price)
           .map((v) => ({ label: `${v.name} · +${v.sellValue}`, onClick: () => this.completeBuy(slot, v.uid) })),
       ],
     });
@@ -684,15 +730,22 @@ export class Game {
     };
     const lines = [escapeHtml(v.text)];
     if (v.status) lines.push(`<i>${escapeHtml(v.status)}</i>`);
+    if (v.cursed) lines.push('<i>Cursed. It will not come off the hook.</i>');
     const actions = [{ label: 'Keep', primary: true, onClick: done() }];
     if (v.active && v.usable) actions.push({ label: v.targetOnly ? 'Smash it' : 'Ring for it', onClick: done(() => this.ringBell(uid)) });
-    actions.push({ label: `Sell · +${v.sellValue}`, danger: true, onClick: done(() => this.sell(uid)) });
+    if (!v.cursed) actions.push({ label: `Sell · +${v.sellValue}`, danger: true, onClick: done(() => this.sell(uid)) });
     showModal({ kicker: `The rail · ${v.rarity}`, title: v.name, lines, actions });
   }
 
   confirmSell(uid) {
     const v = railView(this.state).find((x) => x.uid === uid);
     if (!v || this.busy || this.menuClose) return;
+    if (v.cursed) {
+      this.audio.deny();
+      this.rail.pulse(uid, 0.5);
+      this.hud.toast(`${v.name} will not come off the hook.`, 1800, 'deny');
+      return;
+    }
     showModal({
       kicker: 'The rail',
       title: `Sell ${v.name}?`,
@@ -846,16 +899,25 @@ export class Game {
     }
 
     // The wheel's bulb comes on hard for the spin; the table lamp sinks.
+    this.lighting.setLean(false);
     if (this.lighting.set('spin')) this.audio.clunk();
     const colorTone = (c) => (c === 'red' ? 'blood' : c === 'green' ? 'green' : 'bone');
+    // Salt Cellar and Evil Eye keep watch on every throw once the Devil is live.
+    for (const e of detail) if (e.type === 'trigger' && e.hook === 'devilChance') this.rail.pulse(e.src.uid, 0.45);
+    // Where each throw's ball comes to rest before Nudge moves it.
+    const landed = (hops, pocketIndex) => hops[0]?.from ?? pocketIndex;
 
     // An armed Wheel of Fortune: the first throw paid nothing, so the ball
     // jumps out and goes round again.
     const first = result.firstThrow?.[0];
     if (first) {
-      await this.ball.launch(first.pocketIndex);
+      await this.ball.launch(landed(result.firstHops, first.pocketIndex));
       if (stale()) return;
       this.audio.settle();
+      if (result.firstHops.length) {
+        await this.playHops(result.firstHops, result.luck, detail, fast);
+        if (stale()) return;
+      }
       this.table.flashResult(first.number);
       this.hud.flavor(
         [
@@ -872,27 +934,37 @@ export class Game {
       this.audio.bell('ding');
       this.audio.rethrow();
       this.hud.flavor([['Again.', 'blood']], 900);
-      await this.ball.launch(result.pocketIndex, { short: true });
+      await this.ball.launch(landed(result.hops, result.pocketIndex), { short: true });
       if (stale()) return;
     } else {
-      await this.ball.launch(result.pocketIndex);
+      await this.ball.launch(landed(result.hops, result.pocketIndex));
       if (stale()) return;
     }
 
     this.audio.settle();
-    this.table.flashResult(result.number);
+    if (result.hops.length) {
+      // On a re-throw the talismans already shook for the first throw's hops.
+      await this.playHops(result.hops, result.luck, first ? [] : detail, fast);
+      if (stale()) return;
+    }
     this.table.setMarks({ foreseen: null });
     this.table.updateMarquee(this.state.history);
-    this.hud.flavor(
-      [
-        [`${result.number} `, colorTone(result.color)],
-        // After a re-throw the Eye's landing was thrown away: this one was not foreseen.
-        [result.foreseen && !first ? `${result.color}, as foreseen` : result.color, 'dim'],
-      ],
-      1300,
-    );
-    await wait(fast ? 0.2 : 0.6);
-    if (stale()) return;
+    if (result.devil) {
+      await this.playDevil(result, fast);
+      if (stale()) return;
+    } else {
+      this.table.flashResult(result.number);
+      this.hud.flavor(
+        [
+          [`${result.number} `, colorTone(result.color)],
+          // After a re-throw the Eye's landing was thrown away: this one was not foreseen.
+          [result.foreseen && !first ? `${result.color}, as foreseen` : result.color, 'dim'],
+        ],
+        1300,
+      );
+      await wait(fast ? 0.2 : 0.6);
+      if (stale()) return;
+    }
     // Attention returns to the felt; the wheel fades back into the dark slowly.
     this.lighting.set('table');
     if (!fast) {
@@ -904,11 +976,13 @@ export class Game {
     await playPayout(
       { table: this.table, rail: this.rail, hud: this.hud, audio: this.audio, screenPosition: (w) => this.screenPosition(w) },
       detail,
-      { fast, coinsBefore, alive: () => !stale() },
+      { fast, coinsBefore: result.devil ? 0 : coinsBefore, alive: () => !stale() },
     );
     if (stale()) return;
     this.hud.setMode('play');
-    if (result.miss) {
+    if (result.devil) {
+      this.hud.showPayout(gt(result.lost, 0) ? `−${format(result.lost)}` : 'nothing', 'miss');
+    } else if (result.miss) {
       this.audio.miss();
       this.hud.showPayout(gt(result.total, 0) ? `+${format(result.total)}` : 'nothing', 'miss');
     } else {
@@ -920,7 +994,58 @@ export class Game {
     this.busy = false;
     this.setLocked(false);
     if (this.state.phase === PHASE.NIGHT_OVER) this.audio.nightBell();
+    this.justSpun = true;
     this.syncAll();
+    this.justSpun = false;
+  }
+
+  /**
+   * Nudge on screen (doc 5.6, 8.3): the ball creeps pocket to pocket, a spark
+   * and a tick on each hop, warm for a Lean, cold for pity, brass for a
+   * talisman's own luck. The talismans that lent Nudge shake as it starts.
+   */
+  async playHops(hops, luck, detail, fast) {
+    const id = this.runId;
+    for (const e of detail) if (e.type === 'trigger' && e.hook === 'nudge') this.rail.pulse(e.src.uid, 0.9);
+    if (luck.kind === 'pity') this.hud.flavor([['Pity.', 'dim']], 900);
+    else if (luck.kind === 'lean') this.hud.flavor([['The House leans.', 'bone']], 900);
+    await wait(fast ? 0.08 : 0.3);
+    let step = 0;
+    for (const hop of hops) {
+      if (id !== this.runId) return;
+      await this.ball.hop(hop.path, {
+        time: fast ? 0.08 : 0.13,
+        onHop: () => {
+          this.sparks.burst(this.ball.ball.getWorldPosition(this._ballAt), luck.kind);
+          this.audio.hop(luck.kind, step);
+          step += 1;
+        },
+      });
+    }
+    await wait(fast ? 0.05 : 0.15);
+  }
+
+  /**
+   * The Devil (doc 5.7): the number under the ball burns away to 666, the
+   * bulb goes out and every coin in hand is lost. Deposits are safe.
+   */
+  async playDevil(result, fast) {
+    this.sparks.burnAt(this.ball.ball.getWorldPosition(this._ballAt));
+    this.lighting.blackout();
+    this.audio.devil();
+    this.cage.flareDevil();
+    this.hud.flavor(
+      [
+        ['666. ', 'green'],
+        [gt(result.lost, 0) ? 'The Devil takes every coin in hand.' : 'The Devil finds your hands empty.', 'dim'],
+      ],
+      2800,
+    );
+    if (gt(result.lost, 0)) {
+      this.hud.strikeCoins();
+      this.hud.setCoins(0, { animate: true });
+    }
+    await wait(fast ? 1.8 : 3.0);
   }
 
   screenPosition(world) {
@@ -937,6 +1062,14 @@ export class Game {
     this.settings.fast = !this.settings.fast;
     this.saveSettings();
     this.hud.toast(this.settings.fast ? 'Fast spins on' : 'Fast spins off');
+  }
+
+  /** Flashing lights (doc 8.7): off turns the Devil's blackout into a fade. */
+  toggleFlashes() {
+    this.settings.flashes = !this.settings.flashes;
+    this.lighting.flashes = this.settings.flashes;
+    this.saveSettings();
+    this.hud.toast(this.settings.flashes ? 'Flashing lights on' : 'Flashing lights off');
   }
 
   toggleMute() {
@@ -971,6 +1104,7 @@ export class Game {
         { label: 'Resume', primary: true, onClick: () => (this.menuClose = null) },
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
+        { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
         { label: 'Abandon run', danger: true, onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
       ],
     });

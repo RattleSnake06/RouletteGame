@@ -17,6 +17,8 @@ import { createRail } from './view/rail.js';
 import { createStage } from './view/stage.js';
 import { createCabinet } from './view/stations/cabinet.js';
 import { createCage } from './view/stations/cage.js';
+import { createSparks } from './view/fx/sparks.js';
+import { DEVIL } from './core/devil.js';
 import { createTable } from './view/stations/table.js';
 import { buildTalismanMesh } from './view/talismanArt.js';
 import { DIM, SLICE, pocketAngle } from './view/wheel.js';
@@ -39,7 +41,7 @@ async function init() {
   const stage = createStage(canvas);
   const { scene, camera, renderer, post, wheel, room, layout } = stage;
 
-  const settings = loadSettings({ muted: false, fast: false });
+  const settings = loadSettings({ muted: false, fast: false, flashes: true });
   const audio = new WheelAudio();
   audio.muted = settings.muted;
   const hud = createHud();
@@ -60,6 +62,7 @@ async function init() {
       onChoose: (id) => game.choosePackage(id),
       onEndNight: () => game.requestEndNight(),
       onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
+      onHoverBoard: (on, ev) => game?.onHoverItem(on ? { kind: 'board' } : null, ev),
     },
   });
   table.group.position.copy(layout.tablePos);
@@ -73,6 +76,7 @@ async function init() {
       onBankAll: () => game.bankAll(),
       onBankKeep: () => game.bankKeep(),
       onEndNight: () => game.requestEndNight(),
+      onHoverDevil: (on, ev) => game?.onHoverItem(on ? { kind: 'devil' } : null, ev),
     },
   });
   cage.group.position.copy(layout.cagePos);
@@ -139,7 +143,9 @@ async function init() {
   });
 
   const lighting = new LightingDirector('intro');
-  game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting });
+  lighting.flashes = settings.flashes !== false;
+  const sparks = createSparks(scene);
+  game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting, sparks });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -251,19 +257,21 @@ async function init() {
     bell.update(dt, t);
     cage.update(dt);
     cabinet.update(dt, t);
+    sparks.update(dt);
     hud.update(dt);
 
     power += (game.power - power) * (1 - Math.exp(-dt * 2.5));
     const light = lighting.update(dt);
     const hall = introPower(t) * power;
-    const level = room.update(t, dt, hall, light.wheel);
+    // The Devil's blackout takes the whole hall down with the bulb.
+    const level = room.update(t, dt, hall * light.all, light.wheel);
     wheel.setLightLevel(level);
     table.setLampLevel(light.lamp * hall);
     rail.setLightLevel(light.rail * hall);
     cage.setLightLevel(light.cage * hall);
     cabinet.setLightLevel(light.cabinet * hall);
     // The turret's cap keeps a faint glint even when the bulb is low.
-    wheel.lensMat.emissiveIntensity = 2.4 * Math.max(level, 0.16 * hall);
+    wheel.lensMat.emissiveIntensity = 2.4 * Math.max(level, 0.16 * hall * light.all);
 
     if (director.current === 'wide') director.parallax.lerp(spin.pointer, 1 - Math.exp(-dt * 1.5));
     director.update(dt, t);
@@ -275,7 +283,7 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting };
+  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting, sparks };
   if (import.meta.env.DEV) {
     window.__roulette.debug = {
       /** Add coins to the hand, e.g. to try later debts before items exist. */
@@ -289,11 +297,33 @@ async function init() {
         game.save();
         game.syncAll();
       },
-      /** Hang a talisman without paying for it, e.g. grant('glass_eye'). */
+      /** Hang a talisman without paying for it, e.g. grant('glass_eye') or grant('bone_dice'). */
       grant(id) {
         if (game.state.rail.length >= game.state.railHooks) return console.warn('The rail is full.');
         game.state = grantTalisman(game.state, id);
         game.save();
+        game.syncAll();
+      },
+      /** A Lean of this strength on the next spin, announced now. */
+      lean(strength = 5) {
+        const s = game.state;
+        game.state = { ...s, leans: { ...s.leans, debt: [...s.leans.debt, { at: s.debtSpins + 1, strength }] } };
+        game.save();
+        game.syncAll();
+      },
+      /** Misses in a row so far, to try pity. */
+      misses(n) {
+        game.state = { ...game.state, missStreak: n };
+        game.save();
+        game.syncAll();
+      },
+      /** The Devil fires on every throw until calm() (dev build only: it bends the rules). */
+      devil() {
+        Object.assign(DEVIL, { liveFrom: 1, base: 1, cap: 1 });
+        game.syncAll();
+      },
+      calm() {
+        Object.assign(DEVIL, { liveFrom: 3, base: 0.015, cap: 0.25 });
         game.syncAll();
       },
     };

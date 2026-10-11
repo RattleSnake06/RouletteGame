@@ -11,7 +11,8 @@ import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from 
 // The Table: a baize lectern at the wheel's rim where the player stands
 // (design doc 8.1). Local frame: +z points at the player, x to their right,
 // y up from the floor. Holds the felt, the chips and their tray, the night
-// cards and the results marquee.
+// cards and the results board (the last numbers, and the House's luck: the
+// LEAN lamp, the next spin's Nudge and pity, doc 5.6, 5.11).
 
 const TOP_Y = 0.95;
 const FELT_Y = TOP_Y + 0.002;
@@ -127,28 +128,68 @@ function wrapText(ctx, text, x, y, maxW, lineH) {
   lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineH));
 }
 
-function drawMarquee(ctx, history, w, h) {
+const LAMP_AMBER = '#ffb347';
+const PITY_BLUE = '#9fd8ff';
+
+/**
+ * The results board. Top: the LEAN lamp (lit a spin ahead of a Lean, with its
+ * strength), then the next spin's Nudge and pity. Below: the last numbers, a
+ * Devil's spin shown as a green 666.
+ */
+function drawMarquee(ctx, history, luck, w, h) {
   ctx.fillStyle = '#0c0a09';
   ctx.fillRect(0, 0, w, h);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  // The lamp window: dark glass, or amber when the House leans.
+  const lit = luck.lean > 0;
+  ctx.fillStyle = lit ? '#2a1606' : '#120f0d';
+  ctx.fillRect(22, 18, w - 44, 112);
+  ctx.strokeStyle = lit ? 'rgba(255,179,71,0.8)' : 'rgba(138,122,92,0.35)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(22, 18, w - 44, 112);
+  ctx.font = `700 ${lit ? 56 : 52}px ${SANS}`;
+  ctx.fillStyle = lit ? LAMP_AMBER : 'rgba(138,122,92,0.28)';
+  ctx.shadowColor = LAMP_AMBER;
+  ctx.shadowBlur = lit ? 26 : 0;
+  ctx.fillText('LEAN', w / 2, lit ? 56 : 74);
+  if (lit) {
+    ctx.font = `600 40px ${SANS}`;
+    ctx.fillText(`+${luck.lean}`, w / 2, 104);
+  }
+  ctx.shadowBlur = 0;
+
+  // The next spin's luck in small type.
+  ctx.font = typedFont(25);
+  ctx.fillStyle = luck.total ? '#d9b878' : 'rgba(138,122,92,0.6)';
+  ctx.fillText(luck.total ? `NUDGE ${luck.total}` : 'NO NUDGE', w / 2, 160);
+  if (luck.pity) {
+    ctx.fillStyle = PITY_BLUE;
+    ctx.shadowColor = PITY_BLUE;
+    ctx.shadowBlur = 10;
+    ctx.fillText(`PITY +${luck.pity}`, w / 2, 194);
+    ctx.shadowBlur = 0;
+  }
+
   ctx.fillStyle = '#8a7a5c';
   ctx.font = typedFont(25);
-  ctx.fillText('LAST NUMBERS', w / 2, 34);
+  ctx.fillText('LAST NUMBERS', w / 2, 236);
   ctx.fillStyle = 'rgba(138,122,92,0.4)';
-  ctx.fillRect(24, 58, w - 48, 2);
-  const recent = history.slice(-11).reverse();
-  let y = 104;
+  ctx.fillRect(24, 258, w - 48, 2);
+  const recent = history.slice(-8).reverse();
+  let y = 304;
   recent.forEach((r, i) => {
     const size = i === 0 ? 76 : 50;
-    const x = r.color === 'green' ? w / 2 : r.color === 'red' ? w * 0.72 : w * 0.28;
-    const color = r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
+    const devil = !!r.devil;
+    const x = devil || r.color === 'green' ? w / 2 : r.color === 'red' ? w * 0.72 : w * 0.28;
+    const color = devil || r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
     ctx.font = `600 ${size}px ${SANS}`;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = i === 0 ? 18 : 8;
     ctx.globalAlpha = i === 0 ? 1 : Math.max(0.35, 0.9 - i * 0.06);
-    ctx.fillText(String(r.number), x, y);
+    ctx.fillText(devil ? '666' : String(r.number), x, y);
     y += i === 0 ? 86 : 58;
   });
   ctx.globalAlpha = 1;
@@ -231,19 +272,49 @@ export function createTable({ materials, interaction, callbacks }) {
   frame.castShadow = true;
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.9, 10), materials.brass);
   post.position.y = -0.6;
-  marquee.add(board, frame, post);
+  // The LEAN lamp's bulb on top of the frame: it hums when the House leans.
+  const leanBulbMat = new THREE.MeshStandardMaterial({ color: 0x3a2412, emissive: 0xffa040, emissiveIntensity: 0, roughness: 0.4 });
+  const leanBulb = new THREE.Mesh(new THREE.SphereGeometry(0.018, 14, 10), leanBulbMat);
+  leanBulb.position.set(0, 0.285, 0.004);
+  const leanCap = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, 0.014, 12), materials.brass);
+  leanCap.position.set(0, 0.268, 0.004);
+  marquee.add(board, frame, post, leanBulb, leanCap);
   marquee.position.set(0.84, 1.14, -0.52);
   marquee.rotation.y = -0.62;
   group.add(marquee);
   const marqueeLight = new THREE.PointLight(0xff5040, 0.25, 0.9, 2);
   marqueeLight.position.set(0.76, 1.14, -0.4);
   group.add(marqueeLight);
+  board.userData.role = 'board';
+  interaction.add(board, {
+    enabled: () => !locked,
+    hover: (hit, ev) => callbacks.onHoverBoard?.(true, ev),
+    leave: () => callbacks.onHoverBoard?.(false),
+  });
 
-  function updateMarquee(history) {
-    drawMarquee(marqueeCanvas.getContext('2d'), history, marqueeCanvas.width, marqueeCanvas.height);
+  let shownHistory = [];
+  let shownLuck = { lean: 0, pity: 0, total: 0 };
+  let leanLit = 0; // the lamp's glow, eased
+  function redrawMarquee() {
+    drawMarquee(marqueeCanvas.getContext('2d'), shownHistory, shownLuck, marqueeCanvas.width, marqueeCanvas.height);
     marqueeTex.needsUpdate = true;
   }
-  updateMarquee([]);
+  function updateMarquee(history) {
+    shownHistory = history;
+    redrawMarquee();
+  }
+  /** The next spin's luck: { lean, pity, total }, from luckView. */
+  function setLuck(luck) {
+    const next = { lean: luck.lean, pity: luck.pity, total: luck.total };
+    if (next.lean === shownLuck.lean && next.pity === shownLuck.pity && next.total === shownLuck.total) return;
+    shownLuck = next;
+    redrawMarquee();
+  }
+  function boardWorldPosition(out = new THREE.Vector3()) {
+    group.updateMatrixWorld();
+    return board.localToWorld(out.set(-0.08, 0.2, 0));
+  }
+  redrawMarquee();
 
   // ---- Hanging lamp -------------------------------------------------------
   // A lone shade on a long cord over the felt: the only warm light at the
@@ -553,6 +624,12 @@ export function createTable({ materials, interaction, callbacks }) {
       card.mesh.rotation.z = card.hover ? 0.03 : 0;
       if (!card.shown && card.material.opacity < 0.02) card.mesh.visible = false;
     }
+    // The LEAN lamp hums: a slow swell with a little flutter in it.
+    leanLit += ((shownLuck.lean > 0 ? 1 : 0) - leanLit) * (1 - Math.exp(-dt * 5));
+    const hum = 0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 2.1);
+    leanBulbMat.emissiveIntensity = leanLit * 2.6 * hum;
+    marqueeLight.color.setHex(leanLit > 0.5 ? 0xffa040 : 0xff5040);
+    marqueeLight.intensity = 0.25 + leanLit * 0.55 * hum;
     if (resultTimer > 0) {
       resultTimer -= dt;
       if (resultTimer <= 0) {
@@ -576,6 +653,8 @@ export function createTable({ materials, interaction, callbacks }) {
     glowChip,
     flashResult,
     updateMarquee,
+    setLuck,
+    boardWorldPosition,
     showPackages,
     hidePackages,
     showEndCard,

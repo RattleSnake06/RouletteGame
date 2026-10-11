@@ -253,6 +253,39 @@ export class WheelAudio {
     this._tone({ freq: 220, to: 660, gain: 0.07, decay: 0.4, type: 'sawtooth' });
   }
 
+  /**
+   * One Nudge hop: a bright tick and a spark's fizz. A Lean's hop is warm,
+   * pity's is a colder, glassier click, a talisman's a brass tap.
+   */
+  hop(kind = 'lean', step = 0) {
+    const up = 2 ** (Math.min(step, 12) / 24);
+    if (kind === 'pity') {
+      this._tone({ freq: 2637 * up, gain: 0.05, decay: 0.12 });
+      this._burst({ freq: 7200, q: 5, gain: 0.05, decay: 0.03 });
+      return;
+    }
+    const f = (kind === 'lean' ? 1046 : 1318) * up;
+    this._burst({ freq: 3400, q: 3, gain: 0.12, decay: 0.035 });
+    this._tone({ freq: f, gain: 0.07, decay: 0.12, type: 'triangle' });
+    this._burst({ freq: 6000, q: 1, gain: 0.03, decay: 0.09, type: 'highpass', at: 0.01 });
+  }
+
+  /** A Lean announced: the wheel creaks on its spindle and the bulb hums brighter. */
+  lean() {
+    for (let i = 0; i < 5; i++) this._burst({ freq: 260 + i * 35, q: 7, gain: 0.07, decay: 0.09, at: i * 0.07 });
+    this._tone({ freq: 70, to: 62, gain: 0.08, decay: 0.9, type: 'sawtooth', at: 0.1 });
+    this._tone({ freq: 120, gain: 0.05, decay: 1.4, type: 'sawtooth', at: 0.15 });
+  }
+
+  /** The Devil fires: the bulb pops, then a low burn. */
+  devil() {
+    this._burst({ freq: 2400, q: 0.8, gain: 0.35, decay: 0.08 });
+    this._tone({ freq: 55, to: 33, gain: 0.45, decay: 3.2, type: 'sawtooth', at: 0.05 });
+    this._tone({ freq: 82.4, to: 49, gain: 0.25, decay: 2.6, type: 'triangle', at: 0.05 });
+    this._burst({ freq: 420, q: 0.6, gain: 0.25, decay: 2.2, type: 'lowpass', at: 0.1 });
+    for (let i = 0; i < 10; i++) this._burst({ freq: 1500 + Math.random() * 2500, q: 2, gain: 0.04, decay: 0.05, at: 0.2 + i * 0.13 });
+  }
+
   tick(speed) {
     const ctx = this.ctx;
     if (!ctx || this.muted) return;

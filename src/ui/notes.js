@@ -2,7 +2,8 @@ import { BET_KINDS, getBet } from '../core/bets.js';
 import { getTalisman } from '../core/content/index.js';
 import { RARITY } from '../core/economy.js';
 import { gte } from '../core/num.js';
-import { bellView, cabinetView, previewBet, railView, rarityOdds } from '../core/selectors.js';
+import { bellView, cabinetView, luckView, previewBet, railView, rarityOdds } from '../core/selectors.js';
+import { LUCK } from '../core/nudge.js';
 
 // What each object's note says (design doc 8.4): plain specs for hud.note,
 // read from the run's state. Nothing here changes the run.
@@ -10,6 +11,9 @@ import { bellView, cabinetView, previewBet, railView, rarityOdds } from '../core
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const nameOf = (id) => getTalisman(id)?.name ?? id;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** A chance as the 666 counter shows it: "1.5%", "0.25%". */
+export const percent = (p) => `${Math.round(p * 10000) / 100}%`;
+const signedPercent = (p) => `${p < 0 ? '−' : '+'}${percent(Math.abs(p))}`;
 
 /** How a talisman's effect reads in a popup or a note: "+1 Stake", "×2". */
 export function effectText(step) {
@@ -39,6 +43,18 @@ export function effectText(step) {
       return 'armed';
     case 'foreseen':
       return 'sees';
+    case 'nudge':
+      return `+${n} Nudge`;
+    case 'clockwise':
+      return 'clockwise only';
+    case 'straightOnly':
+      return 'onto straight-ups';
+    case 'noPity':
+      return 'no pity';
+    case 'devil':
+      return `${signedPercent(n)} Devil`;
+    case 'devilMult':
+      return n === 0.5 ? 'Devil ×½' : `Devil ×${n}`;
     default:
       return null;
   }
@@ -70,6 +86,9 @@ export function talismanNote(state, uid, { tag = false } = {}) {
   const lines = [view.text];
   if (view.copying) lines.push(`Copying ${nameOf(view.copying)}.`);
   else if (view.id === 'twin_mirrors') lines.push('Nothing to its right to copy.');
+  if (view.cursed) {
+    return { title: view.name, rarity: 'cursed', lines, status: [view.status, 'It will not come off the hook.'].filter(Boolean).join(' ') };
+  }
   return {
     title: view.name,
     rarity: view.rarity,
@@ -121,6 +140,39 @@ export function bellNote(state) {
     : ['Nothing would answer it now.'];
   if (state.rail.some((t) => getTalisman(t.id)?.bell?.targetOnly)) lines.push('The Piggy Bank answers only a ring at its tag.');
   return { title: 'The Bell', lines, status: 'B rings it.' };
+}
+
+/** The results board: the LEAN lamp, the next spin's Nudge, and pity. */
+export function boardNote(state) {
+  const luck = luckView(state);
+  const lines = [];
+  if (luck.lean) lines.push(`The House leans: +${luck.lean} Nudge on the next spin.`);
+  else lines.push('The LEAN lamp lights a spin ahead, before you bet.');
+  if (luck.total) {
+    const parts = [];
+    if (luck.lean) parts.push(`Lean ${luck.lean}`);
+    if (luck.pity) parts.push(`pity ${luck.pity}`);
+    for (const c of luck.charmSources.filter((x) => x.effect === 'nudge')) parts.push(`${nameOf(c.id)} ${c.amount}`);
+    lines.push(`Nudge ${luck.total} next spin: ${parts.join(', ')}.`);
+  }
+  if (luck.clockwise) lines.push('Compass: the ball hops clockwise only.');
+  if (luck.straightOnly) lines.push('Lodestone: the ball hops only onto straight-up chips.');
+  const misses = luck.missStreak;
+  const missText = `${misses} miss${misses === 1 ? '' : 'es'}`;
+  let status = 'Nudge lets the ball hop that many pockets to the best one in reach.';
+  if (luck.pity) status = `Pity +${luck.pity}: ${missText} in a row. It grows until something pays.`;
+  else if (misses > 0 && !luck.charmSources.some((c) => c.effect === 'noPity')) {
+    status = `${missText} in a row. After ${LUCK.pityAfter}, pity nudges the ball.`;
+  }
+  return { title: 'The board', lines, status };
+}
+
+/** The green 666 counter on the Cage. */
+export function devilNote(state) {
+  const { devil } = luckView(state);
+  const lines = [`On every throw, a ${percent(devil.chance)} chance the number burns to 666.`, 'Then every coin in hand is lost. Banked coins are safe.'];
+  for (const s of devil.sources) lines.push(`${nameOf(s.id)}: ${effectText(s)}.`);
+  return { title: '666', lines, status: 'Nudge cannot touch it.' };
 }
 
 export function plaqueNote(key) {

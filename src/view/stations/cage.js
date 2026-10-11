@@ -4,7 +4,9 @@ import { format } from '../../core/num.js';
 import { scrawlText, typedFont } from '../ink.js';
 
 // The Cage: a brass teller's cage where coins are banked against the debt
-// (design doc 5.1, 8.1). Local frame: +z faces the player.
+// (design doc 5.1, 8.1). Local frame: +z faces the player. Once the second
+// debt is paid, a green 666 counter lights on its ledge with the Devil's
+// chance on every throw (doc 5.7).
 
 const sans = (weight, px) => `${weight} ${px}px Oswald, "Arial Narrow", sans-serif`;
 
@@ -105,6 +107,76 @@ export function createCage({ materials, interaction, callbacks }) {
   lamp.position.set(-0.42, 1.19, 0.12);
   group.add(lamp);
 
+  // ---- The 666 counter ------------------------------------------------------
+  // Green, because it belongs to the House. Dark and hidden until the Devil is live.
+  const devilT = makeCanvasTexture(512, 300);
+  const devilMat = new THREE.MeshStandardMaterial({ map: devilT.tex, emissiveMap: devilT.tex, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.5 });
+  const devilBox = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.16, 0.03), [wood, wood, wood, wood, devilMat, wood]);
+  devilBox.position.set(0.42, 1.13, 0.1);
+  devilBox.rotation.x = -0.25;
+  devilBox.userData.role = 'devil-counter';
+  devilBox.visible = false;
+  group.add(devilBox);
+  const devilLight = new THREE.PointLight(0x45c27a, 0, 0.8, 2);
+  devilLight.position.set(0.42, 1.18, 0.22);
+  group.add(devilLight);
+  let devilShown = null;
+  let devilFlare = 0;
+  interaction.add(devilBox, {
+    enabled: () => devilBox.visible,
+    hover: (hit, ev) => callbacks.onHoverDevil?.(true, ev),
+    leave: () => callbacks.onHoverDevil?.(false),
+  });
+
+  function drawDevil(chance) {
+    const { ctx, canvas, tex } = devilT;
+    ctx.fillStyle = '#06100a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(69, 194, 122, 0.7)';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#45c27a';
+    ctx.shadowBlur = 24;
+    scrawlText(ctx, '666', canvas.width / 2, 92, 74, '#6fe39e');
+    ctx.shadowBlur = 0;
+    // The chance on mechanical tiles, the way the Cage shows its other numbers.
+    // As the counter's note writes it: "1.5%", "0.25%".
+    const text = `${Math.round(chance * 10000) / 100}%`;
+    const tileW = text.length > 5 ? 54 : 64;
+    const x0 = canvas.width / 2 - (text.length * (tileW + 6)) / 2;
+    for (let i = 0; i < text.length; i++) {
+      const tx = x0 + i * (tileW + 6);
+      ctx.fillStyle = '#020604';
+      ctx.fillRect(tx, 160, tileW, 100);
+      ctx.fillStyle = '#7dffb0';
+      ctx.font = sans(600, 78);
+      ctx.fillText(text[i], tx + tileW / 2, 214);
+    }
+    tex.needsUpdate = true;
+  }
+
+  /** { live, chance }: show the counter once the Devil is live. */
+  function setDevil({ live, chance }) {
+    devilBox.visible = live;
+    const key = live ? chance : null;
+    if (key === devilShown) return;
+    if (devilShown !== null && live) devilFlare = 1; // the number changed: it flares
+    devilShown = key;
+    if (live) drawDevil(chance);
+  }
+
+  /** The Devil fired: the counter blazes, then settles. */
+  function flareDevil() {
+    devilFlare = 2.2;
+  }
+
+  function devilWorldPosition(out = new THREE.Vector3()) {
+    group.updateMatrixWorld();
+    return devilBox.localToWorld(out.set(0, 0.06, 0.02));
+  }
+
   // ---- Buttons: brass plates on the counter front --------------------------
   let locked = false;
   const buttons = [];
@@ -188,6 +260,9 @@ export function createCage({ materials, interaction, callbacks }) {
   }
 
   function update(dt) {
+    devilFlare = Math.max(0, devilFlare - dt * 1.2);
+    devilMat.emissiveIntensity = 0.9 + devilFlare * 1.4;
+    devilLight.intensity = devilBox.visible ? 0.18 + devilFlare * 0.8 : 0;
     for (const b of buttons) {
       const target = b.hover && b.enabled && !locked ? 0.55 : 0.2;
       b.mat.emissiveIntensity += (target - b.mat.emissiveIntensity) * (1 - Math.exp(-dt * 12));
@@ -198,6 +273,9 @@ export function createCage({ materials, interaction, callbacks }) {
     group,
     sync,
     update,
+    setDevil,
+    flareDevil,
+    devilWorldPosition,
     setLocked(v) {
       locked = v;
     },

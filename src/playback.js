@@ -11,6 +11,9 @@ import { effectText } from './ui/notes.js';
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
 const PAYOUT_HOOKS = new Set(['hits', 'ballLanded', 'covers', 'chipStake', 'chipOdds', 'chipMult', 'chipPaid', 'chipLost']);
+// Luck acts before the payout and is shown where it acts: Nudge during the
+// hops, the Devil's chance as the ball is thrown.
+const SHOWN_BEFORE = new Set(['nudge', 'devilChance']);
 
 /** Seconds each step takes, compressed so a long cascade stays short (pillar 3). */
 function pacing(steps, fast) {
@@ -28,6 +31,7 @@ function pacing(steps, fast) {
  */
 export async function playPayout(deps, events, { fast, coinsBefore, alive = () => true }) {
   const { table, rail, hud, audio, screenPosition } = deps;
+  events = events.filter((e) => !(e.type === 'trigger' && SHOWN_BEFORE.has(e.hook)));
   const steps = events.filter((e) => e.type === 'trigger' || e.type === 'chipPaid');
   const pace = pacing(steps, fast);
   const base = baseFactors();
