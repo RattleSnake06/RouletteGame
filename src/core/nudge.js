@@ -1,4 +1,5 @@
 import { betCovers, getBet } from './bets.js';
+import { ECONOMY } from './economy.js';
 import { sources, srcRef } from './effects.js';
 import { evaluate } from './payout.js';
 import { add, gt } from './num.js';
@@ -63,21 +64,33 @@ export function rollNightLean(draft, spins) {
 
 /**
  * Which spin comes next: its number within the night and within the debt.
- * Between nights it is the first spin of the coming night.
+ * Between nights it is the first spin of the coming night. `ofNight` is null
+ * when the night's size is only a guess (a save from before it was kept), so
+ * no first-spin-of-the-night rule fires on a spin that may not be the first.
  */
 export function nextSpin(state) {
   if (state.phase === 'betting') {
+    if (state.spinsTonightGuessed) return { ofNight: null, ofDebt: state.debtSpins + 1 };
     const tonight = state.spinsTonight ?? state.spinsLeft;
     return { ofNight: tonight - state.spinsLeft + 1, ofDebt: state.debtSpins + 1 };
   }
   return { ofNight: 1, ofDebt: state.debtSpins + 1 };
 }
 
+/**
+ * No spin of this debt is left: its last night is over (the next spin, if any,
+ * belongs to the next debt, which starts with a schedule of its own).
+ */
+const debtSpinsOver = (state) => state.phase === 'gameOver' || (state.phase === 'nightOver' && state.round === ECONOMY.roundsPerDebt);
+
 /** The House's Lean on the next spin (0 for none). This is what the LEAN lamp shows. */
 export function upcomingLean(state) {
   const spin = nextSpin(state);
   let strength = 0;
-  for (const l of state.leans.debt) if (l.at === spin.ofDebt) strength += l.strength;
+  // Debt 1's schedule counts spins of the debt, so a Lean can be announced at
+  // the end of one night for the next night's first spin, but never across
+  // the end of the debt.
+  if (!debtSpinsOver(state)) for (const l of state.leans.debt) if (l.at === spin.ofDebt) strength += l.strength;
   const night = state.leans.night;
   if (night && state.phase === 'betting' && night.at === spin.ofNight) strength += night.strength;
   return strength;
@@ -94,7 +107,7 @@ export function pityFor(missStreak) {
 /**
  * The next spin's Nudge, with what restricts it. Pure; with `emit`, every
  * talisman that adds or restricts something emits a `trigger`.
- * Returns { total, lean, pity, charms, clockwise, straightOnly, kind }.
+ * Returns { total, lean, pity, charms, clockwise, straightOnly, pityBlocked, kind }.
  */
 export function nudgeFor(state, emit = null) {
   const lean = upcomingLean(state);
@@ -138,7 +151,7 @@ export function nudgeFor(state, emit = null) {
   // What the hops look like on screen: a Lean's warm spark, pity's cold one,
   // or the brass of a talisman's own luck.
   const kind = lean > 0 ? 'lean' : pity > 0 ? 'pity' : 'charm';
-  return { total, lean, pity, charms, clockwise, straightOnly, kind };
+  return { total, lean, pity, charms, clockwise, straightOnly, pityBlocked, kind };
 }
 
 // --- Hops --------------------------------------------------------------------
@@ -165,8 +178,9 @@ function straightPockets(state) {
  */
 export function nudgeBall(state, landings, ball, luck) {
   const n = state.wheel.pockets.length;
-  // Half the wheel each way reaches every pocket (18 on a 37-pocket wheel).
-  const reach = Math.min(luck.total, Math.floor(n / 2));
+  // Half the wheel each way reaches every pocket (18 on a 37-pocket wheel);
+  // one way only, it takes the whole wheel less one.
+  const reach = Math.min(luck.total, luck.clockwise ? n - 1 : Math.floor(n / 2));
   if (reach <= 0) return null;
   const from = landings[ball].pocketIndex;
   const allowed = luck.straightOnly ? straightPockets(state) : null;

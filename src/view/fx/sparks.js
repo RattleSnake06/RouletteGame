@@ -6,7 +6,9 @@ import * as THREE from 'three';
 // the ball burns away to a green "666".
 //
 // Colours run past 1 so the bloom pass catches them; the blending is
-// additive, so a spark fades by darkening to nothing.
+// additive, so a spark fades by darkening to nothing. With flashing lights
+// turned off (doc 8.7) the bright flash on each hop is skipped and the burn
+// smoulders steadily; the sparks themselves stay.
 
 const KINDS = {
   lean: new THREE.Color(2.6, 1.35, 0.4),
@@ -102,7 +104,8 @@ export function createSparks(scene) {
   burn.renderOrder = 7;
   burn.scale.set(1.7, 0.85, 1);
   scene.add(burn);
-  const burnState = { t: -1, base: new THREE.Vector3() };
+  const burnState = { t: -1, base: new THREE.Vector3(), follow: null };
+  const api = { flashes: true, burst, burnAt, update };
 
   /** Sparks thrown off a point, in one kind's colour. */
   function burst(at, kind = 'lean', { count = 22, speed = 2 } = {}) {
@@ -119,6 +122,7 @@ export function createSparks(scene) {
       p.c.copy(base).multiplyScalar(0.7 + Math.random() * 0.5);
     }
     alive = MAX;
+    if (!api.flashes) return;
     const f = flashes[nextFlash];
     nextFlash = (nextFlash + 1) % FLASHES;
     f.sprite.position.copy(at);
@@ -130,12 +134,17 @@ export function createSparks(scene) {
     f.life = 0.18;
   }
 
-  /** The number under the ball burns away to 666. */
+  /**
+   * The number under the ball burns away to 666. `at` is a point, or a
+   * function returning the ball's position each frame, so the mark stays
+   * over its pocket while the wheel turns.
+   */
   function burnAt(at) {
-    burnState.base.copy(at);
+    burnState.follow = typeof at === 'function' ? at : null;
+    burnState.base.copy(burnState.follow ? burnState.follow() : at);
     burnState.t = 0;
     burn.visible = true;
-    burst(at, 'devil', { count: 40, speed: 2.2 });
+    burst(burnState.base, 'devil', { count: 40, speed: 2.2 });
   }
 
   function update(dt) {
@@ -169,9 +178,11 @@ export function createSparks(scene) {
     if (burnState.t >= 0) {
       burnState.t += dt;
       const t = burnState.t;
-      // In fast, held for a breath, then it smoulders out.
-      const opacity = t < 0.25 ? t / 0.25 : t < 2.2 ? 1 - 0.15 * Math.sin(t * 23) * Math.sin(t * 7) : Math.max(0, 1 - (t - 2.2) / 0.9);
+      // In fast, held for a breath (flickering, unless flashes are off), then it smoulders out.
+      const flicker = api.flashes ? 0.15 * Math.sin(t * 23) * Math.sin(t * 7) : 0;
+      const opacity = t < 0.25 ? t / 0.25 : t < 2.2 ? 1 - flicker : Math.max(0, 1 - (t - 2.2) / 0.9);
       burnMat.opacity = opacity;
+      if (burnState.follow) burnState.base.copy(burnState.follow());
       burn.position.copy(burnState.base);
       burn.position.y += 0.45 + t * 0.06;
       if (t > 3.1) {
@@ -181,5 +192,5 @@ export function createSparks(scene) {
     }
   }
 
-  return { burst, burnAt, update };
+  return api;
 }

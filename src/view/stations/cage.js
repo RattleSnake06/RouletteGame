@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ECONOMY } from '../../core/economy.js';
 import { format } from '../../core/num.js';
+import { percent } from '../../ui/notes.js';
 import { scrawlText, typedFont } from '../ink.js';
 
 // The Cage: a brass teller's cage where coins are banked against the debt
@@ -143,9 +144,9 @@ export function createCage({ materials, interaction, callbacks }) {
     scrawlText(ctx, '666', canvas.width / 2, 92, 74, '#6fe39e');
     ctx.shadowBlur = 0;
     // The chance on mechanical tiles, the way the Cage shows its other numbers.
-    // As the counter's note writes it: "1.5%", "0.25%".
-    const text = `${Math.round(chance * 10000) / 100}%`;
-    const tileW = text.length > 5 ? 54 : 64;
+    // Written as its note writes it ("1.5%", "0.375%"), so the two never disagree.
+    const text = percent(chance);
+    const tileW = text.length > 6 ? 48 : text.length > 5 ? 54 : 64;
     const x0 = canvas.width / 2 - (text.length * (tileW + 6)) / 2;
     for (let i = 0; i < text.length; i++) {
       const tx = x0 + i * (tileW + 6);

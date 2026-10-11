@@ -3,8 +3,10 @@ import { registerTestTalisman } from '../../src/core/content/index.js';
 import { DEVIL, devilChanceFor } from '../../src/core/devil.js';
 import { LUCK, nudgeFor, nudgeLandings, pityFor, upcomingLean } from '../../src/core/nudge.js';
 import { evaluate } from '../../src/core/payout.js';
+import { Rng } from '../../src/core/rng.js';
 import { act, createRun, grantTalisman } from '../../src/core/run.js';
-import { cabinetView } from '../../src/core/selectors.js';
+import { cabinetView, luckView } from '../../src/core/selectors.js';
+import { boardNote } from '../../src/ui/notes.js';
 import { TALISMANS } from '../../src/core/content/index.js';
 import { deserializeRun, serializeRun } from '../../src/core/save.js';
 import { EUROPEAN_ORDER } from '../../src/core/wheel.js';
@@ -125,17 +127,52 @@ describe('the Lean', () => {
   });
 
   it('the Lean spin carries the Lean in its Nudge, and hops show on that spin', () => {
-    let s = setup({ seed: 'LEAN-HOP', chips: { c1: 'straight:17', c2: 'straight:5', c3: 'straight:30' } });
+    let s = setup({ seed: 'LEAN-HOP', chips: { c1: 'straight:17' } });
     s = play(s, { type: 'choosePackage', packageId: 'long' }).state;
     const at = s.leans.debt[0].at;
     let r;
     for (let spin = 1; spin <= at; spin++) {
       s = { ...s, missStreak: 0 }; // keep the schedule, drop pity
+      // The Lean spin lands on 34, one pocket from the chip on 17.
+      if (spin === at) s = { ...s, foreseen: { pocketIndex: pocketOf(34), by: null } };
       r = play(s, { type: 'spin' });
       s = r.state;
     }
     expect(s.lastSpin.luck).toMatchObject({ lean: LUCK.teachingStrength, total: LUCK.teachingStrength, kind: 'lean' });
+    expect(s.lastSpin).toMatchObject({ number: 17, miss: false });
+    expect(s.lastSpin.hops[0]).toMatchObject({ from: pocketOf(34), to: pocketOf(17), steps: -1, path: [pocketOf(17)] });
+    expect(r.events.find((e) => e.type === 'nudged')).toMatchObject({ kind: 'lean', first: true, steps: -1 });
     expect(s.stats.leans).toBe(1);
+  });
+
+  it('is announced across a night, never across the end of the debt', () => {
+    // A Lean on spin 8 of debt 1: the first spin of night 2 after a long night 1.
+    let s = setup({ seed: 'LEAN-NIGHTS', chips: { c1: 'red' } });
+    s = { ...s, leans: { debt: [{ at: 8, strength: 2 }], night: null } };
+    s = play(s, { type: 'choosePackage', packageId: 'long' }).state;
+    for (let i = 0; i < 7; i++) s = play({ ...s, missStreak: 0 }, { type: 'spin' }).state;
+    expect(s.phase).toBe('nightOver');
+    expect(upcomingLean(s)).toBe(2); // lit at the end of night 1
+    s = play(s, { type: 'endNight' }).state;
+    expect(upcomingLean(s)).toBe(2); // and while night 2 is chosen
+    s = play(s, { type: 'choosePackage', packageId: 'short' }).state;
+    expect(upcomingLean(s)).toBe(2);
+    s = play({ ...s, missStreak: 0 }, { type: 'spin' }).state;
+    expect(s.lastSpin.luck.lean).toBe(2);
+    expect(upcomingLean(s)).toBe(0);
+
+    // On the debt's last night, a Lean scheduled after its last spin is never shown.
+    let t = setup({ seed: 'LEAN-LAST', chips: { c1: 'red' } });
+    t = { ...t, round: 3, debtSpins: 10, leans: { debt: [{ at: 14, strength: 2 }], night: null } };
+    t = play(t, { type: 'choosePackage', packageId: 'short' }).state;
+    for (let i = 0; i < 3; i++) t = play(t, { type: 'spin' }).state;
+    expect(t.phase).toBe('nightOver');
+    expect(t.debtSpins).toBe(13);
+    expect(upcomingLean(t)).toBe(0);
+    expect(luckView(t).lean).toBe(0);
+    const collected = play({ ...t, deposited: 0 }, { type: 'endNight' }).state;
+    expect(collected.phase).toBe('gameOver');
+    expect(upcomingLean(collected)).toBe(0);
   });
 
   it('from debt 2: one Lean on a long night, after the first spin, +3 to +5 (+3 more on the last spin)', () => {
@@ -187,18 +224,23 @@ describe('the Lean', () => {
 
   it('the Lean never changes where the ball is drawn: only the hops differ', () => {
     const chips = { c1: 'straight:17', c2: 'straight:5', c3: 'straight:30' };
-    let a = setup({ seed: 'SAME-DRAWS', chips });
+    // A seed whose night has a Lean spin that hops, so the draw under the hop is compared too.
+    let a = setup({ seed: 'SAME-DRAWS-0', chips });
     let b = noHouseLuck(a);
     a = play(a, { type: 'choosePackage', packageId: 'long' }).state;
     b = play(b, { type: 'choosePackage', packageId: 'long' }).state;
+    let hopped = 0;
     for (let i = 0; i < 7; i++) {
       const ra = play({ ...a, missStreak: 0 }, { type: 'spin' });
       const rb = play({ ...b, missStreak: 0 }, { type: 'spin' });
       a = ra.state;
       b = rb.state;
+      if (a.lastSpin.hops.length) hopped += 1;
       const drawnA = a.lastSpin.hops[0]?.from ?? a.lastSpin.pocketIndex;
       expect(drawnA).toBe(b.lastSpin.pocketIndex);
+      expect(b.lastSpin.hops).toEqual([]);
     }
+    expect(hopped).toBeGreaterThan(0);
     expect(a.rng.wheel).toEqual(b.rng.wheel);
   });
 });
@@ -226,12 +268,45 @@ describe('pity', () => {
     expect(s.missStreak).toBe(0);
   });
 
+  it('carries across nights and debts', () => {
+    let s = setup({ seed: 'PITY-CARRY', chips: { c1: 'straight:17' } });
+    s = { ...s, missStreak: 4, round: 3, deposited: 1000 };
+    s = play(s, { type: 'choosePackage', packageId: 'sitout' }).state;
+    s = play(s, { type: 'endNight' }).state;
+    expect(s.debt).toBe(2);
+    expect(s.missStreak).toBe(4);
+    s = play(s, { type: 'choosePackage', packageId: 'sitout' }).state;
+    s = play(s, { type: 'endNight' }).state;
+    expect(s.round).toBe(2);
+    expect(s.missStreak).toBe(4);
+  });
+
+  it('Black Candle: the flag says pity is blocked, and the board note says so', () => {
+    const s = grantTalisman({ ...setup(), missStreak: 3 }, 'black_candle');
+    expect(nudgeFor(s)).toMatchObject({ pity: 0, pityBlocked: true });
+    expect(boardNote(s).status).toMatch(/No pity/);
+    expect(boardNote({ ...setup(), missStreak: 3 }).status).toMatch(/After 5, pity/);
+  });
+
   it('Black Candle: Leans are twice as strong, and no pity', () => {
     const s = grantTalisman({ ...setup(), missStreak: 8 }, 'black_candle');
     const plain = nudgeFor(s);
     expect(plain).toMatchObject({ pity: 0, total: 0 });
     const leaning = { ...s, leans: { debt: [{ at: 1, strength: 5 }], night: null } };
     expect(nudgeFor(leaning)).toMatchObject({ lean: 5, charms: 5, total: 10 });
+  });
+});
+
+describe('a new debt', () => {
+  it('starts its count of spins, its Leans and the Devil flag over; pity carries on', () => {
+    let s = setup({ seed: 'NEW-DEBT', chips: { c1: 'red' } });
+    s = { ...s, round: 3, deposited: 1000, debtSpins: 12, missStreak: 2, devil: { firedThisDebt: true } };
+    const lean = s.rng.lean;
+    s = play(s, { type: 'choosePackage', packageId: 'sitout' }).state;
+    s = play(s, { type: 'endNight' }).state;
+    expect(s).toMatchObject({ debt: 2, round: 1, debtSpins: 0, missStreak: 2, devil: { firedThisDebt: false }, leans: { debt: [], night: null } });
+    // Debt 2 has no teaching schedule, so the lean stream is not drawn from.
+    expect(s.rng.lean).toEqual(lean);
   });
 });
 
@@ -294,6 +369,49 @@ describe('the Devil', () => {
   });
 });
 
+describe('the Devil on a re-throw and what a Devil spin leaves alone', () => {
+  it('is rolled again for the second throw, and can take it', () => {
+    registerTestTalisman({ id: 'test_sulphur', name: 'Sulphur', rarity: 'common', hooks: { devilChance: (ctx) => ctx.addChance(0.235) } });
+    // At debt 3 that makes the chance 25%, the cap. RETHROW-4's devil stream
+    // reads 0.578 then 0.248: the first throw is spared and the second burns.
+    let s = { ...setup({ seed: 'RETHROW-4', rail: ['wheel_of_fortune', 'rabbits_foot', 'test_sulphur'], chips: { c1: 'straight:17' }, coins: 300 }), debt: 3 };
+    s = play(s, { type: 'ringBell' }).state;
+    s = play(s, { type: 'choosePackage', packageId: 'long' }).state;
+    const devilBefore = s.rng.devil;
+    // The first throw lands on 0, far from 17: a miss even with +1 Nudge.
+    const { state, events } = play({ ...noHouseLuck(s), foreseen: { pocketIndex: pocketOf(0), by: null } }, { type: 'spin' });
+    const rolls = new Rng(devilBefore);
+    rolls.next();
+    rolls.next();
+    expect(state.rng.devil).toEqual(rolls.state());
+    expect(events.some((e) => e.type === 'rethrow')).toBe(true);
+    expect(state.lastSpin).toMatchObject({ devil: true, firstHops: [], devilChance: 0.25 });
+    expect(state.lastSpin.firstThrow[0].number).toBe(0);
+    expect(state.coins).toBe(0);
+  });
+
+  it('skips the tally and the payout hooks, but after-spin hooks still run', () => {
+    registerTestTalisman({ id: 'test_brimstone_2', name: 'Brimstone', rarity: 'common', hooks: { devilChance: (ctx) => ctx.addChance(1) } });
+    const cap = DEVIL.cap;
+    DEVIL.cap = 1;
+    try {
+      let s = { ...setup({ rail: ['piggy_bank', 'lucky_penny', 'test_brimstone_2'], chips: { c1: 'straight:17' }, coins: 50 }), debt: 3 };
+      s = play(s, { type: 'choosePackage', packageId: 'long' }).state;
+      const tally = JSON.stringify(s.tally);
+      const won = s.stats.totalWon;
+      const { state, events } = play({ ...noHouseLuck(s), foreseen: { pocketIndex: pocketOf(5), by: null } }, { type: 'spin' });
+      expect(state.lastSpin.devil).toBe(true);
+      expect(JSON.stringify(state.tally)).toBe(tally);
+      expect(state.rail.find((t) => t.id === 'piggy_bank').data.value).toBe(1);
+      expect(events.some((e) => e.type === 'trigger' && e.src.id === 'lucky_penny')).toBe(false);
+      // Losing the hand is not a negative win.
+      expect(state.stats.totalWon).toBe(won);
+    } finally {
+      DEVIL.cap = cap;
+    }
+  });
+});
+
 describe('Phase 3 talismans', () => {
   it("Rabbit's Foot adds 1 Nudge every spin; Twin Mirrors copies it", () => {
     expect(nudgeFor(noHouseLuck(setup({ rail: ['rabbits_foot'] })))).toMatchObject({ charms: 1, total: 1, kind: 'charm' });
@@ -307,6 +425,14 @@ describe('Phase 3 talismans', () => {
     expect(nudgeFor(noHouseLuck(s)).total).toBe(3);
     s = noHouseLuck(play(noHouseLuck(s), { type: 'spin' }).state);
     expect(nudgeFor(s).total).toBe(0);
+  });
+
+  it('a clockwise-only Nudge can reach past half the wheel', () => {
+    const s = setup({ chips: { c1: 'straight:17' } });
+    // 17 is 20 pockets clockwise of 14, and 36 clockwise of 34.
+    expect(nudgedFrom(s, 14, luck(20, { clockwise: true }))).toMatchObject({ number: 17, hop: { steps: 20 } });
+    expect(nudgedFrom(s, 14, luck(19, { clockwise: true })).hop).toBe(null);
+    expect(nudgedFrom(s, 34, luck(40, { clockwise: true }))).toMatchObject({ number: 17, hop: { steps: 36 } });
   });
 
   it('Compass and Lodestone restrict where the ball may go', () => {

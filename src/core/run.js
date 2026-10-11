@@ -238,6 +238,7 @@ const HANDLERS = {
     s.stats.tokensEarned += pkg.tokens;
     s.spinsLeft = pkg.spins;
     s.spinsTonight = pkg.spins;
+    delete s.spinsTonightGuessed;
     s.leans = { ...s.leans, night: rollNightLean(s, pkg.spins) };
     if (pkg.spins === 0) {
       s.satOut += 1;
@@ -290,7 +291,8 @@ const HANDLERS = {
     s.stats.spins += 1;
     if (result.miss) s.stats.misses += 1;
     else s.stats.wins += 1;
-    s.stats.totalWon = add(s.stats.totalWon, result.total);
+    // What the spins won: a Devil's spin loses the hand, and that is not a negative win.
+    s.stats.totalWon = add(s.stats.totalWon, max(result.total, 0));
     s.stats.bestSpin = max(s.stats.bestSpin, result.total);
 
     const events = [{ type: 'spin', result }, ...detail];

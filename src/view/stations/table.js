@@ -295,6 +295,7 @@ export function createTable({ materials, interaction, callbacks }) {
   let shownHistory = [];
   let shownLuck = { lean: 0, pity: 0, total: 0 };
   let leanLit = 0; // the lamp's glow, eased
+  let blackout = 1; // the Devil's blackout puts the board out with every other light
   function redrawMarquee() {
     drawMarquee(marqueeCanvas.getContext('2d'), shownHistory, shownLuck, marqueeCanvas.width, marqueeCanvas.height);
     marqueeTex.needsUpdate = true;
@@ -309,6 +310,10 @@ export function createTable({ materials, interaction, callbacks }) {
     if (next.lean === shownLuck.lean && next.pity === shownLuck.pity && next.total === shownLuck.total) return;
     shownLuck = next;
     redrawMarquee();
+  }
+  /** 0..1: the blackout's level (1 when the lights are on). */
+  function setBlackout(level) {
+    blackout = level;
   }
   function boardWorldPosition(out = new THREE.Vector3()) {
     group.updateMatrixWorld();
@@ -628,9 +633,10 @@ export function createTable({ materials, interaction, callbacks }) {
     // The LEAN lamp hums: a slow swell with a little flutter in it.
     leanLit += ((shownLuck.lean > 0 ? 1 : 0) - leanLit) * (1 - Math.exp(-dt * 5));
     const hum = 0.85 + 0.15 * Math.sin(t * 9) * Math.sin(t * 2.1);
-    leanBulbMat.emissiveIntensity = leanLit * 2.6 * hum;
+    leanBulbMat.emissiveIntensity = leanLit * 2.6 * hum * blackout;
     marqueeLight.color.setHex(leanLit > 0.5 ? 0xffa040 : 0xff5040);
-    marqueeLight.intensity = 0.25 + leanLit * 0.55 * hum;
+    marqueeLight.intensity = (0.25 + leanLit * 0.55 * hum) * blackout;
+    board.material.color.setScalar(Math.max(0.05, blackout));
     if (resultTimer > 0) {
       resultTimer -= dt;
       if (resultTimer <= 0) {
@@ -655,6 +661,7 @@ export function createTable({ materials, interaction, callbacks }) {
     flashResult,
     updateMarquee,
     setLuck,
+    setBlackout,
     boardWorldPosition,
     showPackages,
     hidePackages,

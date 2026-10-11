@@ -33,17 +33,38 @@ const TEMPO = !!args.tempo;
 // --no-new: bots never buy the Phase 3 talismans (to measure the House's luck alone).
 const PHASE3_ITEMS = ['rabbits_foot', 'pocket_watch', 'salt_cellar', 'evil_eye', 'compass', 'lodestone'];
 const NO_NEW = !!args['no-new'];
-const TABLES = { luck: LUCK, devil: DEVIL };
-for (const kv of [args.set].flat().filter((x) => typeof x === 'string')) {
-  const [k, v] = kv.split('=');
+// --set overrides are checked, so a typo fails loudly instead of quietly
+// running the drafted numbers.
+const TABLES = { economy: ECONOMY, luck: LUCK, devil: DEVIL };
+for (const kv of args.set === undefined ? [] : [args.set].flat()) {
+  const fail = (why) => {
+    throw new Error(`--set ${kv}: ${why}`);
+  };
+  if (typeof kv !== 'string' || !kv.includes('=')) fail('expected key=value');
+  const k = kv.slice(0, kv.indexOf('='));
+  const v = kv.slice(kv.indexOf('=') + 1);
   const [table, key] = k.includes('.') ? k.split('.') : ['economy', k];
-  // --set debt.2=240 changes what debt 2 owes.
+  // --set debt.2=240 (or 1,332) changes what debt 2 owes.
   if (table === 'debt') {
-    DEBT_TABLE[Number(key) - 1].owed = Number(v);
+    const i = Number(key) - 1;
+    const owed = Number(v.replaceAll(',', ''));
+    if (!Number.isInteger(i) || i < 0 || i >= DEBT_TABLE.length) fail(`debts 1-${DEBT_TABLE.length} can be set`);
+    if (!Number.isFinite(owed) || owed <= 0) fail('not a positive number');
+    DEBT_TABLE[i].owed = owed;
     continue;
   }
-  const target = TABLES[table] ?? ECONOMY;
-  target[key] = v.includes(',') ? v.split(',').map(Number) : Number(v);
+  const target = TABLES[table];
+  if (!target) fail(`unknown table "${table}" (economy, luck, devil, debt)`);
+  if (!(key in target)) fail(`${table} has no "${key}" (${Object.keys(target).join(', ')})`);
+  if (Array.isArray(target[key])) {
+    const list = v.split(',').map(Number);
+    if (list.length !== target[key].length || !list.every(Number.isFinite)) fail(`expected ${target[key].length} numbers separated by commas`);
+    target[key] = list;
+  } else {
+    const n = Number(v);
+    if (!Number.isFinite(n)) fail('not a number');
+    target[key] = n;
+  }
 }
 
 // Phase 3 targets for the best bot (doc 9.8): debt 1 ≥ 90%, debt 2 60–75%,
@@ -241,14 +262,28 @@ function bell(s, bot, log, { finalNight, spinsLeft }) {
       if ((finalNight && spinsLeft <= 1 && short) || ripe) s = step(s, { type: 'ringBell', uid: inst.uid }, log);
     }
   }
-  const head = bellView(s).head;
-  if (!head) return s;
-  const inst = s.rail.find((t) => t.uid === head);
-  const nudged = bot.leans && spinsLeft > 0 && nudgeFor(s).total >= 3;
-  if (bot.greedy || (inst.id === 'glass_eye' && finalNight) || (inst.id === 'wheel_of_fortune' && ((finalNight && spinsLeft <= 2) || nudged))) {
-    s = step(s, { type: 'ringBell' }, log);
+  if (bot.greedy) return bellView(s).head ? step(s, { type: 'ringBell' }, log) : s;
+  // Each active is rung at its own tag, so one hung to the left never blocks another.
+  const ready = (id) => s.rail.find((t) => t.id === id && bellView(s).queue.includes(t.uid));
+  const eye = ready('glass_eye');
+  if (eye && finalNight) s = step(s, { type: 'ringBell', uid: eye.uid }, log);
+  const wheel = ready('wheel_of_fortune');
+  if (wheel && spinsLeft > 0) {
+    // Held for a spin with real Nudge, but only when this layout can still miss.
+    const nudged = bot.leans && nudgeFor(s).total >= 3 && canMiss(s);
+    if ((finalNight && spinsLeft <= 2) || nudged) s = step(s, { type: 'ringBell', uid: wheel.uid }, log);
   }
   return s;
+}
+
+/** Could the next spin pay nothing with the chips as they are, Nudge included? */
+function canMiss(s) {
+  const luck = nudgeFor(s);
+  for (let i = 0; i < s.wheel.pockets.length; i++) {
+    const { landings } = nudgeLandings(s, [{ ball: 0, pocketIndex: i }], luck);
+    if (evaluate(s, landings).miss) return true;
+  }
+  return false;
 }
 
 function newMetrics() {
@@ -258,6 +293,7 @@ function newMetrics() {
 function playRun(seed, bot, m, picks, firstPicks) {
   let s = createRun({ seed });
   if (bot.solo) s = grantTalisman(s, bot.solo);
+  m.dry = 0; // a miss streak never carries over from the last run
   let first = true;
   const log = (events) => {
     for (const e of events) {

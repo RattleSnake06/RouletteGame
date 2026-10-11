@@ -11,8 +11,8 @@
 //
 // Two events act on top of the mood: a Lean announced makes the wheel's bulb
 // hum brighter in the dark (doc 5.6), and the Devil puts every light out for a
-// moment (doc 5.7). With flashing lights turned off (doc 8.7) the blackout is a
-// fade, with no stutter.
+// moment (doc 5.7). With flashing lights turned off (doc 8.7) the bulb eases on
+// instead of stuttering and the blackout is a fade.
 
 export const MOODS = {
   intro: { wheel: 1, lamp: 1, rail: 1, cage: 1, cabinet: 1 },
@@ -74,14 +74,20 @@ export class LightingDirector {
     if (!MOODS[mood] || mood === this.mood) return false;
     const switchingOn = MOODS[this.mood].wheel < 0.5 && MOODS[mood].wheel >= 0.5;
     this.mood = mood;
-    if (switchingOn) {
+    // The bulb catches with a stutter; without flashes it eases up on its own.
+    if (switchingOn && this.flashes) {
       this.wheel = MOODS[mood].wheel;
       this.stutter = 0;
     }
     return switchingOn;
   }
 
-  /** Eases toward the mood; returns each channel's level for this frame. */
+  /**
+   * Eases toward the mood; returns each channel's level for this frame, and
+   * `all`, the blackout's level. The station channels already include it; the
+   * wheel's does not, because the caller dims the whole hall (the room's power)
+   * by `all`, bulb included.
+   */
   update(dt) {
     this.clock += dt;
     const target = MOODS[this.mood];
@@ -105,7 +111,7 @@ export class LightingDirector {
       all = this.blackoutLevel(this.out);
       if (this.out > BLACKOUT.at(-1)[0] + DARK_FOR + RETURN) this.out = -1;
     }
-    return { wheel: wheel * all, lamp: this.lamp * all, rail: this.rail * all, cage: this.cage * all, cabinet: this.cabinet * all, all };
+    return { wheel, lamp: this.lamp * all, rail: this.rail * all, cage: this.cage * all, cabinet: this.cabinet * all, all };
   }
 
   blackoutLevel(t) {

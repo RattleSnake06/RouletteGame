@@ -145,6 +145,7 @@ async function init() {
   const lighting = new LightingDirector('intro');
   lighting.flashes = settings.flashes !== false;
   const sparks = createSparks(scene);
+  sparks.flashes = lighting.flashes;
   game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting, sparks });
   game.onSettingsChanged = saveSettings;
 
@@ -262,9 +263,12 @@ async function init() {
 
     power += (game.power - power) * (1 - Math.exp(-dt * 2.5));
     const light = lighting.update(dt);
-    const hall = introPower(t) * power;
+    // Flashing lights off (doc 8.7): the hall fades up instead of stuttering on.
+    const flashes = game.settings.flashes !== false;
+    const hall = (flashes ? introPower(t) : Math.min(1, Math.max(0, (t - 0.2) / 0.8))) * power;
     // The Devil's blackout takes the whole hall down with the bulb.
-    const level = room.update(t, dt, hall * light.all, light.wheel);
+    const level = room.update(t, dt, hall * light.all, light.wheel, flashes);
+    table.setBlackout(light.all);
     wheel.setLightLevel(level);
     table.setLampLevel(light.lamp * hall);
     rail.setLightLevel(light.rail * hall);
@@ -285,6 +289,7 @@ async function init() {
   // Handy for debugging and for the smoke test.
   window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting, sparks };
   if (import.meta.env.DEV) {
+    const tunedDevil = { ...DEVIL };
     window.__roulette.debug = {
       /** Add coins to the hand, e.g. to try later debts before items exist. */
       addCoins(n) {
@@ -319,11 +324,12 @@ async function init() {
       },
       /** The Devil fires on every throw until calm() (dev build only: it bends the rules). */
       devil() {
-        Object.assign(DEVIL, { liveFrom: 1, base: 1, cap: 1 });
+        // A base no Salt Cellar or Evil Eye can bring under the cap.
+        Object.assign(DEVIL, { liveFrom: 1, base: 1e6, cap: 1 });
         game.syncAll();
       },
       calm() {
-        Object.assign(DEVIL, { liveFrom: 3, base: 0.015, cap: 0.25 });
+        Object.assign(DEVIL, tunedDevil);
         game.syncAll();
       },
     };

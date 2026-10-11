@@ -11,8 +11,8 @@ import { LUCK } from '../core/nudge.js';
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 const nameOf = (id) => getTalisman(id)?.name ?? id;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-/** A chance as the 666 counter shows it: "1.5%", "0.25%". */
-export const percent = (p) => `${Math.round(p * 10000) / 100}%`;
+/** A chance as the 666 counter shows it: "1.5%", "0.25%", "0.375%". */
+export const percent = (p) => `${Math.round(p * 1e5) / 1000}%`;
 const signedPercent = (p) => `${p < 0 ? '−' : '+'}${percent(Math.abs(p))}`;
 
 /** How a talisman's effect reads in a popup or a note: "+1 Stake", "×2". */
@@ -160,10 +160,9 @@ export function boardNote(state) {
   const misses = luck.missStreak;
   const missText = `${misses} miss${misses === 1 ? '' : 'es'}`;
   let status = 'Nudge lets the ball hop that many pockets to the best one in reach.';
-  if (luck.pity) status = `Pity +${luck.pity}: ${missText} in a row. It grows until something pays.`;
-  else if (misses > 0 && !luck.charmSources.some((c) => c.effect === 'noPity')) {
-    status = `${missText} in a row. After ${LUCK.pityAfter}, pity nudges the ball.`;
-  }
+  if (luck.pityBlocked) status = misses > 0 ? `No pity (Black Candle): ${missText} in a row.` : 'No pity (Black Candle).';
+  else if (luck.pity) status = `Pity +${luck.pity}: ${missText} in a row. It grows until something pays.`;
+  else if (misses > 0) status = `${missText} in a row. After ${LUCK.pityAfter}, pity nudges the ball.`;
   return { title: 'The board', lines, status };
 }
 

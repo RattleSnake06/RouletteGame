@@ -292,14 +292,16 @@ export function createRoom({ renderer }) {
   /**
    * `power` dims the whole hall (the bulb stuttering on, the Cage collecting);
    * `wheel` is how much light the wheel's bulb gives right now, low while the
-   * player is at the table and full while the ball is in flight.
+   * player is at the table and full while the ball is in flight. `flashes`
+   * false (the safety setting, doc 8.7) stops the old bulb's random stutter.
    * Returns the bulb's current level so other glowing bits can follow.
    */
-  function update(t, dt, power = 1, wheel = 1) {
+  function update(t, dt, power = 1, wheel = 1, flashes = true) {
     beamMat.uniforms.uTime.value = t;
     dustMat.uniforms.uTime.value = t;
     let level = 1 + Math.sin(t * 9.1) * 0.008 + Math.sin(t * 23.7) * 0.006;
-    if (glitchT < 0 && t > nextGlitch) glitchT = 0;
+    if (!flashes) glitchT = -1;
+    else if (glitchT < 0 && t > nextGlitch) glitchT = 0;
     if (glitchT >= 0) {
       glitchT += dt;
       // A short stutter of the old bulb.

@@ -91,7 +91,11 @@ export class WheelAudio {
     g.gain.linearRampToValueAtTime(gain, now + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0005, now + decay);
     src.connect(f).connect(g).connect(this.master);
-    src.start(now, Math.random() * 1.5, decay + 0.05);
+    // Start late enough in the 2 s noise buffer that the tail is not cut off;
+    // a burst longer than the buffer loops it.
+    const length = decay + 0.05;
+    if (length > this.white.duration) src.loop = true;
+    src.start(now, Math.random() * Math.max(0, Math.min(1.5, this.white.duration - length)), length);
   }
 
   _tone({ freq, to, gain, decay, type = 'sine', at = 0 }) {

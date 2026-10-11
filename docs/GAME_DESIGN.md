@@ -383,9 +383,12 @@ already on the best reachable pocket, it stays. Every hop shows a spark and a ti
   with the same payout plan the spin uses (`core/nudge.js`).
 - **Nudge is worth a lot.** Each point lets every straight-up reach two more
   pockets, so with chips spread around the wheel a straight-up's expected return
-  grows with 2N + 1, and +1 Nudge on every spin already makes an even-money bet pay
-  every time (red and black alternate round the wheel). The numbers below are
+  grows with 2N + 1, and +1 Nudge on every spin already makes a red or black bet
+  pay every time (red and black alternate round the wheel; Odd and 1–18 can still
+  miss on zero, whose neighbours are both even and high). The numbers below are
   tuned to that (5.2, Phase 3 simulator result).
+- A clockwise-only Nudge (Compass) can reach the whole wheel less one pocket;
+  a Nudge that hops both ways needs only half the wheel to reach every pocket.
 
 **The Lean** is spontaneous Nudge from the House.
 
@@ -396,7 +399,9 @@ already on the best reachable pocket, it stays. Every hop shows a spark and a ti
 - **Debt 1 (teaching):** Leans on spins 2, 5, 9, 14 and 20 of the debt, each +2
   Nudge (drafted +5), with the whole schedule shifted by 0 or 1 at random. The
   count runs across the debt's nights, so a Lean can be announced at the end of
-  one night for the first spin of the next.
+  one night for the first spin of the next. It never crosses the end of the
+  debt: once the last night is over, a Lean scheduled after its last spin is
+  dropped and never shown.
 - **From debt 2:** each long night has one Lean on a random spin after the first;
   a short night gets one on a coin flip. Strength +3 to +5, and +3 more if it
   falls on the night's last spin. **From debt 5** the House grows stingy and Leans
@@ -423,9 +428,10 @@ you: a green "666" counter appears on the Cage and the Devil is live.
 
 - **Chance:** 1.5% at debt 3, +0.5% per later debt, plus cursed engravings and
   pockets, minus items (Salt Cellar, Evil Eye). **Cap 25%.** The current chance is
-  always shown on the counter. Talismans adjust it in rail order, so a Salt Cellar
-  left of an Evil Eye is worth more than one to its right ((1.5 − 0.5) ÷ 2 = 0.5%,
-  against 1.5 ÷ 2 − 0.5 = 0.25%). Before the Devil is live nothing changes it.
+  always shown on the counter (to the thousandth of a percent, so two halvings
+  read 0.375%). Talismans adjust it in rail order, so a Salt Cellar right of an
+  Evil Eye is worth more than one to its left (1.5 ÷ 2 − 0.5 = 0.25%, against
+  (1.5 − 0.5) ÷ 2 = 0.5%). Before the Devil is live nothing changes it.
 - **Rolled after Nudge, and Nudge cannot touch it.** It is rolled once per throw
   from the `devil` stream (twice on a Wheel of Fortune re-throw), and only while
   the chance is above zero.
@@ -806,7 +812,7 @@ bounces, never the result.
     two spins left. When coins change, the old total shows small and struck out,
     then fades.
   - *Top-centre:* "DEBT 2 · NIGHT" with past nights struck and tonight ringed in
-    red chalk; below it banked / owed ("64 / 180", owed in red) over a thin ink
+    red chalk; below it banked / owed ("64 / 333", owed in red) over a thin ink
     meter. When banked covers the debt, the owed figure is struck off. At the Cage
     this cluster fades, since the Cage's own sign carries it.
   - *Top-right:* tokens, smaller than the debt, with a scratched brass hexagon.
@@ -903,7 +909,10 @@ bounces, never the result.
 
 - A **flicker and blackout safety toggle**, because the bulb effects are
   photosensitivity risks. *As built (Phase 3):* "Flashing lights" in the pause
-  menu; off, the Devil's blackout fades down and up with no stutter.
+  menu. Off, the wheel's bulb eases on at a spin instead of stuttering, the
+  hall fades up at start instead of flickering on, the old bulb's random
+  stutter stops, the Devil's blackout fades down and up, Nudge hops throw
+  sparks without the bright flash, and the burned 666 smoulders steadily.
 - Colour-blind support: red pockets carry a diamond pip, black ones none, on the
   wheel and on the felt.
 - Text size, subtitles, full keyboard play, reduced motion, hold or toggle for
@@ -1091,9 +1100,11 @@ play back strictly left to right. Every hook that changes something emits a
   debt 1 ≥ 90%, debt 2 60–75%, debt 3 25–40%, debt 4 5–15%. Bots that play the
   Lean compare their usual layout with straight-ups spread around the wheel
   whenever the next spin has Nudge, by exact expected value, and take the better;
-  they hold the Wheel of Fortune for a spin with Nudge, and once the Devil is live
-  they bank after every spin. `--set luck.<key>=…`, `devil.<key>=…` and
-  `debt.<n>=…` override the luck table, the Devil and what a debt owes;
+  they hold the Wheel of Fortune for a spin with Nudge that the layout can still
+  miss (ringing each active at its own tag, so a Glass Eye to its left never
+  blocks it), and once the Devil is live they bank after every spin.
+  `--set luck.<key>=…`, `devil.<key>=…` and `debt.<n>=…` override the luck
+  table, the Devil and what a debt owes (checked: an unknown key fails);
   `--no-new` keeps the bots off the Phase 3 talismans, to measure the House's
   luck alone; `solo:none` is a bot with no talismans that plays the Lean.
 - **Playwright smoke test** for the view, as already used for the wheel: load,

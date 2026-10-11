@@ -48,6 +48,7 @@ export class Game {
     // a Lean already waiting in a loaded run lights without the creak).
     this.leanShown = null;
     this.justSpun = false;
+    this.leanTimer = null; // a Lean's creak, waiting for the payout to finish
   }
 
   // ---- Lifecycle ------------------------------------------------------------
@@ -76,6 +77,8 @@ export class Game {
   newRun() {
     this.runId += 1;
     this.leanShown = null;
+    clearTimeout(this.leanTimer);
+    this.leanTimer = null;
     this.clearFocus();
     this.state = createRun({ seed: randomSeed() });
     this.save();
@@ -129,7 +132,8 @@ export class Game {
   syncLuck() {
     const s = this.state;
     const luck = luckView(s);
-    this.table.setLuck(luck);
+    // Once the run is over there is no next spin to show luck for.
+    this.table.setLuck(s.phase === PHASE.GAME_OVER ? { lean: 0, pity: 0, total: 0 } : luck);
     this.cage.setDevil(luck.devil);
     const lean = s.phase !== PHASE.GAME_OVER && luck.lean > 0;
     this.lighting.setLean(lean && !this.busy);
@@ -137,11 +141,17 @@ export class Game {
     this.leanShown = lean;
   }
 
-  /** A Lean ahead: the wheel creaks and the bulb hums, after the payout has had its moment. */
+  /**
+   * A Lean ahead: the wheel creaks and the bulb hums. After a spin it waits
+   * for the payout swipe to finish (it shows for about 2.4 s); a spin started
+   * sooner plays the creak at once (see spinSequence).
+   */
   announceLean() {
     const id = this.runId;
-    const delay = this.justSpun ? 1.5 : 0.1;
-    setTimeout(() => {
+    const delay = this.justSpun ? 2.5 : 0.1;
+    clearTimeout(this.leanTimer);
+    this.leanTimer = setTimeout(() => {
+      this.leanTimer = null;
       if (id !== this.runId || this.busy || !(luckView(this.state).lean > 0)) return;
       this.audio.lean();
       this.hud.flavor(
@@ -824,7 +834,12 @@ export class Game {
       this.syncStatus();
       if (this.state.phase === PHASE.ROUND_START) this.table.showPackages(this.state);
       const id = this.runId;
-      setTimeout(() => id === this.runId && this.syncItems(), 450);
+      // The pig's hook empties: a Twin Mirrors may now copy something new.
+      setTimeout(() => {
+        if (id !== this.runId) return;
+        this.syncItems();
+        this.syncLuck();
+      }, 450);
     } else {
       this.syncAll();
     }
@@ -863,6 +878,12 @@ export class Game {
     this.setLocked(true);
     this.clearFocus();
     this.clearNote();
+    // A Lean still waiting for its creak: this is the spin it falls on, so creak now.
+    if (this.leanTimer) {
+      clearTimeout(this.leanTimer);
+      this.leanTimer = null;
+      this.audio.lean();
+    }
     const coinsBefore = this.state.coins;
     const events = this.dispatch({ type: 'spin' });
     if (!events) {
@@ -922,7 +943,8 @@ export class Game {
       this.hud.flavor(
         [
           [`${first.number} `, colorTone(first.color)],
-          [result.foreseen ? 'as foreseen, pays nothing...' : 'pays nothing...', 'dim'],
+          // Nudge can move the ball off the foreseen pocket.
+          [result.foreseen && !result.firstHops.length ? 'as foreseen, pays nothing...' : 'pays nothing...', 'dim'],
         ],
         1100,
       );
@@ -943,8 +965,8 @@ export class Game {
 
     this.audio.settle();
     if (result.hops.length) {
-      // On a re-throw the talismans already shook for the first throw's hops.
-      await this.playHops(result.hops, result.luck, first ? [] : detail, fast);
+      // On a re-throw they shake once: for the first throw's hops if it had any.
+      await this.playHops(result.hops, result.luck, first && result.firstHops.length ? [] : detail, fast);
       if (stale()) return;
     }
     this.table.setMarks({ foreseen: null });
@@ -958,7 +980,7 @@ export class Game {
         [
           [`${result.number} `, colorTone(result.color)],
           // After a re-throw the Eye's landing was thrown away: this one was not foreseen.
-          [result.foreseen && !first ? `${result.color}, as foreseen` : result.color, 'dim'],
+          [result.foreseen && !first && !result.hops.length ? `${result.color}, as foreseen` : result.color, 'dim'],
         ],
         1300,
       );
@@ -1030,7 +1052,8 @@ export class Game {
    * bulb goes out and every coin in hand is lost. Deposits are safe.
    */
   async playDevil(result, fast) {
-    this.sparks.burnAt(this.ball.ball.getWorldPosition(this._ballAt));
+    // The 666 burns over the pocket and turns with it.
+    this.sparks.burnAt(() => this.ball.ball.getWorldPosition(this._ballAt));
     this.lighting.blackout();
     this.audio.devil();
     this.cage.flareDevil();
@@ -1068,6 +1091,7 @@ export class Game {
   toggleFlashes() {
     this.settings.flashes = !this.settings.flashes;
     this.lighting.flashes = this.settings.flashes;
+    this.sparks.flashes = this.settings.flashes;
     this.saveSettings();
     this.hud.toast(this.settings.flashes ? 'Flashing lights on' : 'Flashing lights off');
   }

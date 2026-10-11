@@ -40,11 +40,27 @@ export function deserializeRun(json) {
   try {
     let state = data.state;
     for (let v = data.v; v < SAVE_VERSION; v++) state = MIGRATIONS[v](state);
-    if (!Array.isArray(state.chips) || !Array.isArray(state.rail) || !Array.isArray(state.cabinet?.slots)) return null;
+    if (!wellFormed(state)) return null;
     return tidy(state);
   } catch {
     return null;
   }
+}
+
+/** The fields every phase of the game reads without checking. */
+function wellFormed(state) {
+  return (
+    Array.isArray(state.chips) &&
+    Array.isArray(state.rail) &&
+    Array.isArray(state.cabinet?.slots) &&
+    Array.isArray(state.wheel?.pockets) &&
+    !!state.tally?.debt &&
+    !!state.tally?.round &&
+    Array.isArray(state.leans?.debt) &&
+    !!state.devil &&
+    Number.isInteger(state.debtSpins) &&
+    Number.isInteger(state.missStreak)
+  );
 }
 
 /** Step v -> v + 1. */
@@ -58,6 +74,9 @@ const MIGRATIONS = {
         .map((p) => p.spins)
         .filter((n) => n > 0 && n >= state.spinsLeft);
       state.spinsTonight = state.phase === 'betting' && fits.length ? Math.min(...fits) : null;
+      // With 3 spins or fewer left it could be a short night or the end of a
+      // long one: rules that count spins of the night stay off until the next night.
+      if (state.phase === 'betting' && state.spinsLeft <= 3) state.spinsTonightGuessed = true;
     }
     const s = {
       ...state,
@@ -104,7 +123,8 @@ function tidy(state) {
   const staleOffer = (x) => x.kind === 'talisman' && x.id && !getTalisman(x.id);
   const stale = state.cabinet.slots.some(staleOffer);
   if (!unknown.length && !stale) return state;
-  const refund = unknown.reduce((sum, t) => sum + sellValueOf(t.price ?? 2), 0);
+  // A talisman hung for nothing (a cursed one) refunds nothing.
+  const refund = unknown.reduce((sum, t) => sum + (t.price === 0 ? 0 : sellValueOf(t.price ?? 2)), 0);
   return {
     ...state,
     rail: state.rail.filter((t) => getTalisman(t.id)),
