@@ -42,6 +42,10 @@ const cameraStill = () => page.waitForFunction(() => !window.__roulette.director
 // A camera cut lands on the next frame, and the first frames after load are
 // slow in software WebGL: wait for two real frames before aiming a click.
 const frames = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+/** About a dozen frames: long enough for a new charm to slide onto its hook. */
+const settle = async () => {
+  for (let i = 0; i < 6; i++) await frames();
+};
 
 /** Screen position of a visible mesh tagged with userData.role (left to right). */
 const meshPos = (where, role, index) => game(({ where, role, index }) => {
@@ -204,7 +208,8 @@ try {
     r.debug.grant('bone_dice');
     r.debug.addCoins(40);
   });
-  await frames();
+  // A new charm slides in from the next hook along; aim once it has arrived.
+  await settle();
   it = await items();
   const dice = it.rail.find((t) => t.id === 'bone_dice');
   check(!!dice, 'a cursed Bone Dice hangs on the rail');
