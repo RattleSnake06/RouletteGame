@@ -6,7 +6,7 @@ import { baseFactors } from './core/payout.js';
 import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
-import { bellView, cabinetView, luckView, previewBet, railView } from './core/selectors.js';
+import { bellView, cabinetView, luckView, previewBet, railView, wheelView } from './core/selectors.js';
 import { playPayout } from './playback.js';
 import { showModal } from './ui/hud.js';
 import { bellNote, betNote, boardNote, chartNote, crankNote, devilNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
@@ -123,6 +123,19 @@ export class Game {
     else this.table.hideEndCard();
     this.syncStatus();
     this.syncLuck();
+    this.syncWheel();
+  }
+
+  /**
+   * Each pocket drawn at its live width (doc 5.4): a Brass Scales hung or
+   * sold makes the even pockets swell or shrink before your eyes. The first
+   * sync of a run draws them at once.
+   */
+  syncWheel() {
+    const widths = wheelView(this.state).map((p) => p.width);
+    const animate = this.wheelSynced === this.runId;
+    if (this.stage.wheel.setWidths(widths, { animate }) && animate) this.audio.widen();
+    this.wheelSynced = this.runId;
   }
 
   /**
@@ -589,7 +602,9 @@ export class Game {
     const paidLines = [];
     if (interest && gt(interest.amount, 0)) paidLines.push(`Interest: +${format(interest.amount)} banked`);
     if (tokens) paidLines.push(`+${plural(tokens, 'token')}`);
-    if (paidLines.length) this.hud.toast(paidLines.join(' · '), 2200);
+    const gone = this.announceGone(events);
+    if (gone) paidLines.push(gone);
+    if (paidLines.length) this.hud.toast(paidLines.join(' · '), gone ? 3200 : 2200);
     this.audio.buy();
     const collected = events.find((e) => e.type === 'collected');
     if (collected) {
@@ -698,6 +713,16 @@ export class Game {
     this.audio.buy();
     this.cabinet.pulse(slot);
     const name = getTalisman(bought.id).name;
+    if (bought.instant) {
+      // It never reaches the rail: it is opened on the spot.
+      const coins = events.filter((e) => e.type === 'trigger' && e.effect === 'coins').reduce((t, e) => add(t, e.amount), 0);
+      this.hud.toast(gt(coins, 0) ? `You open the ${name}: +${format(coins)} coins.` : `You open the ${name}. It is empty.`, 2600);
+      this.hud.strikeCoins();
+      this.hud.setCoins(this.state.coins, { animate: true });
+      this.audio.coin(2);
+      this.syncAll();
+      return;
+    }
     this.hud.toast(sold ? `${getTalisman(sold.id).name} sold. ${name} hangs on the rail.` : `${name} hangs on the rail.`, 2200);
     this.syncAll();
     // It swings when you next look at the rail.
@@ -810,6 +835,7 @@ export class Game {
     for (const e of events) {
       if (e.type === 'trigger') this.rail.pulse(e.src.uid);
       if (e.type === 'trigger' && e.effect === 'armed') this.hud.toast(`${name} is armed: if the next spin pays nothing, the ball is thrown again.`, 2600);
+      if (e.type === 'trigger' && e.effect === 'data' && e.key === 'armed' && e.amount === true) this.hud.toast(`${name} twitches: +5 Nudge on the next spin.`, 2600);
       if (e.type === 'trigger' && e.effect === 'coins') {
         const p = this.screenPosition(this.rail.talismanWorldPosition(e.src.uid));
         if (p) this.hud.popup(`+${format(e.amount)}`, p.x, p.y);
@@ -923,8 +949,9 @@ export class Game {
     this.lighting.setLean(false);
     if (this.lighting.set('spin')) this.audio.clunk();
     const colorTone = (c) => (c === 'red' ? 'blood' : c === 'green' ? 'green' : 'bone');
-    // Salt Cellar and Evil Eye keep watch on every throw once the Devil is live.
-    for (const e of detail) if (e.type === 'trigger' && e.hook === 'devilChance') this.rail.pulse(e.src.uid, 0.45);
+    // Salt Cellar and Evil Eye keep watch on every throw once the Devil is live;
+    // the Brass Scales lean on the wheel as it turns.
+    for (const e of detail) if (e.type === 'trigger' && (e.hook === 'devilChance' || e.hook === 'widths')) this.rail.pulse(e.src.uid, 0.45);
     // Where each throw's ball comes to rest before Nudge moves it.
     const landed = (hops, pocketIndex) => hops[0]?.from ?? pocketIndex;
 
@@ -971,6 +998,11 @@ export class Game {
     }
     this.table.setMarks({ foreseen: null });
     this.table.updateMarquee(this.state.history);
+    const ward = detail.find((e) => e.type === 'devilWarded');
+    if (ward) {
+      await this.playWard(ward, fast);
+      if (stale()) return;
+    }
     if (result.devil) {
       await this.playDevil(result, fast);
       if (stale()) return;
@@ -1012,6 +1044,8 @@ export class Game {
       this.hud.showPayout(`+${format(result.total)}`, gte(add(result.total, result.total), coinsBefore) ? 'big' : 'win');
     }
     this.hud.setCoins(this.state.coins, { animate: !isBig(this.state.coins) });
+    const gone = this.announceGone(detail);
+    if (gone) this.hud.toast(gone, 2600);
 
     this.busy = false;
     this.setLocked(false);
@@ -1051,6 +1085,37 @@ export class Game {
    * The Devil (doc 5.7): the number under the ball burns away to 666, the
    * bulb goes out and every coin in hand is lost. Deposits are safe.
    */
+  /**
+   * Holy Water turns the Devil away (doc 5.7): the 666 flares and fails, the
+   * vial cracks with a clear note, and cold sparks rise off the ball.
+   */
+  async playWard(ward, fast) {
+    this.audio.ward();
+    this.rail.pulse(ward.src.uid, 1.4);
+    this.cage.flareDevil();
+    this.sparks.burst(this.ball.ball.getWorldPosition(this._ballAt), 'pity', { count: 40, speed: 2.4 });
+    this.hud.flavor(
+      [
+        ['666 ', 'green'],
+        ['turned away. The vial shatters.', 'bone'],
+      ],
+      1800,
+    );
+    await wait(fast ? 0.5 : 1.3);
+    // Its hook empties now, not after the payout.
+    this.syncItems();
+  }
+
+  /** Talismans this action used up (a wilted clover, an empty purse): a line each. */
+  announceGone(events) {
+    const VERB = { crumbled: 'is empty. It crumbles.', wilted: 'wilts.', spent: 'is used up.' };
+    const gone = events.filter((e) => e.type === 'talismanDestroyed' && VERB[e.reason]);
+    if (!gone.length) return null;
+    this.audio.crumble();
+    const line = gone.map((e) => `${getTalisman(e.id)?.name ?? e.id} ${VERB[e.reason]}`).join(' ');
+    return line;
+  }
+
   async playDevil(result, fast) {
     // The 666 burns over the pocket and turns with it.
     this.sparks.burnAt(() => this.ball.ball.getWorldPosition(this._ballAt));

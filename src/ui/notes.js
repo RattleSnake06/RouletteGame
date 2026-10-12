@@ -3,7 +3,6 @@ import { getTalisman } from '../core/content/index.js';
 import { RARITY } from '../core/economy.js';
 import { gte } from '../core/num.js';
 import { bellView, cabinetView, luckView, previewBet, railView, rarityOdds } from '../core/selectors.js';
-import { LUCK } from '../core/nudge.js';
 
 // What each object's note says (design doc 8.4): plain specs for hud.note,
 // read from the run's state. Nothing here changes the run.
@@ -55,6 +54,14 @@ export function effectText(step) {
       return `${signedPercent(n)} Devil`;
     case 'devilMult':
       return n === 0.5 ? 'Devil ×½' : `Devil ×${n}`;
+    case 'pityAfter':
+      return `pity after ${n}`;
+    case 'noNudge':
+      return 'no Nudge';
+    case 'widen':
+      return `${plural(step.count, 'pocket')} +${n} wide`;
+    case 'gone':
+      return 'used up';
     default:
       return null;
   }
@@ -84,8 +91,10 @@ export function talismanNote(state, uid, { tag = false } = {}) {
     };
   }
   const lines = [view.text];
-  if (view.copying) lines.push(`Copying ${nameOf(view.copying)}.`);
+  if (view.copying) lines.push(view.dim ? `Its copy of ${nameOf(view.copying)} is used up.` : `Copying ${nameOf(view.copying)}.`);
   else if (view.id === 'twin_mirrors') lines.push('Nothing to its right to copy.');
+  if (view.echoing) lines.push(view.dim ? `${nameOf(view.echoing)} has nothing for it to repeat.` : `Repeating ${nameOf(view.echoing)}.`);
+  else if (view.id === 'tuning_fork') lines.push('Nothing to its left to repeat.');
   if (view.cursed) {
     return { title: view.name, rarity: 'cursed', lines, status: [view.status, 'It will not come off the hook.'].filter(Boolean).join(' ') };
   }
@@ -107,7 +116,7 @@ export function slotNote(state, slot) {
     title: view.name,
     rarity: view.rarity,
     lines: [view.text],
-    status: view.hookFree ? null : 'The rail is full: you will choose one to sell.',
+    status: view.instant ? 'It needs no hook: it is opened on the spot.' : view.hookFree ? null : 'The rail is full: you will choose one to sell.',
     price: { amount: view.price, unit: 'tokens', ok: view.affordable, short: view.affordable ? '' : `${view.short} short` },
   };
 }
@@ -148,7 +157,8 @@ export function boardNote(state) {
   const lines = [];
   if (luck.lean) lines.push(`The House leans: +${luck.lean} Nudge on the next spin.`);
   else lines.push('The LEAN lamp lights a spin ahead, before you bet.');
-  if (luck.total) {
+  if (luck.blocked) lines.push('The Black Cat crosses your path: no Nudge on the next spin.');
+  else if (luck.total) {
     const parts = [];
     if (luck.lean) parts.push(`Lean ${luck.lean}`);
     if (luck.pity) parts.push(`pity ${luck.pity}`);
@@ -157,12 +167,13 @@ export function boardNote(state) {
   }
   if (luck.clockwise) lines.push('Compass: the ball hops clockwise only.');
   if (luck.straightOnly) lines.push('Lodestone: the ball hops only onto straight-up chips.');
+  if (luck.anchors.includes(13)) lines.push('Thirteen Ball: Nudge never moves the ball off 13.');
   const misses = luck.missStreak;
   const missText = `${misses} miss${misses === 1 ? '' : 'es'}`;
   let status = 'Nudge lets the ball hop that many pockets to the best one in reach.';
   if (luck.pityBlocked) status = misses > 0 ? `No pity (Black Candle): ${missText} in a row.` : 'No pity (Black Candle).';
   else if (luck.pity) status = `Pity +${luck.pity}: ${missText} in a row. It grows until something pays.`;
-  else if (misses > 0) status = `${missText} in a row. After ${LUCK.pityAfter}, pity nudges the ball.`;
+  else if (misses > 0) status = `${missText} in a row. After ${luck.pityAfter}, pity nudges the ball.`;
   return { title: 'The board', lines, status };
 }
 
@@ -171,6 +182,7 @@ export function devilNote(state) {
   const { devil } = luckView(state);
   const lines = [`On every throw, a ${percent(devil.chance)} chance the number burns to 666.`, 'Then every coin in hand is lost. Banked coins are safe.'];
   for (const s of devil.sources) lines.push(`${nameOf(s.id)}: ${effectText(s)}.`);
+  if (devil.ward) lines.push(`${nameOf(state.rail.find((t) => t.uid === devil.ward).id)} will turn him away once.`);
   return { title: '666', lines, status: 'Nudge cannot touch it.' };
 }
 

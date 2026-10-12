@@ -246,9 +246,55 @@ try {
   await idle();
   const pity = await game(() => window.__roulette.game.state.lastSpin.luck);
   check(pity.pity === 2, `six misses in a row gave pity +${pity.pity}`);
+
+  // Some of the twenty newer talismans: Brass Scales widen the even pockets on
+  // the wheel, a Tuning Fork repeats them, the Lost Wallet needs no hook, and
+  // Holy Water turns the Devil away on the night's last spin.
+  const roomy = await game(async () => {
+    const r = window.__roulette;
+    // Make room on the rail (cursed charms never come off a hook, so clear it outright).
+    r.game.state = { ...r.game.state, rail: [] };
+    r.debug.grant('brass_scales');
+    r.debug.grant('tuning_fork');
+    for (let i = 0; i < 40; i++) await new Promise((res) => requestAnimationFrame(res));
+    const { pocketAngle, SLICE } = await import('/src/view/wheel.js');
+    const { railView, wheelView } = await import('/src/core/selectors.js');
+    const s = r.game.state;
+    // Zero's middle stays put; a quarter of the way round, pocket 9 (34) has
+    // moved about 0.15 rad as the even pockets beside it grew.
+    return {
+      width: wheelView(s)[1].width,
+      echoing: railView(s)[1].echoing,
+      moved: Math.abs(pocketAngle(9) - (28 + 0.5) * SLICE) > 0.1,
+    };
+  });
+  check(roomy.width === 3 && roomy.echoing === 'brass_scales', 'Brass Scales and a Tuning Fork make the even pockets three times as wide');
+  check(roomy.moved, 'the wheel is drawn with the wider pockets');
+  const wallet = await game(() => {
+    const r = window.__roulette;
+    const s = r.game.state;
+    r.game.state = { ...s, tokens: s.tokens + 3, cabinet: { ...s.cabinet, slots: [{ kind: 'talisman', id: 'lost_wallet', sold: false }, ...s.cabinet.slots.slice(1)] } };
+    const before = r.game.state.coins;
+    const hooks = r.game.state.rail.length;
+    r.game.buy(0);
+    return { gained: r.game.state.coins - before, hooks: r.game.state.rail.length - hooks };
+  });
+  check(wallet.gained === 66 && wallet.hooks === 0, `the Lost Wallet held ${wallet.gained} coins and took no hook`);
+  await game(() => {
+    const r = window.__roulette;
+    r.debug.grant('holy_water');
+    r.debug.devil();
+  });
   await page.keyboard.press('Space');
   await page.waitForTimeout(500);
   await idle();
+  const ward = await game(() => {
+    const r = window.__roulette;
+    const s = r.game.state;
+    r.debug.calm();
+    return { devil: s.lastSpin.devil, wards: s.stats.wards, coins: s.coins, vial: s.rail.some((t) => t.id === 'holy_water') };
+  });
+  check(!ward.devil && ward.wards === 1 && !ward.vial && ward.coins > 0, 'Holy Water turned the Devil away and shattered');
   s = await state();
   check(s.phase === 'nightOver', 'the short night is over');
   await page.keyboard.press('KeyE');

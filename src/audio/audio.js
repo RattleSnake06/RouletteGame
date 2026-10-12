@@ -290,6 +290,31 @@ export class WheelAudio {
     for (let i = 0; i < 10; i++) this._burst({ freq: 1500 + Math.random() * 2500, q: 2, gain: 0.04, decay: 0.05, at: 0.2 + i * 0.13 });
   }
 
+  /** Pockets swell or shrink: a slow wooden groan from the rotor. */
+  widen() {
+    for (let i = 0; i < 4; i++) this._burst({ freq: 180 + i * 22, q: 9, gain: 0.06, decay: 0.16, at: i * 0.12 });
+    this._tone({ freq: 96, to: 88, gain: 0.05, decay: 0.8, type: 'triangle', at: 0.05 });
+  }
+
+  /** Holy Water turns the Devil away: the vial cracks and a clear note rings out. */
+  ward() {
+    this._burst({ freq: 5200, q: 1.5, gain: 0.22, decay: 0.12 });
+    for (let i = 0; i < 6; i++) this._burst({ freq: 3000 + Math.random() * 4000, q: 4, gain: 0.05, decay: 0.06, at: 0.04 + i * 0.05 });
+    this._tone({ freq: 880, gain: 0.08, decay: 1.6, type: 'sine', at: 0.08 });
+    this._tone({ freq: 1320, gain: 0.04, decay: 1.4, type: 'sine', at: 0.1 });
+  }
+
+  /** A talisman used up: crumbling paper, a wilting stem, dry and soft. */
+  crumble() {
+    for (let i = 0; i < 7; i++) this._burst({ freq: 900 + Math.random() * 1600, q: 1.2, gain: 0.05, decay: 0.05, at: i * 0.045 });
+    this._burst({ freq: 300, q: 0.7, gain: 0.06, decay: 0.3, type: 'lowpass', at: 0.05 });
+  }
+
+  /** A Tuning Fork rings: a pure, short hum over the talisman it repeats. */
+  fork(step = 0) {
+    this._tone({ freq: 440 * 2 ** (step / 12), gain: 0.06, decay: 0.5, type: 'sine' });
+  }
+
   tick(speed) {
     const ctx = this.ctx;
     if (!ctx || this.muted) return;

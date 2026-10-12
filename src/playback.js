@@ -12,8 +12,8 @@ const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
 const PAYOUT_HOOKS = new Set(['hits', 'ballLanded', 'covers', 'chipStake', 'chipOdds', 'chipMult', 'chipPaid', 'chipLost']);
 // Luck acts before the payout and is shown where it acts: Nudge during the
-// hops, the Devil's chance as the ball is thrown.
-const SHOWN_BEFORE = new Set(['nudge', 'devilChance']);
+// hops, the Devil's chance and the wheel's widths as the ball is thrown.
+const SHOWN_BEFORE = new Set(['nudge', 'devilChance', 'widths']);
 
 /** Seconds each step takes, compressed so a long cascade stays short (pillar 3). */
 function pacing(steps, fast) {
@@ -49,6 +49,11 @@ export async function playPayout(deps, events, { fast, coinsBefore, alive = () =
     if (e.type === 'trigger') {
       const label = effectText(e);
       rail.pulse(e.src.uid, label ? 1 : 0.5);
+      // A Tuning Fork's echo: the fork rings and the talisman it repeats stirs.
+      if (e.src.echo) {
+        rail.pulse(e.src.echo, 0.4);
+        audio.fork(k);
+      }
       if (e.effect === 'stake' || e.effect === 'oddsMult') {
         live = { ...live, [e.effect]: live[e.effect] + e.amount };
         rail.setPlaques(live, true);

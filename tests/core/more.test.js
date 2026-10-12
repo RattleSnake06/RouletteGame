@@ -93,19 +93,19 @@ describe('Tuning Fork', () => {
 });
 
 describe('Brass Scales: wider even pockets', () => {
-  it('widens every even pocket by half, on the live wheel only', () => {
+  it('doubles every even pocket, on the live wheel only', () => {
     const s = setup({ rail: ['brass_scales'] });
     const live = liveWheel(s);
-    for (const p of live.pockets) expect(p.width).toBe(p.number !== 0 && p.number % 2 === 0 ? 1.5 : 1);
+    for (const p of live.pockets) expect(p.width).toBe(p.number !== 0 && p.number % 2 === 0 ? 2 : 1);
     expect(s.wheel.pockets.every((p) => p.width === 1)).toBe(true);
     const evenChance = liveChances(s).reduce((t, c, i) => t + (live.pockets[i].number % 2 === 0 && live.pockets[i].number ? c : 0), 0);
-    expect(evenChance).toBeCloseTo(27 / 46, 9);
-    expect(wheelView(s).find((p) => p.number === 2)).toMatchObject({ width: 1.5, chance: 1.5 / 46 });
+    expect(evenChance).toBeCloseTo(36 / 55, 9);
+    expect(wheelView(s).find((p) => p.number === 2)).toMatchObject({ width: 2, chance: 2 / 55 });
   });
 
   it('a fork widens them again', () => {
     const s = setup({ rail: ['brass_scales', 'tuning_fork'] });
-    expect(liveWheel(s).pockets.find((p) => p.number === 2).width).toBe(2);
+    expect(liveWheel(s).pockets.find((p) => p.number === 2).width).toBe(3);
   });
 
   it('the spin and the Glass Eye draw from the live widths', () => {
@@ -124,7 +124,7 @@ describe('Brass Scales: wider even pockets', () => {
 });
 
 describe('String of Pearls', () => {
-  it('Even chips +1 Odds, and +1 more for each even number that lands', () => {
+  it('Even chips +1 Odds, and +1 more for each even number tonight; the string breaks at dawn', () => {
     let s = setup({ rail: ['string_of_pearls'], chips: { c1: 'even' } });
     expect(paysOn(s, 2).lines[0].factors.odds).toBe(3);
     s = spinOn(s, 2).state;
@@ -133,6 +133,8 @@ describe('String of Pearls', () => {
     s = spinOn(s, 7).state;
     expect(s.rail[0].data.pearls).toBe(1);
     expect(paysOn(s, 4).lines[0].factors.odds).toBe(4);
+    s = play({ ...s, phase: 'nightOver' }, { type: 'endNight' }).state;
+    expect(s.rail[0].data.pearls).toBe(0);
   });
 
   it('with a fork it strings two pearls a hit, and pays both', () => {
@@ -178,11 +180,11 @@ describe('luck talismans', () => {
     expect(bloomed).toBe(6);
   });
 
-  it('Dowsing Rod: Bell, twice a debt, +4 Nudge on the next spin; a waiting charge is kept', () => {
+  it('Dowsing Rod: Bell, three times a debt, +5 Nudge on the next spin; a waiting charge is kept', () => {
     let s = setup({ rail: ['dowsing_rod'] });
     s = play(s, { type: 'ringBell' }).state;
-    expect(s.rail[0]).toMatchObject({ charges: 1, data: { armed: true } });
-    expect(nudgeFor(noHouseLuck(s))).toMatchObject({ total: 4 });
+    expect(s.rail[0]).toMatchObject({ charges: 2, data: { armed: true } });
+    expect(nudgeFor(noHouseLuck(s))).toMatchObject({ total: 5 });
     expect(act(s, { type: 'ringBell', uid: s.rail[0].uid }).events[0].code).toBe('notUsable');
     s = spinOn(s, 5).state;
     expect(s.rail[0].data.armed).toBe(false);
@@ -192,7 +194,7 @@ describe('luck talismans', () => {
     s = { ...s, phase: 'nightOver', round: 3, deposited: 1000 };
     s = play(s, { type: 'endNight' }).state;
     expect(s.debt).toBe(2);
-    expect(s.rail[0]).toMatchObject({ charges: 1, data: { armed: true } });
+    expect(s.rail[0]).toMatchObject({ charges: 2, data: { armed: true } });
   });
 
   it('Black Cat: Black ×2, and every 13th spin no Nudge at all, the Lean included', () => {
@@ -203,9 +205,9 @@ describe('luck talismans', () => {
     expect(nudgeFor({ ...s, stats: { ...s.stats, spins: 13 } })).toMatchObject({ total: 5, blocked: false });
   });
 
-  it('Thirteen Ball: 13 pays ×3, and Nudge never moves the ball off 13', () => {
+  it('Thirteen Ball: 13 pays ×2, and Nudge never moves the ball off 13', () => {
     let s = setup({ rail: ['thirteen_ball', 'rabbits_foot'], chips: { c1: 'straight:13', c2: 'straight:36' } });
-    expect(amounts(paysOn(s, 13))).toEqual([108]);
+    expect(amounts(paysOn(s, 13))).toEqual([72]);
     s = { ...s, chips: s.chips.map((c) => (c.id === 'c2' ? { ...c, value: 10 } : c)) };
     const luck = nudgeFor(noHouseLuck(s));
     expect(luck.anchors).toEqual([13]);
@@ -222,8 +224,8 @@ describe('payout talismans', () => {
     expect(amounts(paysOn(s, 12))).toEqual([2, 4, 6]);
   });
 
-  it('Magpie: +1 Stake per 5 tokens held', () => {
-    const s = { ...setup({ rail: ['magpie'], chips: { c1: 'red' } }), tokens: 14 };
+  it('Magpie: +1 Stake per 8 tokens held', () => {
+    const s = { ...setup({ rail: ['magpie'], chips: { c1: 'red' } }), tokens: 17 };
     expect(paysOn(s, 32).lines[0].factors.stake).toBe(3);
   });
 
@@ -246,9 +248,9 @@ describe('payout talismans', () => {
     expect(amounts(paysOn({ ...s, history: [{ number: 0, color: 'green' }] }, 30))).toEqual([2]);
   });
 
-  it('Ouroboros: the same number twice in a row ×6, never after a burned number', () => {
+  it('Ouroboros: the same number twice in a row ×2, never after a burned number', () => {
     const s = { ...setup({ rail: ['ouroboros'], chips: { c1: 'straight:17', c2: 'black' } }), history: [{ number: 17, color: 'black' }] };
-    expect(amounts(paysOn(s, 17))).toEqual([216, 12]);
+    expect(amounts(paysOn(s, 17))).toEqual([72, 4]);
     expect(amounts(paysOn({ ...s, history: [{ number: 17, color: 'black', devil: true }] }, 17))).toEqual([36, 2]);
   });
 

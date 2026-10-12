@@ -4,6 +4,7 @@
 //   npm run sim                         every bot, 2000 runs each
 //   npm run sim -- --runs 5000 --bot adaptive
 //   npm run sim -- --bot solo:glass_eye  one talisman from the first spin
+//   npm run sim -- --bot solo:brass_scales,string_of_pearls  several, left to right
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
 //   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
@@ -18,6 +19,7 @@ import { evaluate } from '../src/core/payout.js';
 import { PHASE, act, canAfford, costOf, createRun, grantTalisman, isFinalNight, nextRestockCost, owed } from '../src/core/run.js';
 import { bellView, cabinetView } from '../src/core/selectors.js';
 import { EUROPEAN_ORDER } from '../src/core/wheel.js';
+import { liveChances } from '../src/core/widths.js';
 
 // --flag value pairs; a flag given more than once (--set) collects its values.
 const args = {};
@@ -81,14 +83,29 @@ const TARGETS = [
 
 const STRAIGHTS = [32, 11, 9, 26, 5, 18]; // spread around the wheel, not the table
 const CORNERS = ['corner:1-2-4-5', 'corner:17-18-20-21', 'corner:29-30-32-33'];
+/** The last spin's number, unless the Devil burned it. */
+const lastNumber = (s) => {
+  const h = s.history[s.history.length - 1];
+  return h && !h.devil ? h.number : null;
+};
 const LAYOUT = {
   red: () => 'red',
+  black: () => 'black',
+  even: () => 'even',
   outside: (i) => `dozen:${(i % 3) + 1}`,
   inside: (i) => `straight:${STRAIGHTS[i % STRAIGHTS.length]}`,
   corner: (i) => CORNERS[i % CORNERS.length],
   zero: (i) => `straight:${STRAIGHTS[i % STRAIGHTS.length]}`,
   // Straight-ups evenly around the wheel, so any Nudge has something to reach.
   spread: (i, k) => `straight:${EUROPEAN_ORDER[Math.floor((i * 37) / k + 4) % 37]}`,
+  // Seesaw: the half the last spin did not land in.
+  seesaw: (i, k, s) => {
+    const n = lastNumber(s);
+    return n >= 1 && n <= 18 ? 'high' : n >= 19 ? 'low' : 'red';
+  },
+  // Ouroboros: every chip on the number that just came up.
+  chase: (i, k, s) => (lastNumber(s) === null ? LAYOUT.spread(i, k) : `straight:${lastNumber(s)}`),
+  thirteen: () => 'straight:13',
 };
 
 const owns = (s, id) => s.rail.some((t) => t.id === id);
@@ -98,22 +115,68 @@ function layoutFor(s, fallback) {
   if (owns(s, 'brass_knuckles') && !owns(s, 'horseshoe') && !owns(s, 'croupiers_rake')) return 'corner';
   if (owns(s, 'horseshoe') || owns(s, 'croupiers_rake') || owns(s, 'house_key')) return 'inside';
   if (owns(s, 'abacus')) return 'outside';
+  if (owns(s, 'brass_scales') || owns(s, 'string_of_pearls')) return 'even';
   if (owns(s, 'red_ribbon')) return 'red';
+  if (owns(s, 'black_cat')) return 'black';
   return fallback;
+}
+
+/** Layouts worth weighing against the usual one, from what is on the rail. */
+function extraLayouts(s) {
+  const out = [];
+  if (owns(s, 'ouroboros')) out.push('chase');
+  if (owns(s, 'thirteen_ball')) out.push('thirteen');
+  if (owns(s, 'seesaw')) out.push('seesaw');
+  if (owns(s, 'black_cat')) out.push('black');
+  if (owns(s, 'brass_scales') || owns(s, 'string_of_pearls')) out.push('even');
+  return out;
 }
 
 // --- Bots -------------------------------------------------------------------
 
+// Lists with the twenty newer talismans; --old-pool keeps the Phase 3 lists
+// (and never buys the newer ones) to compare against.
+const OLD_POOL = !!args['old-pool'];
+const NEWER = ['tuning_fork', 'brass_scales', 'string_of_pearls', 'wind_up_key', 'hamsa', 'beckoning_cat', 'grandmothers_purse', 'lost_wallet', 'magpie', 'domino', 'four_leaf_clover', 'holy_water', 'dowsing_rod', 'mousetrap', 'weathervane', 'seesaw', 'ouroboros', 'thirteen_ball', 'black_cat', 'golden_ball'];
 const LISTS = {
+  red: ['golden_ball', 'red_ribbon', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'magpie', 'beckoning_cat', 'rabbits_foot', 'ledger', 'lost_wallet', 'black_cat', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'lucky_penny'],
+  even: ['golden_ball', 'string_of_pearls', 'brass_scales', 'tuning_fork', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'magpie', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'lost_wallet', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'lucky_penny'],
+  outside: ['golden_ball', 'abacus', 'seesaw', 'matchbook', 'domino', 'ledger', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'rabbits_foot', 'lost_wallet', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny'],
+  inside: ['ouroboros', 'golden_ball', 'croupiers_rake', 'horseshoe', 'lodestone', 'thirteen_ball', 'house_key', 'twin_mirrors', 'tuning_fork', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'dowsing_rod', 'weathervane', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'lost_wallet', 'ledger', 'pawn_ticket', 'crumpled_receipt'],
+  luck: ['ouroboros', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'house_key', 'ledger', 'lucky_penny', 'lost_wallet', 'pawn_ticket', 'crumpled_receipt'],
+};
+const OLD_LISTS = {
   red: ['red_ribbon', 'matchbook', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'lucky_penny'],
   outside: ['abacus', 'matchbook', 'ledger', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny'],
   inside: ['croupiers_rake', 'horseshoe', 'lodestone', 'house_key', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'compass', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'ledger', 'pawn_ticket', 'crumpled_receipt'],
   luck: ['lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'twin_mirrors', 'pocket_watch', 'glass_eye', 'wheel_of_fortune', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt'],
 };
-const TIER = ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny'];
-const FAMILY_OF = { red_ribbon: 'red', matchbook: 'red', abacus: 'outside', croupiers_rake: 'inside', horseshoe: 'inside', house_key: 'inside', brass_knuckles: 'inside', lodestone: 'inside', compass: 'inside' };
+if (OLD_POOL) Object.assign(LISTS, OLD_LISTS, { even: OLD_LISTS.red });
+const TIER = OLD_POOL
+  ? ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny']
+  : ['ouroboros', 'golden_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'lost_wallet', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny'];
+const FAMILY_OF = {
+  red_ribbon: 'red',
+  matchbook: 'red',
+  domino: 'red',
+  mousetrap: 'red',
+  black_cat: 'red',
+  brass_scales: 'even',
+  string_of_pearls: 'even',
+  abacus: 'outside',
+  seesaw: 'outside',
+  croupiers_rake: 'inside',
+  horseshoe: 'inside',
+  house_key: 'inside',
+  brass_knuckles: 'inside',
+  lodestone: 'inside',
+  compass: 'inside',
+  ouroboros: 'inside',
+  thirteen_ball: 'inside',
+  weathervane: 'inside',
+};
 // Once the Devil is live, safety comes first: these jump to the front of any list.
-const SAFETY = ['evil_eye', 'salt_cellar'];
+const SAFETY = OLD_POOL ? ['evil_eye', 'salt_cellar'] : ['holy_water', 'evil_eye', 'salt_cellar'];
 const withSafety = (s, list) => (devilLive(s) ? [...SAFETY, ...list.filter((id) => !SAFETY.includes(id))] : list);
 
 const BOTS = {
@@ -137,9 +200,10 @@ const BOTS = {
 function botFor(name) {
   if (name === 'solo:none') return { layout: 'red', leans: true, wants: () => [] };
   if (name.startsWith('solo:')) {
-    const id = name.slice(5);
-    if (!getTalisman(id)) throw new Error(`No talisman ${id}`);
-    return { layout: 'red', leans: true, solo: id, wants: () => [] };
+    // solo:a,b hangs several from the first spin, left to right.
+    const ids = name.slice(5).split(',');
+    for (const id of ids) if (!getTalisman(id)) throw new Error(`No talisman ${id}`);
+    return { layout: 'red', leans: true, solo: ids, wants: () => [] };
   }
   return BOTS[name];
 }
@@ -154,31 +218,41 @@ function step(state, action, tally) {
   return r.state;
 }
 
-const placementsFor = (s, layout) => Object.fromEntries(s.chips.map((chip, i) => [chip.id, LAYOUT[layout](i, s.chips.length)]));
+const placementsFor = (s, layout) => Object.fromEntries(s.chips.map((chip, i) => [chip.id, LAYOUT[layout](i, s.chips.length, s)]));
 
-/** Exact expected chip payout of a layout over every landing, with this Nudge. */
+/** Exact expected chip payout of a layout over every landing (by live width), with this Nudge. */
 function nudgedEv(s, layout, luck) {
   const probe = { ...s, placements: placementsFor(s, layout) };
+  const chances = liveChances(probe);
   let total = 0;
   for (let i = 0; i < probe.wheel.pockets.length; i++) {
     const { landings } = nudgeLandings(probe, [{ ball: 0, pocketIndex: i }], luck);
-    total += toNumber(evaluate(probe, landings).chipTotal);
+    total += chances[i] * toNumber(evaluate(probe, landings).chipTotal);
   }
-  return total / probe.wheel.pockets.length;
+  return total;
 }
 
 /**
  * The bot's layout for the next spin. A bot that plays the Lean compares its
  * usual layout with straight-ups spread around the wheel whenever the next
- * spin has real Nudge (a Lean, pity, a Pocket Watch) and takes the better.
+ * spin has real Nudge (a Lean, pity, a Pocket Watch), and with whatever its
+ * talismans reward (the number that just came up for an Ouroboros, 13 for a
+ * Thirteen Ball...), and takes the best by exact expected value.
  */
 function chooseLayout(s, bot) {
   if (bot.layout === 'spread') return 'spread';
   const usual = layoutFor(s, bot.layout);
   if (!bot.leans) return usual;
   const luck = nudgeFor(s);
-  if (luck.total < 1) return usual;
-  return nudgedEv(s, 'spread', luck) > nudgedEv(s, usual, luck) ? 'spread' : usual;
+  const options = [...new Set([usual, ...extraLayouts(s), ...(luck.total >= 1 ? ['spread'] : [])])];
+  if (options.length === 1) return usual;
+  let best = usual;
+  let bestEv = -1;
+  for (const layout of options) {
+    const ev = nudgedEv(s, layout, luck);
+    if (ev > bestEv) [best, bestEv] = [layout, ev];
+  }
+  return best;
 }
 
 function placeChips(s, bot) {
@@ -197,7 +271,8 @@ const rank = (list, id) => {
 /** Buys what the bot wants, trading in its weakest talisman when the rail is full. */
 function shop(s, bot, log) {
   for (let guard = 0; guard < 6; guard++) {
-    const list = NO_NEW ? bot.wants(s).filter((id) => !PHASE3_ITEMS.includes(id)) : bot.wants(s);
+    let list = NO_NEW ? bot.wants(s).filter((id) => !PHASE3_ITEMS.includes(id)) : bot.wants(s);
+    if (OLD_POOL) list = list.filter((id) => !NEWER.includes(id));
     if (!list.length) return s;
     const view = cabinetView(s);
     const offers = view.slots.filter((o) => o.kind === 'talisman' && o.id && list.includes(o.id));
@@ -205,7 +280,8 @@ function shop(s, bot, log) {
     else offers.sort((a, b) => rank(list, a.id) - rank(list, b.id));
     let bought = false;
     for (const o of offers) {
-      const full = s.rail.length >= s.railHooks;
+      // An instant talisman (the Lost Wallet) never needs a hook.
+      const full = !getTalisman(o.id).instant && s.rail.length >= s.railHooks;
       let sellUid;
       if (full) {
         const worst = [...s.rail].sort((a, b) => rank(list, b.id) - rank(list, a.id))[0];
@@ -273,6 +349,9 @@ function bell(s, bot, log, { finalNight, spinsLeft }) {
     const nudged = bot.leans && nudgeFor(s).total >= 3 && canMiss(s);
     if ((finalNight && spinsLeft <= 2) || nudged) s = step(s, { type: 'ringBell', uid: wheel.uid }, log);
   }
+  // The Dowsing Rod piles onto a Lean, or spends itself on the debt's last night.
+  const rod = ready('dowsing_rod');
+  if (rod && spinsLeft > 0 && ((finalNight && spinsLeft <= 2) || nudgeFor(s).lean > 0)) s = step(s, { type: 'ringBell', uid: rod.uid }, log);
   return s;
 }
 
@@ -292,7 +371,7 @@ function newMetrics() {
 
 function playRun(seed, bot, m, picks, firstPicks) {
   let s = createRun({ seed });
-  if (bot.solo) s = grantTalisman(s, bot.solo);
+  for (const id of bot.solo ?? []) s = grantTalisman(s, id);
   m.dry = 0; // a miss streak never carries over from the last run
   let first = true;
   const log = (events) => {
@@ -314,7 +393,10 @@ function playRun(seed, bot, m, picks, firstPicks) {
     const finalNight = isFinalNight(s);
     while (s.phase === PHASE.BETTING) {
       s = placeChips(s, bot);
+      const beforeBell = s;
       s = bell(s, bot, log, { finalNight, spinsLeft: s.spinsLeft });
+      // A ring can change the spin's Nudge (the Dowsing Rod): weigh the layouts again.
+      if (s !== beforeBell) s = placeChips(s, bot);
       // Glass Eye: every chip goes on the foreseen number for one spin.
       const seen = s.foreseen;
       if (seen) {

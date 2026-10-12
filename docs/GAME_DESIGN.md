@@ -313,6 +313,15 @@ Wheel-building actions, from items, fortunes and oddities:
 
 Bets follow **number labels**: a straight-up on 17 covers every pocket labelled 17.
 
+*As built (before Phase 5):* the wheel is already drawn from live widths.
+Talismans can lean on the widths while they hang (Brass Scales doubles every
+even pocket) through pure `widths` hooks (`core/widths.js`); the spin and the
+Glass Eye draw from the live wheel, and the rotor's number ring and frets
+stretch to match, easing into a change over a moment. The stored wheel stays
+European until Phase 5's wheel work changes it. Number Punches (re-stamp 3
+pockets with any numbers, a Bell active) waits for Phase 5, with the other
+renumbering tools.
+
 A stats board in the room (5.11) shows the live chance of every number, colour,
 dozen and column, so a heavily built wheel stays readable.
 
@@ -442,6 +451,9 @@ you: a green "666" counter appears on the Cage and the Devil is live.
   number under the ball burns away to "666", the bulb goes
   out, and **every coin in hand is lost**. Deposits are safe, which is why
   banking matters.
+- **Wards:** Holy Water turns the Devil away once: the 666 flares and fails,
+  the vial shatters and leaves the rail, and the spin pays as usual. A warded
+  throw does not count as the Devil firing.
 - **Aftermath:** if you have not visited Madame Zero yet this debt, she now deals
   black cards (5.9).
 - Some cursed items feed on the Devil (Black Candle, Bone Dice), a niche path like
@@ -468,12 +480,12 @@ run (owner's decision, 12).
 and 1 **oddity** (a chip, a piece of wheel work, a record or a bet level). Until
 oddities exist (Phase 5), the 4th compartment is boarded up: "not yet".
 
-| Rarity | Price (tokens) | Relative weight | Chance, first compartment (Phase 3 pool) |
+| Rarity | Price (tokens) | Relative weight | Chance, first compartment (41 in the pool) |
 |---|---|---|---|
-| Common | 3 | 1.00 | 52.6% |
-| Uncommon | 4 | 0.85 | 29.8% |
-| Rare | 6 | 0.60 | 14.0% |
-| Legendary | 9 | 0.30 | 3.5% |
+| Common | 3 | 1.00 | 47.7% (16) |
+| Uncommon | 4 | 0.85 | 38.0% (15) |
+| Rare | 6 | 0.60 | 10.7% (6) |
+| Legendary | 9 | 0.30 | 3.6% (4) |
 | Cursed | from black cards only (Phase 4) | none | none |
 
 Rarity works by reroll, as in Clover Pit: pick a random item, then reroll it with
@@ -483,7 +495,19 @@ shift a little, since they cannot repeat the first.
 
 **Buying** takes a free hook. With the rail full, the Cabinet asks which talisman
 to sell; the sale and the purchase happen in one step, so the refund can help
-pay.
+pay. An **instant** talisman (the Lost Wallet) never takes a hook: it is opened
+the moment it is bought, so a full rail never stops it.
+
+**Used up.** Some talismans leave the rail on their own: Grandmother's Purse
+crumbles when its interest runs out, the Four-Leaf Clover wilts after its sixth
+bloom, Holy Water shatters when it turns the Devil away. A Twin Mirrors' copy
+of one goes dark instead, and the mirror keeps its hook.
+
+**Tuning Fork.** A fork triggers the talisman to its left again, straight
+after it, on that talisman's own data: a Piggy Bank grows twice a spin and a
+String of Pearls strings two pearls a hit. Forks pass through forks (two in a
+row repeat it twice more), a fork never acts on its own, it echoes no Bell
+ability, purchase or sale, and Twin Mirrors cannot copy it.
 
 **Restocks:** free at the start of every night, including the first. A paid
 restock costs the debt's restock base, +20% (rounded up) after each paid
@@ -491,7 +515,7 @@ restock, resetting every debt (debt 1: 2, 3, 4, 5, 6, 8...). Restocking never
 changes the spins: the Cabinet draws from its own stream.
 
 **The Bell.** A brass service bell on the table wakes active talismans: the
-Wheel of Fortune, the Glass Eye and the Piggy Bank. Ding.
+Wheel of Fortune, the Glass Eye, the Piggy Bank and the Dowsing Rod. Ding.
 
 - **One ring wakes one talisman:** the leftmost that can answer. Clicking a
   talisman's brass tag rings the Bell for that one.
@@ -506,6 +530,9 @@ Wheel of Fortune, the Glass Eye and the Piggy Bank. Ding.
 - **Glass Eye** (1 charge a debt): the next landing is drawn when you ring, shown
   on the felt and in the note, and the next spin lands there. Bets can be moved
   onto it.
+- **Dowsing Rod** (3 charges a debt): ring it for +5 Nudge on the next spin. Like
+  an armed Wheel of Fortune, a rod still twitching when the debt turns over
+  keeps that charge spent.
 - The Bell works whenever betting is open: before choosing a night, while
   betting, and after the night's last spin.
 
@@ -552,7 +579,7 @@ soundtrack inside the build. Drafts in 6.3.
 
 A first pool to build from. Names and numbers are drafts.
 
-### 6.1 Talismans (40)
+### 6.1 Talismans (43 built)
 
 **Built in Phase 2 (15):** Red Ribbon, Horseshoe, Matchbook, Lucky Penny, Crumpled
 Receipt, Pawn Ticket (common); Brass Knuckles, Croupier's Rake, Ledger, Abacus
@@ -615,6 +642,55 @@ clockwise is rare.
 | Loaded Wheel | Legendary | On purchase, widen all red pockets +0.5 | wheel-building |
 | Bone Dice | Cursed | Winning chips +4 Stake; Devil chance +2% | Devil |
 | Black Candle | Cursed | Leans are twice as strong; no pity | Devil, timing |
+
+**Built for variety (20, owner's request, 12):** Wind-Up Key, Hamsa, Grandmother's
+Purse, Lost Wallet, Four-Leaf Clover, Black Cat, Brass Scales (common);
+String of Pearls, Beckoning Cat, Magpie, Domino, Holy Water, Weathervane,
+Seesaw, Mousetrap, Dowsing Rod (uncommon); Tuning Fork, Thirteen Ball (rare);
+Ouroboros, Golden Ball (legendary). They lean on what Phases 2 and 3 built
+(Nudge, Leans, pity, the Devil, the Bell, interest, tokens) plus a few new
+mechanics: a Tuning Fork echoes the talisman to its left (5.8), pocket widths
+drawn live (5.4), talismans that are used up, an instant one that needs no hook,
+an omen shown before the spin, and a ward against the Devil (5.7). The combos
+they were built for: Brass Scales with String of Pearls (more evens, and Even
+pays more with every one), a Tuning Fork beside anything that grows (Piggy
+Bank, String of Pearls) or multiplies, Domino and Beckoning Cat with several
+chips on one bet, Mousetrap and Wind-Up Key for straight-up hunters, Holy Water
+and Golden Ball against the Devil. Tuning with the simulator cut the drafted
+jackpots: a ×3 on a single number pays a whole debt in one hit, so Ouroboros
+is ×2 (drafted ×36), Thirteen Ball ×2 (drafted ×13), and String of Pearls'
+pearls break at dawn. Each talisman alone, from the first spin, pays debt 2 in
+roughly 10–80% of runs, the jackpots and Golden Ball at the top (Red Ribbon
+17%, Rabbit's Foot 73%).
+
+| Talisman | Rarity | Effect | Plays with |
+|---|---|---|---|
+| Wind-Up Key | Common | Pity starts after 2 misses in a row, not 5 | luck, inside |
+| Hamsa | Common | The night's last spin: +3 Nudge | luck, timing |
+| Grandmother's Purse | Common | Interest +12%, 2% less each night; crumbles at 0 | economy |
+| Lost Wallet | Common | Needs no hook. When bought: coins worth a fifth of the debt | economy |
+| Four-Leaf Clover | Common | On about 1 spin in 4 (shown before you bet), +3 Nudge; wilts after 6 blooms | luck |
+| Black Cat | Common | Chips on Black ×2. Every 13th spin of the run: no Nudge at all | black, risk |
+| Brass Scales | Common | Even pockets twice as wide (drafted uncommon, half again) | even, wheel |
+| String of Pearls | Uncommon | Chips on Even +1 Odds, +1 more for each even number tonight | even, scaling |
+| Beckoning Cat | Uncommon | 3+ chips win on one spin: tonight's interest paid early, as coins | economy |
+| Magpie | Uncommon | Winning chips +1 Stake for every 8 tokens held (drafted 5) | tokens |
+| Domino | Uncommon | Each winning chip +1 Stake per chip already paid this spin | stacking |
+| Holy Water | Uncommon | The first time the Devil fires, he is turned away; it shatters | safety |
+| Weathervane | Uncommon | On a Lean's spin, chips pay ×3 | timing |
+| Seesaw | Uncommon | 1–18 and 19–36 chips ×3 after a spin in the other half | outside |
+| Mousetrap | Uncommon | Winning chips +1 Stake per miss in a row before the win (drafted common) | streaks |
+| Dowsing Rod | Uncommon | Bell, 3 charges a debt: +5 Nudge on the next spin (drafted rare, 2 × +4) | active, luck |
+| Tuning Fork | Rare | Triggers the talisman to its left again (not Bell abilities) | combos |
+| Thirteen Ball | Rare | 13: chips pay ×2, and Nudge never moves the ball off 13 | jackpot |
+| Ouroboros | Legendary | The same number twice in a row: chips ×2 | jackpot |
+| Golden Ball | Legendary | Chips pay ×3; the Devil's chance +3% | risk |
+
+Number Punches (legendary, Bell, once a debt: re-stamp 3 pockets with any
+numbers) is designed and waits for Phase 5's wheel work.
+
+The drafts below that share a name with a built talisman (Black Cat, Thirteen
+Ball, Ouroboros, Golden Ball) are superseded by the rows above.
 
 **Build families this pool supports:** colour stacking, straight-up hunting with
 Nudge, wheel-geometry neighbours, table-geometry inside bets, streaks and repeats,
@@ -1055,7 +1131,8 @@ data object with optional hooks:
 
 A definition can also carry `tags`, `charges` ({ max, refill: 'debt' }), `bell`
 ({ usable(ctx), ring(ctx), targetOnly }), `copyable`, `copies: 'right'` (Twin
-Mirrors), `init()` for its own data, and `status()` for its note.
+Mirrors), `echoes` (Tuning Fork), `instant` (acts when bought, never hung: Lost
+Wallet), `init()` for its own data, and `status()` for its note.
 
 Hook points:
 
@@ -1064,13 +1141,20 @@ Hook points:
   the hit, e.g. House Key on zero), `chipStake`, `chipOdds`, `chipMult`,
   `chipPaid`, `chipLost`.
 - *Luck (pure, Phase 3; shown before the spin and applied during it):* `nudge`
-  (`addNudge`, `clockwiseOnly`, `straightOnly`, `noPity`; it reads the coming
-  Lean, pity and which spin of the night and debt is next) and `devilChance`
-  (`addChance`, `mulChance`, applied in rail order).
+  (`addNudge`, `clockwiseOnly`, `straightOnly`, `noPity`, `pityAfter`,
+  `noNudge`, `anchor`; it reads the coming Lean, pity and which spin of the
+  night and debt is next, and whether it is the night's last), `devilChance`
+  (`addChance`, `mulChance`, applied in rail order) and `widths` (`widen`).
+  Omens (the Four-Leaf Clover) are a pure hash of the seed, the spin count and
+  the talisman, so they can be shown before the spin and replay exactly.
+- Payout line hooks also read `paidBefore`, the chips already paid this spin
+  (Domino).
 - *Commit (they change the run straight away):* `runStart`, `debtStart`,
   `roundStart`, `beforeSpin`, `afterSpin`, `roundEnd` (tokens), `debtPaid`,
   `purchased`, `sold`; `interestRate` adds to the Cage's rate; `bell` is the
-  talisman's own ring.
+  talisman's own ring; `ward` runs when the Devil fires (the first ward turns
+  him away). Commit hooks can call `destroySelf(reason)` for a talisman that is
+  used up.
 
 Talismans act in rail order. Within a chip's line, each talisman in turn adds
 its Stake, then its odds, then its multipliers ("rail-major"), so the events
@@ -1258,3 +1342,6 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 12 | Selling a cursed talisman | **It cannot be sold or traded in.** It keeps its hook for the rest of the run. (5.8) |
 | 13 | Phase 3 talismans | **The luck and safety eight:** Rabbit's Foot, Pocket Watch, Compass, Lodestone, Salt Cellar, Evil Eye, Bone Dice, Black Candle. (6.1) |
 | 14 | Phase 3 tuning | **Tune the Phase 3 numbers first; change the debt table only if that is not enough; debt 3 stays 666.** Targets for the best bot: debt 1 ≥ 90%, debt 2 60–75%, debt 3 25–40%, debt 4 5–15%. Outcome: debt 2 owes 333 and debt 4 1,332. (5.2, 9.8) |
+| 15 | Twenty more talismans before Phase 4 | **Built now, at the owner's request, from systems that exist.** Content for Phase 7 pulled forward; tuned back inside the Phase 3 targets. (6.1) |
+| 16 | Brass Scales ("more Even") | **Real pocket widths, drawn to scale.** The live-width wheel is pulled forward from Phase 5; widths come from talismans until Phase 5's wheel work. (5.4) |
+| 17 | Number Punches (renumber 3 pockets) | **Waits for Phase 5**, with the other wheel-building tools. (5.4, 6.1) |

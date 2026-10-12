@@ -241,6 +241,7 @@ async function init() {
     spin.update(sdt);
     wheel.rotor.rotation.y = spin.angle;
     wheel.setSpeed(spin.speed);
+    wheel.update(dt);
     ball.update(sdt);
 
     // Pocket ticks when the player turns the wheel by hand; the ball's own

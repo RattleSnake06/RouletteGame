@@ -386,12 +386,12 @@ export const TALISMAN_LIST = [
   {
     id: 'brass_scales',
     name: 'Brass Scales',
-    rarity: 'uncommon',
+    rarity: 'common',
     tags: ['even', 'wheel'],
-    text: 'Even pockets are half again as wide, so even numbers land more often.',
+    text: 'Even pockets are twice as wide, so even numbers land more often.',
     hooks: {
       widths(ctx) {
-        ctx.widen(isEven, 0.5);
+        ctx.widen(isEven, 1);
       },
     },
   },
@@ -400,9 +400,9 @@ export const TALISMAN_LIST = [
     name: 'String of Pearls',
     rarity: 'uncommon',
     tags: ['even', 'scaling'],
-    text: 'Chips on Even: +1 Odds, and +1 more for every even number that lands.',
+    text: 'Chips on Even: +1 Odds, and +1 more for every even number that lands tonight.',
     init: () => ({ pearls: 0 }),
-    status: (data) => `${plural(data.pearls, 'pearl')} strung: Even +${1 + data.pearls} Odds`,
+    status: (data) => `${plural(data.pearls, 'pearl')} strung tonight: Even +${1 + data.pearls} Odds`,
     hooks: {
       chipOdds(ctx) {
         if (ctx.bet.kind === 'even') ctx.addOdds(1 + ctx.self.pearls);
@@ -410,6 +410,10 @@ export const TALISMAN_LIST = [
       afterSpin(ctx) {
         const n = ctx.result.devil ? 0 : ctx.result.balls.filter(isEven).length;
         if (n) ctx.setData('pearls', ctx.self.pearls + n);
+      },
+      // The string breaks at dawn, like a Matchbook's flame.
+      roundEnd(ctx) {
+        if (ctx.self.pearls) ctx.setData('pearls', 0);
       },
     },
   },
@@ -491,11 +495,11 @@ export const TALISMAN_LIST = [
     name: 'Magpie',
     rarity: 'uncommon',
     tags: ['tokens', 'scaling'],
-    text: 'Winning chips: +1 Stake for every 5 tokens you hold.',
-    status: (data, state) => `+${Math.floor(state.tokens / 5)} Stake with ${plural(state.tokens, 'token')}`,
+    text: 'Winning chips: +1 Stake for every 8 tokens you hold.',
+    status: (data, state) => `+${Math.floor(state.tokens / 8)} Stake with ${plural(state.tokens, 'token')}`,
     hooks: {
       chipStake(ctx) {
-        const n = Math.floor(ctx.state.tokens / 5);
+        const n = Math.floor(ctx.state.tokens / 8);
         if (n > 0) ctx.addStake(n);
       },
     },
@@ -548,13 +552,13 @@ export const TALISMAN_LIST = [
   {
     id: 'dowsing_rod',
     name: 'Dowsing Rod',
-    rarity: 'rare',
+    rarity: 'uncommon',
     tags: ['active', 'luck'],
-    text: 'Bell, twice a debt: +4 Nudge on the next spin.',
+    text: 'Bell, three times a debt: +5 Nudge on the next spin.',
     copyable: false,
-    charges: { max: 2, refill: 'debt' },
+    charges: { max: 3, refill: 'debt' },
     init: () => ({ armed: false }),
-    status: (data) => (data.armed ? 'twitching: +4 Nudge on the next spin' : null),
+    status: (data) => (data.armed ? 'twitching: +5 Nudge on the next spin' : null),
     bell: {
       usable: (ctx) => ctx.charges > 0 && !ctx.self.armed,
       ring(ctx) {
@@ -564,7 +568,7 @@ export const TALISMAN_LIST = [
     },
     hooks: {
       nudge(ctx) {
-        if (ctx.self.armed) ctx.addNudge(4);
+        if (ctx.self.armed) ctx.addNudge(5);
       },
       afterSpin(ctx) {
         if (ctx.self.armed) ctx.setData('armed', false);
@@ -574,7 +578,7 @@ export const TALISMAN_LIST = [
   {
     id: 'mousetrap',
     name: 'Mousetrap',
-    rarity: 'common',
+    rarity: 'uncommon',
     tags: ['inside', 'streaks'],
     text: 'Winning chips: +1 Stake for each miss in a row before the win.',
     status: (data, state) => (state.missStreak ? `set: +${state.missStreak} Stake` : 'not set yet'),
@@ -619,26 +623,26 @@ export const TALISMAN_LIST = [
     name: 'Ouroboros',
     rarity: 'legendary',
     tags: ['jackpot', 'inside', 'streaks'],
-    text: 'The same number twice in a row: chips pay ×6.',
+    text: 'The same number twice in a row: chips pay ×2.',
     status: (data, state) => (lastSpin(state) ? `waits for ${lastSpin(state).number}` : 'waits for a first number'),
     hooks: {
       chipMult(ctx) {
-        if (lastSpin(ctx.state)?.number === ctx.landing.number) ctx.mul(6);
+        if (lastSpin(ctx.state)?.number === ctx.landing.number) ctx.mul(2);
       },
     },
   },
   {
     id: 'thirteen_ball',
     name: 'Thirteen Ball',
-    rarity: 'uncommon',
+    rarity: 'rare',
     tags: ['jackpot', 'inside'],
-    text: 'When 13 lands, chips pay ×3, and Nudge never moves the ball off 13.',
+    text: 'When 13 lands, chips pay ×2, and Nudge never moves the ball off 13.',
     hooks: {
       nudge(ctx) {
         ctx.anchor(13);
       },
       chipMult(ctx) {
-        if (ctx.landing.number === 13) ctx.mul(3);
+        if (ctx.landing.number === 13) ctx.mul(2);
       },
     },
   },

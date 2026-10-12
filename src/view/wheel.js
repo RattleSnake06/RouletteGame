@@ -8,7 +8,9 @@ import {
 import { EUROPEAN_ORDER, defaultColor } from '../core/wheel.js';
 
 // Pocket order and colours come from the rules (core/wheel.js); this module
-// only turns them into geometry. Phase 5 rebuilds it from live pocket data.
+// only turns them into geometry. Each pocket is drawn as wide as its live
+// width (doc 5.4: probability you can see); Phase 5 adds numbers and colours
+// that change.
 export const WHEEL_ORDER = EUROPEAN_ORDER;
 export const POCKETS = WHEEL_ORDER.length;
 export const SLICE = (Math.PI * 2) / POCKETS;
@@ -16,8 +18,28 @@ export const colorOf = defaultColor;
 
 // Angles are measured counter-clockwise seen from above, in the rotor's
 // local frame: angle a sits at (cos a, -sin a) in (x, z). rotation.y adds to it.
+// The number texture runs the other way round from wheel order: pocket i is
+// cell (POCKETS - i) % POCKETS, and cell c spans bounds[c] to bounds[c + 1].
+const cellOf = (orderIndex) => (POCKETS - orderIndex) % POCKETS;
+let bounds = Array.from({ length: POCKETS + 1 }, (_, c) => c * SLICE);
+
+/** The angle at the middle of pocket `orderIndex` (wheel order), as drawn now. */
 export function pocketAngle(orderIndex) {
-  return (((POCKETS - orderIndex) % POCKETS) + 0.5) * SLICE;
+  const c = cellOf(orderIndex);
+  return (bounds[c] + bounds[c + 1]) / 2;
+}
+
+/**
+ * Cell boundaries for these widths (wheel order). Zero's middle never moves,
+ * so the wheel does not seem to turn when a pocket grows.
+ */
+function boundsFor(widths) {
+  const cell = new Array(POCKETS);
+  widths.forEach((w, i) => (cell[cellOf(i)] = w));
+  const total = cell.reduce((t, w) => t + w, 0);
+  const out = [0.5 * SLICE - (cell[0] / total) * Math.PI];
+  for (let c = 0; c < POCKETS; c++) out.push(out[c] + (cell[c] / total) * Math.PI * 2);
+  return out;
 }
 
 export const DIM = {
@@ -75,6 +97,33 @@ function ringStrip(rIn, rOut, yIn, yOut, segments) {
     const c = a + 2;
     const d = a + 3;
     idx.push(a, b, d, a, d, c);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/**
+ * The number ring: like ringStrip, but each cell of the texture is stretched
+ * over its pocket's live span, with vertices on every boundary.
+ */
+function numberRingGeometry(rIn, rOut, yIn, yOut, cellBounds, perCell = 8) {
+  const pos = [];
+  const uvs = [];
+  const idx = [];
+  let v = 0;
+  for (let c = 0; c < POCKETS; c++) {
+    for (let k = 0; k <= perCell; k++) {
+      const a = cellBounds[c] + ((cellBounds[c + 1] - cellBounds[c]) * k) / perCell;
+      const u = (c + k / perCell) / POCKETS;
+      pos.push(rIn * Math.cos(a), yIn, -rIn * Math.sin(a), rOut * Math.cos(a), yOut, -rOut * Math.sin(a));
+      uvs.push(u, 0, u, 1);
+      if (k > 0) idx.push(v - 2, v - 1, v + 1, v - 2, v + 1, v);
+      v += 2;
+    }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -184,8 +233,9 @@ export function createWheel({ envMap }) {
     clearcoat: 0.6,
     clearcoatRoughness: 0.28,
   });
-  const numberGeo = ringStrip(DIM.numberInner, DIM.numberOuter, DIM.numberY, DIM.numberY - 0.004, POCKETS * 8);
-  rotor.add(shadowed(new THREE.Mesh(numberGeo, numberMat), false));
+  const numberGeo = numberRingGeometry(DIM.numberInner, DIM.numberOuter, DIM.numberY, DIM.numberY - 0.004, bounds);
+  const numberRing = shadowed(new THREE.Mesh(numberGeo, numberMat), false);
+  rotor.add(numberRing);
 
   // Smeared copy laid over the numbers; fades in with speed (motion blur).
   const blurMat = new THREE.MeshPhysicalMaterial({
@@ -250,12 +300,18 @@ export function createWheel({ envMap }) {
   const q = new THREE.Quaternion();
   const yAxis = new THREE.Vector3(0, 1, 0);
   const rMid = (DIM.pocketOuter + DIM.pocketInner) / 2;
-  for (let c = 0; c < POCKETS; c++) {
-    const a = c * SLICE;
-    q.setFromAxisAngle(yAxis, a);
-    m4.compose(new THREE.Vector3(rMid * Math.cos(a), DIM.pocketY, -rMid * Math.sin(a)), q, new THREE.Vector3(1, 1, 1));
-    frets.setMatrixAt(c, m4);
-  }
+  const unit = new THREE.Vector3(1, 1, 1);
+  const placeFrets = () => {
+    for (let c = 0; c < POCKETS; c++) {
+      const a = bounds[c];
+      q.setFromAxisAngle(yAxis, a);
+      m4.compose(new THREE.Vector3(rMid * Math.cos(a), DIM.pocketY, -rMid * Math.sin(a)), q, unit);
+      frets.setMatrixAt(c, m4);
+    }
+    frets.instanceMatrix.needsUpdate = true;
+    frets.computeBoundingSphere();
+  };
+  placeFrets();
   rotor.add(frets);
 
   // Cone: inlaid wood, rising gently to the turret.
@@ -406,6 +462,39 @@ export function createWheel({ envMap }) {
     blurRing.visible = t > 0.001;
   }
 
+  // ---- Live widths: pockets swell and shrink over a moment ----------------
+  let widthsNow = new Array(POCKETS).fill(1);
+  let widthTween = null;
+  const applyWidths = (widths) => {
+    widthsNow = widths;
+    bounds = boundsFor(widths);
+    const geo = numberRingGeometry(DIM.numberInner, DIM.numberOuter, DIM.numberY, DIM.numberY - 0.004, bounds);
+    numberRing.geometry.dispose();
+    numberRing.geometry = geo;
+    blurRing.geometry = geo;
+    placeFrets();
+  };
+  /** Draws each pocket at its live width (wheel order); `animate` eases into it. */
+  function setWidths(widths, { animate = true } = {}) {
+    const target = widths.slice();
+    const same = target.length === widthsNow.length && target.every((w, i) => Math.abs(w - widthsNow[i]) < 1e-9);
+    if (same && !widthTween) return false;
+    if (!animate) {
+      widthTween = null;
+      applyWidths(target);
+      return true;
+    }
+    widthTween = { from: widthsNow.slice(), to: target, t: 0, time: 0.9 };
+    return true;
+  }
+  function update(dt) {
+    if (!widthTween) return;
+    widthTween.t = Math.min(widthTween.time, widthTween.t + dt);
+    const k = THREE.MathUtils.smootherstep(widthTween.t / widthTween.time, 0, 1);
+    applyWidths(widthTween.from.map((w, i) => w + (widthTween.to[i] - w) * k));
+    if (widthTween.t >= widthTween.time) widthTween = null;
+  }
+
   // Polished metal reflects its surroundings whatever the lights do, so its
   // reflections dim with the wheel's bulb or the wheel never sinks into the dark.
   const reflective = [brass, darkMetal, silver, pocketMetal, ball.material].map((m) => [m, m.envMapIntensity]);
@@ -421,6 +510,8 @@ export function createWheel({ envMap }) {
     lensMat,
     setSpeed,
     setLightLevel,
+    setWidths,
+    update,
     // Stations get their own copies, so dimming the wheel never dims them.
     materials: { mahogany, brass: brass.clone(), darkMetal: darkMetal.clone(), silver: silver.clone() },
   };

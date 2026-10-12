@@ -1323,6 +1323,655 @@ const PAINTERS = {
     ]), '#0d3a20', 2);
     seg(ctx, -22, -10, -22, 40, 'rgba(255, 255, 255, 0.25)', 3);
   },
+
+  // ---- More talismans: variety and combos -----------------------------------
+
+  tuning_fork(ctx) {
+    // A steel fork, struck: its tines ring with arcs of sound.
+    for (const [r, a] of [[52, 0.75], [66, 0.5]]) {
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.arc(0, -30, r, side < 0 ? Math.PI - 0.5 : -0.55, side < 0 ? Math.PI + 0.55 : 0.5);
+        ctx.strokeStyle = `rgba(237, 229, 211, ${a})`;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+    }
+    const steel = linear(ctx, -30, 0, 30, 0, [
+      [0, '#8f8a80'],
+      [0.45, '#f1ece2'],
+      [1, '#6e6a62'],
+    ]);
+    const fork = new Path2D();
+    fork.moveTo(-28, -76);
+    fork.lineTo(-28, -6);
+    fork.bezierCurveTo(-28, 20, 28, 20, 28, -6);
+    fork.lineTo(28, -76);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = C.soot;
+    ctx.lineWidth = 19;
+    ctx.stroke(fork);
+    ctx.strokeStyle = steel;
+    ctx.lineWidth = 12;
+    ctx.stroke(fork);
+    seg(ctx, 0, 14, 0, 70, C.soot, 17);
+    seg(ctx, 0, 14, 0, 70, steel, 10);
+    circle(ctx, 0, 74, 11);
+    fill(ctx, brassFill(ctx, 63, 85), C.brassDeep, 3);
+    seg(ctx, -31, -70, -31, -14, 'rgba(255, 255, 250, 0.7)', 2.6);
+  },
+
+  brass_scales(ctx) {
+    // A balance, tipped: one pan heavy, as if the even side weighed more.
+    const tilt = 0.2;
+    rrect(ctx, -34, 64, 68, 12, 4);
+    fill(ctx, brassFill(ctx, 64, 76), C.brassDeep, 3);
+    seg(ctx, 0, 66, 0, -46, C.brassDeep, 12);
+    seg(ctx, 0, 66, 0, -46, C.brass, 7);
+    circle(ctx, 0, -54, 9);
+    fill(ctx, brassFill(ctx, -63, -45), C.brassDeep, 3);
+    ctx.save();
+    ctx.translate(0, -46);
+    ctx.rotate(tilt);
+    seg(ctx, -64, 0, 64, 0, C.brassDeep, 10);
+    seg(ctx, -64, 0, 64, 0, C.brassLight, 5);
+    ctx.restore();
+    const pan = (x, y) => {
+      seg(ctx, x, y - 52, x - 22, y, 'rgba(240, 212, 148, 0.85)', 2.4);
+      seg(ctx, x, y - 52, x + 22, y, 'rgba(240, 212, 148, 0.85)', 2.4);
+      ctx.beginPath();
+      ctx.moveTo(x - 28, y);
+      ctx.quadraticCurveTo(x, y + 26, x + 28, y);
+      ctx.closePath();
+      fill(ctx, brassFill(ctx, y, y + 16), C.brassDeep, 3);
+    };
+    const ex = Math.cos(tilt) * 64;
+    const ey = Math.sin(tilt) * 64;
+    pan(-ex, -46 - ey + 52);
+    pan(ex, -46 + ey + 52);
+    // The heavier pan carries two ivory weights: an even number.
+    for (const dx of [-8, 8]) {
+      circle(ctx, ex + dx, -46 + ey + 50, 7);
+      fill(ctx, C.ivory, C.soot, 2.4);
+    }
+  },
+
+  string_of_pearls(ctx) {
+    // A loop of pearls closed by a brass clasp, the newest pearls the brightest.
+    const n = 15;
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + 0.32 + (i / (n - 1)) * (TAU - 0.64);
+      const x = Math.cos(a) * 58;
+      const y = 8 + Math.sin(a) * 62;
+      circle(ctx, x, y, 11.5);
+      fill(ctx, radial(ctx, x - 4, y - 4, 1, x, y, 12, [
+        [0, '#fffaf0'],
+        [0.6, '#e6dcc6'],
+        [1, '#9c8f78'],
+      ]), C.soot, 2.6);
+    }
+    rrect(ctx, -14, -66, 28, 18, 5);
+    fill(ctx, brassFill(ctx, -66, -48), C.brassDeep, 3);
+    circle(ctx, 0, -57, 4);
+    fill(ctx, C.blood);
+  },
+
+  wind_up_key(ctx) {
+    // A clockwork key: two loops of the bow, a shaft, a squared bit.
+    ctx.save();
+    ctx.rotate(-0.5);
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(side * 30, -40, 28, 22, side * 0.2, 0, TAU);
+      ctx.strokeStyle = C.brassDeep;
+      ctx.lineWidth = 16;
+      ctx.stroke();
+      ctx.strokeStyle = brassFill(ctx, -62, -18);
+      ctx.lineWidth = 9;
+      ctx.stroke();
+    }
+    rrect(ctx, -10, -36, 20, 24, 4);
+    fill(ctx, brassFill(ctx, -36, -12), C.brassDeep, 3);
+    seg(ctx, 0, -14, 0, 58, C.brassDeep, 15);
+    seg(ctx, 0, -14, 0, 58, C.brass, 9);
+    rrect(ctx, -13, 52, 26, 22, 3);
+    fill(ctx, brassFill(ctx, 52, 74), C.brassDeep, 3);
+    seg(ctx, -5, -6, -5, 50, 'rgba(255, 244, 214, 0.75)', 2.6);
+    ctx.restore();
+  },
+
+  hamsa(ctx) {
+    // The hand of Fatima, palm out, an eye in its palm.
+    const hand = new Path2D();
+    hand.moveTo(-46, 66);
+    hand.bezierCurveTo(-60, 40, -62, 10, -58, -6);
+    hand.bezierCurveTo(-56, -18, -44, -18, -42, -6);
+    hand.lineTo(-40, 6);
+    hand.lineTo(-38, -52);
+    hand.bezierCurveTo(-37, -66, -21, -66, -20, -52);
+    hand.lineTo(-18, -12);
+    hand.lineTo(-10, -70);
+    hand.bezierCurveTo(-8, -84, 8, -84, 10, -70);
+    hand.lineTo(18, -12);
+    hand.lineTo(20, -52);
+    hand.bezierCurveTo(21, -66, 37, -66, 38, -52);
+    hand.lineTo(40, 6);
+    hand.lineTo(42, -6);
+    hand.bezierCurveTo(44, -18, 56, -18, 58, -6);
+    hand.bezierCurveTo(62, 10, 60, 40, 46, 66);
+    hand.closePath();
+    ctx.strokeStyle = C.soot;
+    ctx.lineWidth = 7;
+    ctx.stroke(hand);
+    ctx.fillStyle = linear(ctx, -60, 0, 60, 0, [
+      [0, '#a99a80'],
+      [0.45, '#efe6d2'],
+      [1, '#9c8b6e'],
+    ]);
+    ctx.fill(hand);
+    ellipse(ctx, 0, 30, 22, 13);
+    fill(ctx, C.bone, C.soot, 3);
+    circle(ctx, 0, 30, 9);
+    fill(ctx, C.blood, C.soot, 2);
+    circle(ctx, 0, 30, 3.5);
+    fill(ctx, C.soot);
+  },
+
+  beckoning_cat(ctx) {
+    // A maneki-neko, one paw raised, a brass bell on its red collar.
+    const edge = C.soot;
+    ellipse(ctx, 0, 40, 46, 38);
+    fill(ctx, C.ivory, edge, 5);
+    circle(ctx, 0, -22, 38);
+    fill(ctx, C.ivory, edge, 5);
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(side * 34, -38);
+      ctx.lineTo(side * 30, -70);
+      ctx.lineTo(side * 10, -54);
+      ctx.closePath();
+      fill(ctx, C.ivory, edge, 4);
+    }
+    // The raised paw.
+    rrect(ctx, 36, -48, 22, 50, 10);
+    fill(ctx, C.ivory, edge, 4);
+    for (const side of [-1, 1]) {
+      ellipse(ctx, side * 14, -26, 5, 3.5);
+      fill(ctx, C.ink);
+    }
+    seg(ctx, -6, -12, 6, -12, C.ink, 3);
+    // Collar and bell.
+    ctx.beginPath();
+    ctx.moveTo(-32, 4);
+    ctx.quadraticCurveTo(0, 18, 32, 4);
+    ctx.strokeStyle = C.blood;
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    circle(ctx, 0, 18, 10);
+    fill(ctx, brassFill(ctx, 8, 28), C.brassDeep, 3);
+    // A coin held to the chest.
+    ellipse(ctx, -16, 50, 14, 20);
+    fill(ctx, brassFill(ctx, 30, 70), C.brassDeep, 3);
+  },
+
+  grandmothers_purse(ctx) {
+    // A kiss-lock purse in faded oxblood, its brass clasp shut.
+    const bag = new Path2D();
+    bag.moveTo(-52, -20);
+    bag.bezierCurveTo(-74, 20, -66, 66, -40, 70);
+    bag.lineTo(40, 70);
+    bag.bezierCurveTo(66, 66, 74, 20, 52, -20);
+    bag.closePath();
+    ctx.strokeStyle = C.soot;
+    ctx.lineWidth = 6;
+    ctx.stroke(bag);
+    ctx.fillStyle = linear(ctx, -70, 0, 70, 0, [
+      [0, C.bloodDeep],
+      [0.45, '#b2333a'],
+      [1, '#5e0c11'],
+    ]);
+    ctx.fill(bag);
+    // Quilted stitching.
+    ctx.save();
+    ctx.clip(bag);
+    for (let x = -80; x < 80; x += 22) {
+      seg(ctx, x, -24, x + 60, 80, 'rgba(0, 0, 0, 0.25)', 2);
+      seg(ctx, x + 60, -24, x, 80, 'rgba(0, 0, 0, 0.25)', 2);
+    }
+    ctx.restore();
+    // The frame and its two kissing balls.
+    ctx.beginPath();
+    ctx.moveTo(-54, -18);
+    ctx.quadraticCurveTo(0, -44, 54, -18);
+    ctx.strokeStyle = C.brassDeep;
+    ctx.lineWidth = 12;
+    ctx.stroke();
+    ctx.strokeStyle = C.brass;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    for (const x of [-9, 9]) {
+      circle(ctx, x, -38, 9);
+      fill(ctx, brassFill(ctx, -47, -29), C.brassDeep, 3);
+    }
+    seg(ctx, -44, 0, -50, 40, 'rgba(255, 220, 210, 0.35)', 3);
+  },
+
+  lost_wallet(ctx) {
+    // A worn leather wallet, a banknote showing at its fold.
+    ctx.save();
+    ctx.rotate(-0.12);
+    rrect(ctx, -46, -46, 70, 38, 3);
+    fill(ctx, linear(ctx, 0, -46, 0, -8, [
+      [0, '#e8dfc8'],
+      [1, '#b4a68a'],
+    ]), C.soot, 3);
+    scrawlText(ctx, '20', -12, -27, 22, C.bloodDeep);
+    rrect(ctx, -64, -20, 128, 84, 10);
+    fill(ctx, linear(ctx, 0, -20, 0, 64, [
+      [0, '#a8632f'],
+      [0.6, C.copperDeep],
+      [1, '#4a1f0c'],
+    ]), C.soot, 5);
+    // The fold and its stitching.
+    seg(ctx, -64, 6, 64, 6, 'rgba(0, 0, 0, 0.45)', 4);
+    ctx.setLineDash([5, 6]);
+    rrect(ctx, -56, -12, 112, 68, 7);
+    ctx.strokeStyle = 'rgba(237, 229, 211, 0.55)';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    seg(ctx, -52, 20, -48, 50, 'rgba(255, 220, 190, 0.35)', 3);
+    ctx.restore();
+  },
+
+  magpie(ctx) {
+    // A magpie in black and white with a stolen coin in its beak.
+    ctx.save();
+    ctx.translate(-6, 4);
+    ctx.scale(1.12, 1.12);
+    const body = new Path2D();
+    body.moveTo(-70, 40);
+    body.lineTo(-30, 12);
+    body.bezierCurveTo(-20, -30, 20, -50, 40, -40);
+    body.bezierCurveTo(56, -34, 58, -14, 46, -4);
+    body.bezierCurveTo(40, 30, 10, 48, -24, 34);
+    body.closePath();
+    ctx.strokeStyle = C.bone;
+    ctx.lineWidth = 9;
+    ctx.stroke(body);
+    ctx.fillStyle = '#16120f';
+    ctx.fill(body);
+    // White belly and wing bar.
+    ctx.beginPath();
+    ctx.moveTo(-14, 30);
+    ctx.bezierCurveTo(8, 34, 30, 22, 40, 2);
+    ctx.bezierCurveTo(24, 6, 2, 12, -14, 30);
+    fill(ctx, C.bone);
+    // Tail.
+    ctx.beginPath();
+    ctx.moveTo(-30, 14);
+    ctx.lineTo(-82, 64);
+    ctx.lineTo(-70, 70);
+    ctx.lineTo(-22, 30);
+    fill(ctx, '#16120f', C.bone, 3);
+    circle(ctx, 38, -26, 4.5);
+    fill(ctx, C.bone);
+    // The beak and the coin.
+    ctx.beginPath();
+    ctx.moveTo(52, -24);
+    ctx.lineTo(72, -14);
+    ctx.lineTo(52, -12);
+    fill(ctx, '#16120f', C.bone, 2.4);
+    circle(ctx, 72, 2, 15);
+    fill(ctx, brassFill(ctx, -13, 17), C.brassDeep, 3);
+    circle(ctx, 72, 2, 8);
+    ctx.strokeStyle = C.brassDeep;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  domino(ctx) {
+    // An ivory domino, double-four, standing on its corner.
+    ctx.save();
+    ctx.rotate(0.38);
+    rrect(ctx, -34, -70, 68, 140, 12);
+    fill(ctx, linear(ctx, -34, 0, 34, 0, [
+      [0, '#cdbd9c'],
+      [0.4, '#f6efe0'],
+      [1, '#9c8b6e'],
+    ]), C.soot, 6);
+    seg(ctx, -26, 0, 26, 0, C.soot, 4);
+    const pips = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    for (const cy of [-35, 35]) {
+      for (const [px, py] of pips) {
+        circle(ctx, px * 15, cy + py * 15, 7);
+        fill(ctx, cy < 0 ? C.blood : C.soot);
+      }
+    }
+    seg(ctx, -26, -60, -26, 60, 'rgba(255, 255, 250, 0.6)', 3);
+    ctx.restore();
+  },
+
+  four_leaf_clover(ctx) {
+    // A clover pressed in brass (green is the House's colour, not ours).
+    seg(ctx, 4, 12, 26, 78, C.brassDeep, 12);
+    seg(ctx, 4, 12, 26, 78, C.brass, 6);
+    for (let i = 0; i < 4; i++) {
+      ctx.save();
+      ctx.rotate(i * (Math.PI / 2) + Math.PI / 4);
+      const leaf = new Path2D();
+      leaf.moveTo(0, 0);
+      leaf.bezierCurveTo(-30, -14, -40, -52, -16, -58);
+      leaf.bezierCurveTo(-6, -60, -1, -52, 0, -44);
+      leaf.bezierCurveTo(1, -52, 6, -60, 16, -58);
+      leaf.bezierCurveTo(40, -52, 30, -14, 0, 0);
+      ctx.strokeStyle = C.brassDeep;
+      ctx.lineWidth = 6;
+      ctx.stroke(leaf);
+      ctx.fillStyle = brassFill(ctx, -60, 0);
+      ctx.fill(leaf);
+      seg(ctx, 0, -6, 0, -40, 'rgba(106, 74, 31, 0.8)', 2.4);
+      ctx.restore();
+    }
+    circle(ctx, 0, 0, 7);
+    fill(ctx, C.brassLight, C.brassDeep, 2);
+  },
+
+  holy_water(ctx) {
+    // A glass vial with a brass stopper, a cross etched in it.
+    ctx.fillStyle = radial(ctx, 0, 20, 4, 0, 20, 70, [
+      [0, 'rgba(210, 228, 255, 0.28)'],
+      [1, 'rgba(210, 228, 255, 0)'],
+    ]);
+    circle(ctx, 0, 20, 70);
+    ctx.fill();
+    const vial = new Path2D();
+    vial.moveTo(-14, -52);
+    vial.lineTo(-14, -30);
+    vial.bezierCurveTo(-50, -18, -54, 62, 0, 70);
+    vial.bezierCurveTo(54, 62, 50, -18, 14, -30);
+    vial.lineTo(14, -52);
+    vial.closePath();
+    ctx.strokeStyle = C.soot;
+    ctx.lineWidth = 6;
+    ctx.stroke(vial);
+    ctx.fillStyle = linear(ctx, -50, 0, 50, 0, [
+      [0, 'rgba(150, 170, 200, 0.85)'],
+      [0.4, 'rgba(232, 240, 252, 0.95)'],
+      [1, 'rgba(110, 125, 150, 0.85)'],
+    ]);
+    ctx.fill(vial);
+    // The water inside.
+    ctx.save();
+    ctx.clip(vial);
+    ctx.fillStyle = 'rgba(160, 196, 240, 0.55)';
+    ctx.fillRect(-60, 10, 120, 70);
+    ctx.restore();
+    seg(ctx, 0, 4, 0, 52, C.bone, 6);
+    seg(ctx, -14, 20, 14, 20, C.bone, 6);
+    rrect(ctx, -18, -72, 36, 22, 5);
+    fill(ctx, brassFill(ctx, -72, -50), C.brassDeep, 3);
+    seg(ctx, -30, 0, -26, 44, 'rgba(255, 255, 255, 0.8)', 3.4);
+  },
+
+  dowsing_rod(ctx) {
+    // A forked hazel twig, its point dipping toward something below.
+    const wood = linear(ctx, -60, 0, 60, 0, [
+      [0, '#6e3a18'],
+      [0.5, '#b27a44'],
+      [1, '#5a2c10'],
+    ]);
+    const twig = (pts, w) => {
+      line(ctx, pts, C.soot, w + 7);
+      line(ctx, pts, wood, w);
+    };
+    twig([[-64, -70], [-36, -28], [-8, 14]], 12);
+    twig([[64, -70], [36, -28], [-8, 14]], 12);
+    twig([[-8, 14], [-14, 46], [-24, 76]], 14);
+    // Knots and a brass ferrule at the point.
+    for (const [x, y] of [[-40, -34], [40, -34]]) {
+      circle(ctx, x, y, 4);
+      fill(ctx, '#3a1c08');
+    }
+    rrect(ctx, -32, 62, 18, 16, 3);
+    fill(ctx, brassFill(ctx, 62, 78), C.brassDeep, 3);
+    // It twitches.
+    for (const r of [14, 24]) {
+      ctx.beginPath();
+      ctx.arc(-23, 84, r, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.strokeStyle = 'rgba(237, 229, 211, 0.6)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  },
+
+  mousetrap(ctx) {
+    // A sprung-wire mousetrap on its board, a wedge of cheese as bait.
+    ctx.save();
+    ctx.rotate(-0.18);
+    rrect(ctx, -70, -24, 140, 66, 6);
+    fill(ctx, linear(ctx, 0, -24, 0, 42, [
+      [0, '#c78a52'],
+      [1, '#6e3a18'],
+    ]), C.soot, 5);
+    for (const y of [-6, 10, 26]) seg(ctx, -62, y, 62, y + 2, 'rgba(60, 28, 8, 0.4)', 2);
+    // The spring and its striker bar, set.
+    circle(ctx, -10, 8, 12);
+    ctx.strokeStyle = '#cfcac0';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    line(ctx, [[-10, -4], [-10, -66], [52, -66], [52, -4]], C.soot, 11);
+    line(ctx, [[-10, -4], [-10, -66], [52, -66], [52, -4]], '#d9d4ca', 5);
+    // The cheese.
+    ctx.beginPath();
+    ctx.moveTo(18, 30);
+    ctx.lineTo(60, 30);
+    ctx.lineTo(60, 6);
+    ctx.closePath();
+    fill(ctx, C.amber, C.amberDeep, 3);
+    for (const [x, y] of [[48, 22], [55, 14]]) {
+      circle(ctx, x, y, 3);
+      fill(ctx, C.amberDeep);
+    }
+    ctx.restore();
+  },
+
+  weathervane(ctx) {
+    // A brass cockerel on an arrow, over the four winds.
+    seg(ctx, 0, -10, 0, 80, C.soot, 10);
+    seg(ctx, 0, -10, 0, 80, C.brass, 5);
+    seg(ctx, -44, 56, 44, 56, C.soot, 8);
+    seg(ctx, -44, 56, 44, 56, C.brassDeep, 4);
+    // The arrow.
+    line(ctx, [[-70, 0], [64, 0]], C.soot, 10);
+    line(ctx, [[-70, 0], [64, 0]], C.brass, 5);
+    ctx.beginPath();
+    ctx.moveTo(78, 0);
+    ctx.lineTo(56, -14);
+    ctx.lineTo(56, 14);
+    ctx.closePath();
+    fill(ctx, brassFill(ctx, -14, 14), C.brassDeep, 3);
+    ctx.beginPath();
+    ctx.moveTo(-58, 0);
+    ctx.lineTo(-78, -16);
+    ctx.lineTo(-70, 0);
+    ctx.lineTo(-78, 16);
+    ctx.closePath();
+    fill(ctx, brassFill(ctx, -16, 16), C.brassDeep, 3);
+    // The cockerel.
+    const bird = new Path2D();
+    bird.moveTo(-34, -8);
+    bird.bezierCurveTo(-50, -40, -40, -66, -24, -60);
+    bird.bezierCurveTo(-10, -56, -6, -40, 4, -40);
+    bird.bezierCurveTo(10, -60, 30, -70, 34, -52);
+    bird.lineTo(44, -50);
+    bird.lineTo(36, -42);
+    bird.bezierCurveTo(36, -24, 20, -8, 4, -8);
+    bird.closePath();
+    ctx.strokeStyle = C.brassDeep;
+    ctx.lineWidth = 6;
+    ctx.stroke(bird);
+    ctx.fillStyle = brassFill(ctx, -70, -8);
+    ctx.fill(bird);
+    circle(ctx, 28, -54, 3);
+    fill(ctx, C.soot);
+    ctx.beginPath();
+    ctx.moveTo(26, -66);
+    ctx.lineTo(30, -76);
+    ctx.lineTo(34, -66);
+    fill(ctx, C.blood);
+  },
+
+  seesaw(ctx) {
+    // A plank over a fulcrum, tipped: the ball rolls to the other side.
+    ctx.beginPath();
+    ctx.moveTo(0, 6);
+    ctx.lineTo(-30, 64);
+    ctx.lineTo(30, 64);
+    ctx.closePath();
+    fill(ctx, brassFill(ctx, 6, 64), C.brassDeep, 4);
+    ctx.save();
+    ctx.translate(0, 2);
+    ctx.rotate(-0.3);
+    rrect(ctx, -82, -9, 164, 18, 5);
+    fill(ctx, linear(ctx, 0, -9, 0, 9, [
+      [0, '#c78a52'],
+      [1, '#6e3a18'],
+    ]), C.soot, 4);
+    // A red end and a black end, the two halves.
+    rrect(ctx, -82, -9, 34, 18, 5);
+    fill(ctx, C.blood, C.soot, 3);
+    rrect(ctx, 48, -9, 34, 18, 5);
+    fill(ctx, '#16120f', C.bone, 3);
+    ctx.restore();
+    circle(ctx, -46, -28, 15);
+    fill(ctx, radial(ctx, -51, -33, 2, -46, -28, 16, [
+      [0, '#ffffff'],
+      [1, '#a8a294'],
+    ]), C.soot, 3);
+  },
+
+  ouroboros(ctx) {
+    // A brass serpent swallowing its own tail.
+    ctx.beginPath();
+    ctx.arc(0, 0, 58, -Math.PI / 2 + 0.42, Math.PI * 1.5 - 0.1);
+    ctx.strokeStyle = C.soot;
+    ctx.lineWidth = 30;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.strokeStyle = linear(ctx, -60, -60, 60, 60, [
+      [0, C.brassLight],
+      [0.5, C.brass],
+      [1, '#7a5a26'],
+    ]);
+    ctx.lineWidth = 22;
+    ctx.stroke();
+    // Scales.
+    for (let i = 0; i < 22; i++) {
+      const a = -Math.PI / 2 + 0.55 + (i / 22) * (TAU - 0.8);
+      const x = Math.cos(a) * 58;
+      const y = Math.sin(a) * 58;
+      ctx.beginPath();
+      ctx.arc(x, y, 6, a + Math.PI * 0.6, a + Math.PI * 1.4);
+      ctx.strokeStyle = 'rgba(106, 74, 31, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    // The head, jaws round the tail.
+    ctx.save();
+    ctx.translate(18, -56);
+    ctx.rotate(0.35);
+    ellipse(ctx, 0, 0, 24, 17);
+    fill(ctx, brassFill(ctx, -17, 17), C.soot, 4);
+    circle(ctx, 4, -6, 4);
+    fill(ctx, C.blood);
+    ctx.restore();
+  },
+
+  thirteen_ball(ctx) {
+    // An ivory ball with an oxblood band and a 13 on its spot.
+    circle(ctx, 0, 0, 70);
+    fill(ctx, radial(ctx, -24, -26, 4, 0, 0, 72, [
+      [0, '#fffaf0'],
+      [0.6, '#e6dcc6'],
+      [1, '#8f8068'],
+    ]), C.soot, 5);
+    ctx.save();
+    circle(ctx, 0, 0, 68);
+    ctx.clip();
+    ctx.fillStyle = C.bloodDeep;
+    ctx.fillRect(-80, -30, 160, 60);
+    ctx.restore();
+    circle(ctx, 0, 0, 28);
+    fill(ctx, C.bone, C.soot, 3);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = typedFont(34);
+    ctx.fillStyle = C.ink;
+    ctx.fillText('13', 0, 2);
+    ellipse(ctx, -30, -40, 14, 8, -0.6);
+    fill(ctx, 'rgba(255, 255, 255, 0.6)');
+  },
+
+  black_cat(ctx) {
+    // A black cat, back arched, edged in bone so it shows on the dark.
+    const cat = new Path2D();
+    cat.moveTo(-70, 66);
+    cat.bezierCurveTo(-66, 30, -60, -10, -30, -24);
+    cat.bezierCurveTo(-6, -36, 20, -30, 34, -10);
+    cat.lineTo(40, -34);
+    cat.lineTo(46, -22);
+    cat.lineTo(56, -40);
+    cat.lineTo(60, -16);
+    cat.bezierCurveTo(70, 0, 62, 20, 48, 22);
+    cat.lineTo(52, 66);
+    cat.lineTo(38, 66);
+    cat.lineTo(34, 30);
+    cat.bezierCurveTo(10, 20, -20, 24, -36, 40);
+    cat.lineTo(-40, 66);
+    cat.closePath();
+    // The tail, curling up.
+    ctx.beginPath();
+    ctx.moveTo(-60, 30);
+    ctx.bezierCurveTo(-96, 10, -80, -50, -54, -56);
+    ctx.strokeStyle = C.bone;
+    ctx.lineWidth = 15;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.strokeStyle = '#100c0a';
+    ctx.lineWidth = 9;
+    ctx.stroke();
+    ctx.strokeStyle = C.bone;
+    ctx.lineWidth = 6;
+    ctx.stroke(cat);
+    ctx.fillStyle = '#100c0a';
+    ctx.fill(cat);
+    for (const x of [44, 56]) {
+      ellipse(ctx, x, -6, 4, 5.5);
+      fill(ctx, C.amber);
+      seg(ctx, x, -10, x, -2, C.soot, 1.6);
+    }
+  },
+
+  golden_ball(ctx) {
+    // A roulette ball of solid gold, throwing light.
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU + 0.13;
+      seg(ctx, Math.cos(a) * 64, Math.sin(a) * 64, Math.cos(a) * 82, Math.sin(a) * 82, 'rgba(240, 212, 148, 0.7)', 4);
+    }
+    circle(ctx, 0, 0, 56);
+    fill(ctx, radial(ctx, -20, -22, 4, 0, 0, 58, [
+      [0, '#fff6d6'],
+      [0.35, C.brassLight],
+      [0.75, C.brass],
+      [1, C.brassDeep],
+    ]), C.soot, 5);
+    ellipse(ctx, -20, -24, 16, 10, -0.6);
+    fill(ctx, 'rgba(255, 255, 255, 0.75)');
+  },
 };
 
 // Anything without a painter yet (a content id from a later phase): a plain

@@ -48,12 +48,16 @@ roadmap.
 ## Status
 
 Phases 1 (core loop), 2 (talismans, the Curio Cabinet, tokens and the Bell)
-and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done.
+and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done,
+plus twenty more talismans built ahead of Phase 4 at the owner's request
+(43 in all; doc 6.1, decisions 15–17), with pocket widths drawn live.
 Next is Phase 4: Madame Zero, fortunes (white and black cards), engravings and
-records. The best simulator bot pays debts 1–4 in about 99%, 70%, 29% and 10% of
-runs, inside the Phase 3 targets (see `npm run sim`). One point of Nudge is worth
-a lot (a straight-up's return grows with 2N + 1): re-run the sim after any luck
-change.
+records. The best simulator bot pays debts 1–4 in about 99%, 72%, 31% and 10% of
+runs, inside the Phase 3 targets (see `npm run sim`; `--old-pool` plays the
+Phase 3 pool, `--bot solo:a,b` hangs talismans from the first spin). One point
+of Nudge is worth a lot (a straight-up's return grows with 2N + 1), and a
+multiplier on one number pays a whole debt in a hit: re-run the sim after any
+luck or jackpot change.
 
 ## Commands
 
