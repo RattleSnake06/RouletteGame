@@ -119,6 +119,8 @@ const MIGRATIONS = {
  * saved run.
  */
 function tidy(state) {
+  // Stats added since the save was made start at zero.
+  if (Object.keys(newStats()).some((k) => state.stats?.[k] === undefined)) state = { ...state, stats: { ...newStats(), ...state.stats } };
   const unknown = state.rail.filter((t) => !getTalisman(t.id));
   const staleOffer = (x) => x.kind === 'talisman' && x.id && !getTalisman(x.id);
   const stale = state.cabinet.slots.some(staleOffer);

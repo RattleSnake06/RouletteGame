@@ -9,6 +9,8 @@ const DEFAULTS = {
   inCabinet: true,
   copyable: true,
   copies: null,
+  echoes: false,
+  instant: false,
   init: null,
   charges: null,
   bell: null,

@@ -12,6 +12,7 @@ import { neighbourIndex } from './wheel.js';
 //
 //   the Lean    spontaneous Nudge from the House, announced one spin early
 //   pity        after 5 misses in a row, +1, then +1 for each further miss
+//               (a Wind-Up Key starts it sooner)
 //   talismans   their `nudge` hooks (Rabbit's Foot, Compass...)
 
 // Tuned with the simulator (doc 9.8). One point of Nudge is worth a lot: it
@@ -70,11 +71,14 @@ export function rollNightLean(draft, spins) {
  */
 export function nextSpin(state) {
   if (state.phase === 'betting') {
-    if (state.spinsTonightGuessed) return { ofNight: null, ofDebt: state.debtSpins + 1 };
+    // The night's last spin is known even when its size is only a guess.
+    const last = state.spinsLeft === 1;
+    if (state.spinsTonightGuessed) return { ofNight: null, ofDebt: state.debtSpins + 1, last };
     const tonight = state.spinsTonight ?? state.spinsLeft;
-    return { ofNight: tonight - state.spinsLeft + 1, ofDebt: state.debtSpins + 1 };
+    return { ofNight: tonight - state.spinsLeft + 1, ofDebt: state.debtSpins + 1, last };
   }
-  return { ofNight: 1, ofDebt: state.debtSpins + 1 };
+  // Before a night is chosen its size is unknown, so no spin is its last yet.
+  return { ofNight: 1, ofDebt: state.debtSpins + 1, last: false };
 }
 
 /**
@@ -96,10 +100,10 @@ export function upcomingLean(state) {
   return strength;
 }
 
-/** Pity on the next spin, from the misses in a row so far. */
-export function pityFor(missStreak) {
-  if (missStreak < LUCK.pityAfter) return 0;
-  return LUCK.pityBase + LUCK.pityStep * (missStreak - LUCK.pityAfter);
+/** Pity on the next spin, from the misses in a row so far (it starts after `after` misses). */
+export function pityFor(missStreak, { after = LUCK.pityAfter } = {}) {
+  if (missStreak < after) return 0;
+  return LUCK.pityBase + LUCK.pityStep * (missStreak - after);
 }
 
 // --- Totals ------------------------------------------------------------------
@@ -107,16 +111,20 @@ export function pityFor(missStreak) {
 /**
  * The next spin's Nudge, with what restricts it. Pure; with `emit`, every
  * talisman that adds or restricts something emits a `trigger`.
- * Returns { total, lean, pity, charms, clockwise, straightOnly, pityBlocked, kind }.
+ * Returns { total, lean, pity, charms, clockwise, straightOnly, pityBlocked,
+ * pityAfter, blocked, anchors, kind }.
  */
 export function nudgeFor(state, emit = null) {
   const lean = upcomingLean(state);
-  const rawPity = pityFor(state.missStreak);
+  const basePity = pityFor(state.missStreak);
   const spin = nextSpin(state);
   let charms = 0;
   let clockwise = false;
   let straightOnly = false;
-  let pityBlocked = false;
+  let pityAfter = LUCK.pityAfter;
+  let pityBlocker = null;
+  let blocked = false;
+  const anchors = [];
   for (const src of sources(state)) {
     const fn = src.as.hooks?.nudge;
     if (!fn) continue;
@@ -125,7 +133,7 @@ export function nudgeFor(state, emit = null) {
       state,
       self: src.self,
       lean,
-      pity: rawPity,
+      pity: basePity,
       spin,
       addNudge(n) {
         if (n <= 0) return;
@@ -141,17 +149,33 @@ export function nudgeFor(state, emit = null) {
         trigger('straightOnly');
       },
       noPity() {
-        pityBlocked = true;
-        if (rawPity > 0) trigger('noPity', { amount: rawPity });
+        // Shown once every talisman has had its say (pity may start sooner).
+        pityBlocker ??= trigger;
+      },
+      pityAfter(n) {
+        if (n >= pityAfter) return;
+        pityAfter = n;
+        if (state.missStreak >= n) trigger('pityAfter', { amount: n });
+      },
+      noNudge() {
+        blocked = true;
+        trigger('noNudge');
+      },
+      // A passive hold, shown on no spin: it only matters when the ball lands there.
+      anchor(number) {
+        if (!anchors.includes(number)) anchors.push(number);
       },
     });
   }
-  const pity = pityBlocked ? 0 : rawPity;
-  const total = lean + pity + charms;
+  const rawPity = pityFor(state.missStreak, { after: pityAfter });
+  if (pityBlocker && rawPity > 0) pityBlocker('noPity', { amount: rawPity });
+  const pity = pityBlocker ? 0 : rawPity;
+  // A blocked spin (the Black Cat crossing) has no Nudge at all, the House's included.
+  const total = blocked ? 0 : lean + pity + charms;
   // What the hops look like on screen: a Lean's warm spark, pity's cold one,
   // or the brass of a talisman's own luck.
   const kind = lean > 0 ? 'lean' : pity > 0 ? 'pity' : 'charm';
-  return { total, lean, pity, charms, clockwise, straightOnly, pityBlocked, kind };
+  return { total, lean, pity, charms, clockwise, straightOnly, pityBlocked: !!pityBlocker, pityAfter, blocked, anchors, kind };
 }
 
 // --- Hops --------------------------------------------------------------------
@@ -183,6 +207,8 @@ export function nudgeBall(state, landings, ball, luck) {
   const reach = Math.min(luck.total, luck.clockwise ? n - 1 : Math.floor(n / 2));
   if (reach <= 0) return null;
   const from = landings[ball].pocketIndex;
+  // An anchored number holds the ball (the Thirteen Ball on 13).
+  if (luck.anchors?.includes(state.wheel.pockets[from].number)) return null;
   const allowed = luck.straightOnly ? straightPockets(state) : null;
   const at = (idx) => landings.map((l, i) => (i === ball ? { ...l, pocketIndex: idx } : l));
   let best = { idx: from, steps: 0, score: scoreOf(evaluate(state, landings)) };

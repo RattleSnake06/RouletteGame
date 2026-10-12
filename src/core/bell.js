@@ -3,6 +3,7 @@ import { srcRef } from './effects.js';
 import { add } from './num.js';
 import { Rng } from './rng.js';
 import { drawPocket } from './wheel.js';
+import { liveWheel } from './widths.js';
 
 // The Bell (doc 5.8): a brass service bell that wakes active talismans. One
 // ring wakes one talisman, the leftmost that can answer. Ringing at a
@@ -60,7 +61,7 @@ export function ringBell(draft, uid, emit) {
       // The next landing is drawn now and kept: the next spin uses it instead
       // of drawing, so the wheel stream ends up where it would have anyway.
       const rng = new Rng(draft.rng.wheel);
-      const pocketIndex = drawPocket(draft.wheel, rng);
+      const pocketIndex = drawPocket(liveWheel(draft), rng);
       draft.rng.wheel = rng.state();
       draft.foreseen = { pocketIndex, by: target.uid };
       const p = draft.wheel.pockets[pocketIndex];

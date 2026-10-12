@@ -118,7 +118,9 @@ export function evaluate(state, landings) {
           hitMult: hit.mult,
           mult: 1,
         };
-        const lineCtx = { state, ball, landing, hit, chip, bet, factors };
+        // Chips that already paid this spin, this one aside (the Domino counts them).
+        const paidBefore = firstLineSeen.size - (firstLineSeen.has(chip.id) ? 1 : 0);
+        const lineCtx = { state, ball, landing, hit, chip, bet, factors, paidBefore };
         const at = { ball, chipId: chip.id };
         for (const src of srcs) {
           const h = src.as.hooks;

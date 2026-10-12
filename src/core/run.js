@@ -4,7 +4,7 @@ import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabin
 import { getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
-import { interestRateFor, lifecycle } from './effects.js';
+import { commitCtx, interestRateFor, lifecycle } from './effects.js';
 import { add, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
 import { resolveSpin } from './resolve.js';
@@ -96,6 +96,7 @@ export function newStats() {
     leans: 0,
     hops: 0,
     devils: 0,
+    wards: 0,
   };
 }
 
@@ -128,9 +129,9 @@ function beginDebt(s, emit) {
     const def = getTalisman(inst.id);
     if (!def?.charges || def.charges.refill !== 'debt') continue;
     // A charge whose effect is still waiting (a foreseen landing, an armed
-    // throw) is not refilled, so it cannot be carried into a second use; the
-    // others are.
-    const pending = s.foreseen?.by === inst.uid || s.armed.rethrow?.by === inst.uid;
+    // throw, a twitching rod) is not refilled, so it cannot be carried into a
+    // second use; the others are.
+    const pending = s.foreseen?.by === inst.uid || s.armed.rethrow?.by === inst.uid || !!inst.data?.armed;
     const cap = def.charges.max - (pending ? 1 : 0);
     if (inst.charges >= cap) continue;
     inst.charges = cap;
@@ -193,9 +194,10 @@ export function act(state, action) {
 export function grantTalisman(state, id) {
   const def = getTalisman(id);
   if (!def) throw new Error(`Unknown talisman: ${id}`);
-  if (state.rail.length >= state.railHooks) throw new Error('No free hook on the rail');
+  if (!def.instant && state.rail.length >= state.railHooks) throw new Error('No free hook on the rail');
   const s = copyRun(state);
-  hang(s, def, def.cursed ? 0 : priceOf(def.rarity), noEvents);
+  if (def.instant) openInstant(s, def, priceOf(def.rarity), noEvents);
+  else hang(s, def, def.cursed ? 0 : priceOf(def.rarity), noEvents);
   s.cabinet.slots = s.cabinet.slots.map((x) => (x.kind === 'talisman' && x.id === id ? { kind: 'talisman', id: null, sold: true } : x));
   return s;
 }
@@ -211,6 +213,19 @@ function hang(s, def, price, emit) {
   s.nextUid += 1;
   s.rail = [...s.rail, inst];
   lifecycle(s, 'purchased', emit, (src) => ({ item: inst, isSelf: src.inst === inst }));
+  return inst;
+}
+
+/**
+ * An instant talisman (the Lost Wallet) acts the moment it is bought and
+ * never takes a hook: its `purchased` hook runs on an instance that is never
+ * hung.
+ */
+function openInstant(s, def, price, emit) {
+  const inst = { uid: `t${s.nextUid}`, id: def.id, price, data: def.init?.() ?? {}, charges: null };
+  s.nextUid += 1;
+  const src = { index: -1, inst, def, as: def, self: inst.data, by: null };
+  def.hooks.purchased?.(commitCtx(s, src, emit, 'purchased', { item: inst, isSelf: true }));
   return inst;
 }
 
@@ -380,12 +395,13 @@ const HANDLERS = {
     const def = offer.kind === 'talisman' && offer.id ? getTalisman(offer.id) : null;
     if (!def) return reject(state, 'That compartment is empty.', 'soldOut');
     const price = priceOf(def.rarity);
+    if (def.instant && sellUid) return reject(state, 'It needs no hook.', 'noHookNeeded');
     const selling = sellUid ? state.rail.find((t) => t.uid === sellUid) : null;
     if (sellUid && !selling) throw new Error(`Unknown talisman: ${sellUid}`);
     if (selling && isCursed(selling)) return reject(state, 'It will not come off the hook.', 'cursed');
     const refund = selling ? sellValueOf(selling.price) : 0;
     if (state.tokens + refund < price) return reject(state, 'Not enough tokens.', 'noTokens');
-    if (state.rail.length - (selling ? 1 : 0) >= state.railHooks) {
+    if (!def.instant && state.rail.length - (selling ? 1 : 0) >= state.railHooks) {
       return reject(state, 'No free hook. Sell a talisman first.', 'railFull');
     }
 
@@ -398,8 +414,8 @@ const HANDLERS = {
     s.stats.talismansBought += 1;
     s.cabinet.slots[slot] = { kind: 'talisman', id: null, sold: true };
     const before = events.length;
-    const inst = hang(s, def, price, emit);
-    events.splice(before, 0, { type: 'bought', slot, uid: inst.uid, id: def.id, price });
+    const inst = def.instant ? openInstant(s, def, price, emit) : hang(s, def, price, emit);
+    events.splice(before, 0, { type: 'bought', slot, uid: inst.uid, id: def.id, price, instant: def.instant });
     return { state: s, events };
   },
 

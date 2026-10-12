@@ -1,5 +1,6 @@
 import { getTalisman } from './content/index.js';
 import { add } from './num.js';
+import { hashSeed } from './rng.js';
 
 // Hook dispatch (design doc 9.7). Content never writes state: a hook calls
 // methods on its ctx, and every method that changes something emits one
@@ -11,18 +12,22 @@ import { add } from './num.js';
 //     hits        per ball            ctx.addHit({ pocketIndex, mult, betKinds })
 //     ballLanded  per ball            ctx.bonusCoins(n), ctx.bonusTokens(n)
 //     covers      per uncovered chip  ctx.cover()
-//     chipStake   per paying line     ctx.addStake(n)
+//     chipStake   per paying line     ctx.addStake(n); every line hook reads ctx.paidBefore
 //     chipOdds    per paying line     ctx.addOdds(n), ctx.addOddsMult(n)
 //     chipMult    per paying line     ctx.mul(x)
 //     chipPaid    per paying line     ctx.addChipValue(n), ctx.bonusCoins(n), ctx.bonusTokens(n)
 //     chipLost    per losing chip     ctx.bonusCoins(n), ctx.bonusTokens(n)
-//   pure luck (nudge.js, devil.js; also shown before the spin):
+//   pure luck (nudge.js, devil.js, widths.js; also shown before the spin):
 //     nudge        per spin           ctx.addNudge(n), ctx.clockwiseOnly(), ctx.straightOnly(),
-//                                     ctx.noPity(); reads ctx.lean, ctx.pity, ctx.spin
+//                                     ctx.noPity(), ctx.pityAfter(n), ctx.noNudge(), ctx.anchor(number);
+//                                     reads ctx.lean, ctx.pity, ctx.spin
 //     devilChance  per spin           ctx.addChance(p), ctx.mulChance(x)
+//     widths       per spin           ctx.widen(test, amount): pockets passing test(pocket) grow
 //   commit (applied to the draft at once):
 //     runStart, debtStart, roundStart, beforeSpin, afterSpin, roundEnd,
-//     debtPaid, purchased, sold       ctx.gainCoins(n), ctx.gainTokens(n), ctx.setData(k, v)
+//     debtPaid, purchased, sold       ctx.gainCoins(n), ctx.gainTokens(n), ctx.setData(k, v),
+//                                     ctx.destroySelf(reason)
+//     ward (resolve.js)               the Devil fired: the first ward turns him away
 //     interestRate (endNight)         ctx.addRate(r)
 //     bell (def.bell.ring, bell.js)   see bell.js
 //
@@ -31,11 +36,13 @@ import { add } from './num.js';
 /**
  * The things that act, in order. Phase 2 has only the rail, left to right.
  * Later groups slot in ahead of it: chip material, pocket enhancement, record.
- * Each source: { index, inst, def, as, self }
- *   inst  the rail instance that acts (what shakes on screen)
+ * Each source: { index, inst, def, as, self, by }
+ *   inst  the rail instance that acts (whose data it reads and writes)
  *   def   its own definition
  *   as    the definition whose hooks run (differs when Twin Mirrors copies)
  *   self  the instance data the hooks read
+ *   by    a Tuning Fork echoing it: the source runs again, straight after
+ *         itself, and the fork is what shakes on screen
  */
 export function sources(state) {
   const out = [];
@@ -43,17 +50,32 @@ export function sources(state) {
   for (let i = 0; i < rail.length; i++) {
     const inst = rail[i];
     const def = getTalisman(inst.id);
-    if (!def) continue;
+    // A fork never acts on its own, only through the talisman to its left.
+    if (!def || def.echoes) continue;
     let as = def;
     let self = inst.data;
     if (def.copies === 'right') {
       as = copyTarget(rail, i);
       if (!as) continue; // nothing to copy: the mirror stays dark
       self = inst.data.copy?.[as.id] ?? as.init?.() ?? {};
+      if (self.gone) continue; // a copy that was used up stays dark
     }
-    out.push({ index: i, inst, def, as, self });
+    const src = { index: i, inst, def, as, self, by: null };
+    out.push(src);
+    // Each fork to its right triggers it again; forks pass through forks.
+    for (let j = i + 1; j < rail.length && getTalisman(rail[j].id)?.echoes; j++) out.push({ ...src, by: rail[j] });
   }
   return out;
+}
+
+/** What a Tuning Fork at `index` echoes: the definition that would run again, or null. */
+export function echoTarget(rail, index) {
+  let j = index - 1;
+  while (j >= 0 && getTalisman(rail[j].id)?.echoes) j--;
+  if (j < 0) return null;
+  const def = getTalisman(rail[j].id);
+  if (!def) return null;
+  return def.copies === 'right' ? copyTarget(rail, j) : def;
 }
 
 /** What a Twin Mirrors at `index` copies: the next non-mirror to its right, if copyable. */
@@ -64,7 +86,16 @@ export function copyTarget(rail, index) {
   return target && target.copyable !== false ? target : null;
 }
 
-export const srcRef = (src) => ({ uid: src.inst.uid, id: src.def.id, as: src.as.id });
+/** How an event names its source: the instance that shakes, and whose hooks ran. */
+export const srcRef = (src) => (src.by ? { uid: src.by.uid, id: src.by.id, as: src.as.id, echo: src.inst.uid } : { uid: src.inst.uid, id: src.def.id, as: src.as.id });
+
+/**
+ * A number in [0, 1) fixed by the run's seed, the spin about to happen and
+ * `salt`. Pure, so an omen can be shown before the spin and replays exactly.
+ */
+export function omen(state, salt) {
+  return hashSeed(`${state.seed}|${state.stats.spins}|${salt}`)[0] / 4294967296;
+}
 
 function writeData(src, key, value) {
   if (src.as === src.def) {
@@ -96,6 +127,21 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
       writeData(src, key, value);
       trigger('data', { key, amount: value });
     },
+    /**
+     * The talisman is used up (crumbled, wilted, shattered) and leaves the
+     * rail. A Twin Mirrors' copy cannot take the mirror with it: the copy
+     * goes dark instead (`self.gone`) and the mirror stays on its hook.
+     */
+    destroySelf(reason = 'spent') {
+      if (src.as !== src.def) {
+        writeData(src, 'gone', true);
+        trigger('gone', { reason });
+        return;
+      }
+      if (!draft.rail.includes(src.inst)) return;
+      draft.rail = draft.rail.filter((t) => t !== src.inst);
+      emit({ type: 'talismanDestroyed', uid: src.inst.uid, id: src.inst.id, reason, by: src.by?.uid ?? null });
+    },
   };
 }
 
@@ -106,8 +152,10 @@ export function lifecycle(draft, hook, emit, extra = {}) {
   for (const src of sources(draft)) {
     const fn = src.as.hooks?.[hook];
     if (!fn) continue;
-    // A copy echoes effects, never the purchase or sale of the original.
-    if (OWN_ONLY.has(hook) && src.as !== src.def) continue;
+    // A talisman used up earlier in this pass (and its echoes) is gone.
+    if (!draft.rail.includes(src.inst)) continue;
+    // A copy or an echo repeats effects, never the purchase or sale of the original.
+    if (OWN_ONLY.has(hook) && (src.as !== src.def || src.by)) continue;
     const more = typeof extra === 'function' ? extra(src) : extra;
     fn(commitCtx(draft, src, emit, hook, more));
   }

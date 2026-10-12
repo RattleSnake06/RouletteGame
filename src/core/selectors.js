@@ -3,13 +3,14 @@ import { betCovers, getBet } from './bets.js';
 import { getTalisman } from './content/index.js';
 import { RARITY, priceOf, sellValueOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
-import { copyTarget } from './effects.js';
+import { copyTarget, echoTarget, sources } from './effects.js';
 import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
 import { nextRestockCost } from './run.js';
 import { restockCost } from './economy.js';
 import { gte } from './num.js';
+import { liveWheel } from './widths.js';
 
 // Pure read models for the view and the sim. Nothing here changes state.
 
@@ -19,6 +20,7 @@ export function railView(state) {
     const def = getTalisman(inst.id);
     const mirror = def?.copies === 'right';
     const target = mirror ? copyTarget(state.rail, index) : null;
+    const echo = def?.echoes ? echoTarget(state.rail, index) : null;
     return {
       uid: inst.uid,
       id: inst.id,
@@ -31,7 +33,9 @@ export function railView(state) {
       cursed: !!def?.cursed,
       sellValue: def?.cursed ? null : sellValueOf(inst.price),
       copying: target?.id ?? null,
-      dim: mirror && !target,
+      echoing: echo?.id ?? null,
+      // A fork with nothing to its left that has hooks to repeat stays dark too.
+      dim: (mirror && (!target || !!inst.data.copy?.[target.id]?.gone)) || (!!def?.echoes && !Object.keys(echo?.hooks ?? {}).length),
       active: !!def?.bell,
       targetOnly: !!def?.bell?.targetOnly,
       usable: canAnswer(state, inst),
@@ -57,7 +61,7 @@ export function rarityOdds(state = null) {
 }
 
 export function cabinetView(state) {
-  const hookFree = state.rail.length < state.railHooks;
+  const railFree = state.rail.length < state.railHooks;
   return {
     slots: state.cabinet.slots.map((offer, slot) => {
       if (offer.kind !== 'talisman') return { slot, kind: offer.kind, shut: !!offer.shut };
@@ -75,7 +79,9 @@ export function cabinetView(state) {
         sold: false,
         affordable: state.tokens >= price,
         short: Math.max(0, price - state.tokens),
-        hookFree,
+        // An instant talisman never takes a hook, so a full rail never stops it.
+        hookFree: railFree || def.instant,
+        instant: def.instant,
       };
     }),
     restockCost: nextRestockCost(state),
@@ -98,8 +104,26 @@ export function luckView(state) {
     ...nudge,
     charmSources: charms,
     missStreak: state.missStreak,
-    devil: { live: devilLive(state), chance, sources: devil, firedThisDebt: state.devil.firedThisDebt },
+    devil: {
+      live: devilLive(state),
+      chance,
+      sources: devil,
+      firedThisDebt: state.devil.firedThisDebt,
+      // The talisman that would turn him away (Holy Water), if any.
+      ward: sources(state).find((src) => src.as.hooks?.ward)?.inst.uid ?? null,
+    },
   };
+}
+
+/**
+ * The wheel as the ball meets it, for the view: each pocket's number, colour,
+ * live width (talismans included) and chance, in wheel order.
+ */
+export function wheelView(state) {
+  const { pockets } = liveWheel(state);
+  let total = 0;
+  for (const p of pockets) total += p.width;
+  return pockets.map((p) => ({ number: p.number, color: p.color, width: p.width, chance: p.width / total }));
 }
 
 export function bellView(state) {

@@ -1,11 +1,15 @@
 import { getBet } from '../bets.js';
 import { devilLive } from '../devil.js';
-import { add, format, gt, mul } from '../num.js';
+import { ECONOMY, interestOn, owedFor } from '../economy.js';
+import { interestRateFor, omen } from '../effects.js';
+import { add, format, gt, mul, mulFloor } from '../num.js';
+import { upcomingLean } from '../nudge.js';
 import { neighbourIndex } from '../wheel.js';
 
-// The talismans (design doc 6.1): the first fifteen from Phase 2, then the
-// luck and Devil items of Phase 3. Each is data plus hooks; src/core/effects.js,
-// payout.js, nudge.js and devil.js decide when the hooks run.
+// The talismans (design doc 6.1): the first fifteen from Phase 2, the luck
+// and Devil items of Phase 3, then twenty more for variety and combos. Each
+// is data plus hooks; src/core/effects.js, payout.js, nudge.js, devil.js and
+// widths.js decide when the hooks run.
 //
 //   rarity     common | uncommon | rare | legendary | cursed
 //   cursed     true: never offered by the Cabinet, and it cannot be sold
@@ -13,6 +17,8 @@ import { neighbourIndex } from '../wheel.js';
 //   tags       build families (the sim's bots and, later, the Almanac)
 //   copyable   false: Twin Mirrors cannot copy it
 //   copies     'right' for Twin Mirrors
+//   echoes     true for the Tuning Fork: the talisman to its left acts again
+//   instant    true: acts when bought and never takes a hook (Lost Wallet)
 //   init       () => instance data
 //   charges    { max, refill: 'debt' } for Bell actives
 //   bell       { targetOnly?, usable(ctx), ring(ctx) }
@@ -25,6 +31,20 @@ import { neighbourIndex } from '../wheel.js';
 const greenZero = (pocket) => pocket.color === 'green';
 const asleep = (state) => (devilLive(state) ? null : 'The Devil is not here yet.');
 const hasStraight = (state) => state.chips.some((c) => state.placements[c.id] && getBet(state.placements[c.id]).kind === 'straight');
+const isEven = (pocket) => pocket.number !== 0 && pocket.number % 2 === 0;
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** The last spin, unless the Devil took it (a burned number counts for nothing). */
+const lastSpin = (state) => {
+  const h = state.history[state.history.length - 1];
+  return h && !h.devil ? h : null;
+};
+const half = (n) => (n >= 1 && n <= 18 ? 'low' : n >= 19 ? 'high' : null);
+/** What the Beckoning Cat would pay: tonight's interest on the Cage, at tonight's rate. */
+const catInterest = (state) => interestOn(state.deposited, interestRateFor(state, ECONOMY.interestRate));
+const CLOVER = { chance: 0.25, nudge: 3, blooms: 6 };
+const inBloom = (state) => omen(state, 'four_leaf_clover') < CLOVER.chance;
+/** The Black Cat crosses your path on every 13th spin of the run. */
+const catCrosses = (state) => (state.stats.spins + 1) % 13 === 0;
 
 export const TALISMAN_LIST = [
   {
@@ -349,6 +369,310 @@ export const TALISMAN_LIST = [
       nudge(ctx) {
         if (ctx.lean > 0) ctx.addNudge(ctx.lean);
         ctx.noPity();
+      },
+    },
+  },
+
+  // --- More talismans: variety and combos (append only) -----------------------
+  {
+    id: 'tuning_fork',
+    name: 'Tuning Fork',
+    rarity: 'rare',
+    tags: ['combo'],
+    text: 'Triggers the talisman to its left again (not Bell abilities).',
+    echoes: true,
+    copyable: false,
+  },
+  {
+    id: 'brass_scales',
+    name: 'Brass Scales',
+    rarity: 'uncommon',
+    tags: ['even', 'wheel'],
+    text: 'Even pockets are half again as wide, so even numbers land more often.',
+    hooks: {
+      widths(ctx) {
+        ctx.widen(isEven, 0.5);
+      },
+    },
+  },
+  {
+    id: 'string_of_pearls',
+    name: 'String of Pearls',
+    rarity: 'uncommon',
+    tags: ['even', 'scaling'],
+    text: 'Chips on Even: +1 Odds, and +1 more for every even number that lands.',
+    init: () => ({ pearls: 0 }),
+    status: (data) => `${plural(data.pearls, 'pearl')} strung: Even +${1 + data.pearls} Odds`,
+    hooks: {
+      chipOdds(ctx) {
+        if (ctx.bet.kind === 'even') ctx.addOdds(1 + ctx.self.pearls);
+      },
+      afterSpin(ctx) {
+        const n = ctx.result.devil ? 0 : ctx.result.balls.filter(isEven).length;
+        if (n) ctx.setData('pearls', ctx.self.pearls + n);
+      },
+    },
+  },
+  {
+    id: 'wind_up_key',
+    name: 'Wind-Up Key',
+    rarity: 'common',
+    tags: ['luck', 'inside'],
+    text: 'Pity starts after 2 misses in a row, not 5.',
+    hooks: {
+      nudge(ctx) {
+        ctx.pityAfter(2);
+      },
+    },
+  },
+  {
+    id: 'hamsa',
+    name: 'Hamsa',
+    rarity: 'common',
+    tags: ['luck', 'timing'],
+    text: "The night's last spin: +3 Nudge.",
+    hooks: {
+      nudge(ctx) {
+        if (ctx.spin.last) ctx.addNudge(3);
+      },
+    },
+  },
+  {
+    id: 'beckoning_cat',
+    name: 'Beckoning Cat',
+    rarity: 'uncommon',
+    tags: ['economy', 'outside'],
+    text: "When 3 or more chips win on one spin, the Cage pays tonight's interest early, as coins.",
+    status: (data, state) => (gt(catInterest(state), 0) ? `would pay ${format(catInterest(state))}` : 'Nothing in the Cage to earn on.'),
+    hooks: {
+      afterSpin(ctx) {
+        if (ctx.result.devil) return;
+        if (new Set(ctx.result.lines.map((l) => l.chipId)).size < 3) return;
+        const coins = catInterest(ctx.state);
+        if (gt(coins, 0)) ctx.gainCoins(coins);
+      },
+    },
+  },
+  {
+    id: 'grandmothers_purse',
+    name: "Grandmother's Purse",
+    rarity: 'common',
+    tags: ['economy'],
+    text: 'The Cage pays 12% more interest, 2% less each night. It crumbles when empty.',
+    init: () => ({ rate: 0.12 }),
+    status: (data) => `+${Math.round(data.rate * 100)}% tonight`,
+    hooks: {
+      interestRate(ctx) {
+        if (ctx.self.rate > 0) ctx.addRate(ctx.self.rate);
+      },
+      roundEnd(ctx) {
+        const rate = Math.round((ctx.self.rate - 0.02) * 1e6) / 1e6;
+        if (rate <= 0) ctx.destroySelf('crumbled');
+        else ctx.setData('rate', rate);
+      },
+    },
+  },
+  {
+    id: 'lost_wallet',
+    name: 'Lost Wallet',
+    rarity: 'common',
+    tags: ['economy'],
+    text: 'Needs no hook. When bought, it holds coins worth a fifth of this debt.',
+    instant: true,
+    copyable: false,
+    hooks: {
+      purchased(ctx) {
+        if (ctx.isSelf) ctx.gainCoins(mulFloor(owedFor(ctx.state.debt), 0.2));
+      },
+    },
+  },
+  {
+    id: 'magpie',
+    name: 'Magpie',
+    rarity: 'uncommon',
+    tags: ['tokens', 'scaling'],
+    text: 'Winning chips: +1 Stake for every 5 tokens you hold.',
+    status: (data, state) => `+${Math.floor(state.tokens / 5)} Stake with ${plural(state.tokens, 'token')}`,
+    hooks: {
+      chipStake(ctx) {
+        const n = Math.floor(ctx.state.tokens / 5);
+        if (n > 0) ctx.addStake(n);
+      },
+    },
+  },
+  {
+    id: 'domino',
+    name: 'Domino',
+    rarity: 'uncommon',
+    tags: ['outside', 'colour'],
+    text: 'Each winning chip: +1 Stake for every chip that paid before it this spin.',
+    hooks: {
+      chipStake(ctx) {
+        if (ctx.paidBefore > 0) ctx.addStake(ctx.paidBefore);
+      },
+    },
+  },
+  {
+    id: 'four_leaf_clover',
+    name: 'Four-Leaf Clover',
+    rarity: 'common',
+    tags: ['luck'],
+    text: 'Blooms on about 1 spin in 4, shown before you bet: +3 Nudge. Wilts after 6 blooms.',
+    init: () => ({ blooms: 0 }),
+    status: (data, state) => `${inBloom(state) ? 'In bloom for the next spin. ' : ''}${plural(CLOVER.blooms - data.blooms, 'bloom')} left`,
+    hooks: {
+      nudge(ctx) {
+        if (inBloom(ctx.state)) ctx.addNudge(CLOVER.nudge);
+      },
+      afterSpin(ctx) {
+        if (!inBloom(ctx.state)) return;
+        const blooms = ctx.self.blooms + 1;
+        if (blooms >= CLOVER.blooms) ctx.destroySelf('wilted');
+        else ctx.setData('blooms', blooms);
+      },
+    },
+  },
+  {
+    id: 'holy_water',
+    name: 'Holy Water',
+    rarity: 'uncommon',
+    tags: ['safety'],
+    text: 'The first time the Devil fires, he is turned away. The vial shatters.',
+    status: (data, state) => asleep(state),
+    hooks: {
+      ward(ctx) {
+        ctx.destroySelf('shattered');
+      },
+    },
+  },
+  {
+    id: 'dowsing_rod',
+    name: 'Dowsing Rod',
+    rarity: 'rare',
+    tags: ['active', 'luck'],
+    text: 'Bell, twice a debt: +4 Nudge on the next spin.',
+    copyable: false,
+    charges: { max: 2, refill: 'debt' },
+    init: () => ({ armed: false }),
+    status: (data) => (data.armed ? 'twitching: +4 Nudge on the next spin' : null),
+    bell: {
+      usable: (ctx) => ctx.charges > 0 && !ctx.self.armed,
+      ring(ctx) {
+        ctx.spendCharge();
+        ctx.setData('armed', true);
+      },
+    },
+    hooks: {
+      nudge(ctx) {
+        if (ctx.self.armed) ctx.addNudge(4);
+      },
+      afterSpin(ctx) {
+        if (ctx.self.armed) ctx.setData('armed', false);
+      },
+    },
+  },
+  {
+    id: 'mousetrap',
+    name: 'Mousetrap',
+    rarity: 'common',
+    tags: ['inside', 'streaks'],
+    text: 'Winning chips: +1 Stake for each miss in a row before the win.',
+    status: (data, state) => (state.missStreak ? `set: +${state.missStreak} Stake` : 'not set yet'),
+    hooks: {
+      chipStake(ctx) {
+        if (ctx.state.missStreak > 0) ctx.addStake(ctx.state.missStreak);
+      },
+    },
+  },
+  {
+    id: 'weathervane',
+    name: 'Weathervane',
+    rarity: 'uncommon',
+    tags: ['timing', 'luck'],
+    text: "On a Lean's spin, chips pay ×3.",
+    status: (data, state) => (upcomingLean(state) > 0 ? 'turning: the next spin is a Lean' : null),
+    hooks: {
+      chipMult(ctx) {
+        if (upcomingLean(ctx.state) > 0) ctx.mul(3);
+      },
+    },
+  },
+  {
+    id: 'seesaw',
+    name: 'Seesaw',
+    rarity: 'uncommon',
+    tags: ['outside'],
+    text: 'Chips on 1–18 or 19–36 pay ×3 if the last spin landed in the other half.',
+    status: (data, state) => {
+      const side = lastSpin(state) && half(lastSpin(state).number);
+      return side ? `tips toward ${side === 'low' ? '19–36' : '1–18'}` : 'level';
+    },
+    hooks: {
+      chipMult(ctx) {
+        const was = lastSpin(ctx.state) && half(lastSpin(ctx.state).number);
+        if (was && (ctx.bet.kind === 'low' || ctx.bet.kind === 'high') && ctx.bet.kind !== was) ctx.mul(3);
+      },
+    },
+  },
+  {
+    id: 'ouroboros',
+    name: 'Ouroboros',
+    rarity: 'legendary',
+    tags: ['jackpot', 'inside', 'streaks'],
+    text: 'The same number twice in a row: chips pay ×6.',
+    status: (data, state) => (lastSpin(state) ? `waits for ${lastSpin(state).number}` : 'waits for a first number'),
+    hooks: {
+      chipMult(ctx) {
+        if (lastSpin(ctx.state)?.number === ctx.landing.number) ctx.mul(6);
+      },
+    },
+  },
+  {
+    id: 'thirteen_ball',
+    name: 'Thirteen Ball',
+    rarity: 'uncommon',
+    tags: ['jackpot', 'inside'],
+    text: 'When 13 lands, chips pay ×3, and Nudge never moves the ball off 13.',
+    hooks: {
+      nudge(ctx) {
+        ctx.anchor(13);
+      },
+      chipMult(ctx) {
+        if (ctx.landing.number === 13) ctx.mul(3);
+      },
+    },
+  },
+  {
+    id: 'black_cat',
+    name: 'Black Cat',
+    rarity: 'common',
+    tags: ['colour'],
+    text: 'Chips on Black pay ×2. Every 13th spin it crosses your path: no Nudge at all.',
+    status: (data, state) => {
+      const k = 13 - (state.stats.spins % 13);
+      return k === 1 ? 'crosses your path on the next spin' : `crosses your path in ${k} spins`;
+    },
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.bet.kind === 'black') ctx.mul(2);
+      },
+      nudge(ctx) {
+        if (catCrosses(ctx.state)) ctx.noNudge();
+      },
+    },
+  },
+  {
+    id: 'golden_ball',
+    name: 'Golden Ball',
+    rarity: 'legendary',
+    tags: ['risk'],
+    text: "Chips pay ×3. The Devil's chance +3%.",
+    hooks: {
+      chipMult(ctx) {
+        ctx.mul(3);
+      },
+      devilChance(ctx) {
+        ctx.addChance(0.03);
       },
     },
   },

@@ -1,18 +1,21 @@
 import { devilChanceFor, rollDevil } from './devil.js';
-import { lifecycle } from './effects.js';
+import { commitCtx, lifecycle, sources, srcRef } from './effects.js';
 import { nudgeFor, nudgeLandings } from './nudge.js';
 import { commitPlan, evaluate } from './payout.js';
 import { Rng } from './rng.js';
 import { recordLanding } from './tally.js';
 import { drawPocket } from './wheel.js';
+import { liveWheel } from './widths.js';
 
 // Settles one spin on a draft (doc 5.5). The outcome is decided here, before
 // anything is animated:
-//   1. beforeSpin hooks; total up Nudge (Lean + pity + talismans) and the
-//      Devil's chance
-//   2. land each ball           (a foreseen landing from the Glass Eye, else a draw)
+//   1. beforeSpin hooks; the live wheel's widths; total up Nudge (Lean +
+//      pity + talismans) and the Devil's chance
+//   2. land each ball           (a foreseen landing from the Glass Eye, else a
+//                                draw by the live widths)
 //   3. Nudge                    (each ball hops to the best reachable pocket)
-//   4. the Devil                (rolled after Nudge; if it fires, nothing pays
+//   4. the Devil                (rolled after Nudge; a ward such as Holy Water
+//                                turns him away once; otherwise nothing pays
 //                                and every coin in hand is lost)
 //   5. evaluate the payout      (pure)
 //   6. Wheel of Fortune         (an armed miss is thrown again: steps 2–5 anew)
@@ -30,6 +33,7 @@ const describe = (state, landings) =>
 /** Returns the spin's result summary; detail events go through `emit`. */
 export function resolveSpin(s, emit) {
   lifecycle(s, 'beforeSpin', emit);
+  const wheel = liveWheel(s, emit);
   const luck = nudgeFor(s, emit);
   const devilChance = devilChanceFor(s, emit);
 
@@ -45,12 +49,22 @@ export function resolveSpin(s, emit) {
         emit({ type: 'foreseenUsed', pocketIndex: foreseen.pocketIndex, by: foreseen.by });
         return { ball, pocketIndex: foreseen.pocketIndex };
       }
-      return { ball, pocketIndex: drawPocket(s.wheel, rng) };
+      return { ball, pocketIndex: drawPocket(wheel, rng) };
     });
     const { landings, hops } = nudgeLandings(s, landed, luck);
     for (const hop of hops) emit({ type: 'nudged', ...hop, nudge: luck.total, kind: luck.kind, first });
-    const devil = rollDevil(s, devilChance);
+    const devil = rollDevil(s, devilChance) && !warded(landings);
     return { landings, hops, devil, plan: devil ? null : evaluate(s, landings) };
+  };
+
+  /** The Devil fired: the first ward on the rail turns him away, and is used up. */
+  const warded = (landings) => {
+    const src = sources(s).find((x) => x.as.hooks?.ward);
+    if (!src) return false;
+    emit({ type: 'devilWarded', src: srcRef(src), ball: 0, pocketIndex: landings[0].pocketIndex });
+    src.as.hooks.ward(commitCtx(s, src, emit, 'ward'));
+    s.stats.wards = (s.stats.wards ?? 0) + 1;
+    return true;
   };
 
   let t = throwBalls(true);
