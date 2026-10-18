@@ -165,12 +165,15 @@ export class Game {
     clearTimeout(this.leanTimer);
     this.leanTimer = setTimeout(() => {
       this.leanTimer = null;
-      if (id !== this.runId || this.busy || !(luckView(this.state).lean > 0)) return;
+      const luck = luckView(this.state);
+      if (id !== this.runId || this.busy || !(luck.lean > 0)) return;
       this.audio.lean();
       this.hud.flavor(
         [
           ['The wheel creaks. ', 'dim'],
-          ['The House leans.', 'bone'],
+          ['The House leans', 'bone'],
+          // The Black Cat's crossing cancels it: no Nudge at all on that spin.
+          [luck.blocked ? ', but the Black Cat crosses your path.' : '.', 'dim'],
         ],
         2200,
       );
@@ -629,6 +632,8 @@ export class Game {
           [paid.satOut ? `Tokens (${plural(paid.satOut, 'night')} sat out)` : 'Tokens', `+${paid.rewardTokens}`, 'tok'],
           ['Coins for the next nights', `+${format(paid.rewardCoins)}`],
           ...(events.some((e) => e.type === 'chargesRefilled') ? [['Bell charges', 'refilled']] : []),
+          // The toast for a talisman used up at dawn is hidden under this modal.
+          ...events.filter((e) => e.type === 'talismanDestroyed').map((e) => [getTalisman(e.id)?.name ?? e.id, e.reason]),
         ],
         actions: [{ label: 'Continue', primary: true, onClick: () => this.syncAll() }],
       });
@@ -835,7 +840,10 @@ export class Game {
     for (const e of events) {
       if (e.type === 'trigger') this.rail.pulse(e.src.uid);
       if (e.type === 'trigger' && e.effect === 'armed') this.hud.toast(`${name} is armed: if the next spin pays nothing, the ball is thrown again.`, 2600);
-      if (e.type === 'trigger' && e.effect === 'data' && e.key === 'armed' && e.amount === true) this.hud.toast(`${name} twitches: +5 Nudge on the next spin.`, 2600);
+      if (e.type === 'trigger' && e.effect === 'data' && e.key === 'armed' && e.amount === true) {
+        const status = railView(this.state).find((v) => v.uid === rung.uid)?.status;
+        if (status) this.hud.toast(`${name} is ${status}.`, 2600);
+      }
       if (e.type === 'trigger' && e.effect === 'coins') {
         const p = this.screenPosition(this.rail.talismanWorldPosition(e.src.uid));
         if (p) this.hud.popup(`+${format(e.amount)}`, p.x, p.y);
@@ -865,6 +873,7 @@ export class Game {
         if (id !== this.runId) return;
         this.syncItems();
         this.syncLuck();
+        this.syncWheel();
       }, 450);
     } else {
       this.syncAll();
@@ -954,10 +963,27 @@ export class Game {
     for (const e of detail) if (e.type === 'trigger' && (e.hook === 'devilChance' || e.hook === 'widths')) this.rail.pulse(e.src.uid, 0.45);
     // Where each throw's ball comes to rest before Nudge moves it.
     const landed = (hops, pocketIndex) => hops[0]?.from ?? pocketIndex;
+    // What each throw shows after its hops: anchors that held the ball, then
+    // wards. On a re-throw, the first throw's are flagged `first`.
+    const first = result.firstThrow?.[0];
+    const ofThrow = (type, isFirst) => detail.filter((e) => (type === 'anchor' ? e.type === 'trigger' && e.effect === 'anchor' : e.type === type) && (!first || e.first === isFirst));
+    const afterHops = async (isFirst) => {
+      // The Black Cat's crossing: shown once, as the first ball settles.
+      if (result.luck.blocked && (isFirst || !first)) this.showCrossing(detail);
+      const holds = ofThrow('anchor', isFirst);
+      if (holds.length) {
+        await this.playHolds(holds, fast);
+        if (stale()) return false;
+      }
+      for (const ward of ofThrow('devilWarded', isFirst)) {
+        await this.playWard(ward, fast);
+        if (stale()) return false;
+      }
+      return true;
+    };
 
     // An armed Wheel of Fortune: the first throw paid nothing, so the ball
     // jumps out and goes round again.
-    const first = result.firstThrow?.[0];
     if (first) {
       await this.ball.launch(landed(result.firstHops, first.pocketIndex));
       if (stale()) return;
@@ -966,6 +992,7 @@ export class Game {
         await this.playHops(result.firstHops, result.luck, detail, fast);
         if (stale()) return;
       }
+      if (!(await afterHops(true))) return;
       this.table.flashResult(first.number);
       this.hud.flavor(
         [
@@ -998,11 +1025,7 @@ export class Game {
     }
     this.table.setMarks({ foreseen: null });
     this.table.updateMarquee(this.state.history);
-    const ward = detail.find((e) => e.type === 'devilWarded');
-    if (ward) {
-      await this.playWard(ward, fast);
-      if (stale()) return;
-    }
+    if (!(await afterHops(false))) return;
     if (result.devil) {
       await this.playDevil(result, fast);
       if (stale()) return;
@@ -1094,16 +1117,31 @@ export class Game {
     this.rail.pulse(ward.src.uid, 1.4);
     this.cage.flareDevil();
     this.sparks.burst(this.ball.ball.getWorldPosition(this._ballAt), 'pity', { count: 40, speed: 2.4 });
+    // A Twin Mirrors' copy goes dark; the vial it copied still hangs.
+    const copy = ward.src.as !== ward.src.id;
     this.hud.flavor(
       [
         ['666 ', 'green'],
-        ['turned away. The vial shatters.', 'bone'],
+        [copy ? "turned away. The mirror's copy goes dark." : 'turned away. The vial shatters.', 'bone'],
       ],
       1800,
     );
     await wait(fast ? 0.5 : 1.3);
     // Its hook empties now, not after the payout.
     this.syncItems();
+  }
+
+  /** An anchor kept the ball from a better pocket (the Thirteen Ball on 13). */
+  async playHolds(holds, fast) {
+    for (const e of holds) this.rail.pulse(e.src.uid, 1);
+    this.hud.flavor([[`${getTalisman(holds[0].src.as)?.name ?? 'It'} holds the ball on ${holds[0].amount}.`, 'dim']], 1000);
+    await wait(fast ? 0.2 : 0.6);
+  }
+
+  /** The Black Cat crossed: this spin had no Nudge at all. */
+  showCrossing(detail) {
+    for (const e of detail) if (e.type === 'trigger' && e.effect === 'noNudge') this.rail.pulse(e.src.uid, 1);
+    this.hud.flavor([['The Black Cat crosses your path: no Nudge.', 'dim']], 1100);
   }
 
   /** Talismans this action used up (a wilted clover, an empty purse): a line each. */

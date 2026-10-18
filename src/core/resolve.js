@@ -20,6 +20,8 @@ import { liveWheel } from './widths.js';
 //   5. evaluate the payout      (pure)
 //   6. Wheel of Fortune         (an armed miss is thrown again: steps 2–5 anew)
 //   7. commit the payout, tally the final landings, then afterSpin hooks
+//   8. a ward that turned the Devil away is used up (the vial shatters): only
+//      now, so the whole spin paid with the rail it was thrown with
 
 /** Balls per spin. Multi-ball talismans arrive later. */
 export const ballCount = () => 1;
@@ -51,18 +53,26 @@ export function resolveSpin(s, emit) {
       }
       return { ball, pocketIndex: drawPocket(wheel, rng) };
     });
-    const { landings, hops } = nudgeLandings(s, landed, luck);
+    const { landings, hops, holds } = nudgeLandings(s, landed, luck);
     for (const hop of hops) emit({ type: 'nudged', ...hop, nudge: luck.total, kind: luck.kind, first });
-    const devil = rollDevil(s, devilChance) && !warded(landings);
+    // An anchor that kept the ball from hopping to something better shows itself.
+    for (const hold of holds) {
+      for (const a of luck.anchorSrcs) if (a.number === hold.number) emit({ type: 'trigger', src: a.src, hook: 'nudge', effect: 'anchor', amount: a.number, ball: hold.ball, first });
+    }
+    const devil = rollDevil(s, devilChance) && !warded(landings, first);
     return { landings, hops, devil, plan: devil ? null : evaluate(s, landings) };
   };
 
-  /** The Devil fired: the first ward on the rail turns him away, and is used up. */
-  const warded = (landings) => {
-    const src = sources(s).find((x) => x.as.hooks?.ward);
+  // Wards that turned the Devil away this spin. Each wards once (a re-throw
+  // needs another), and is used up after the spin.
+  const wards = [];
+  const wardKey = (x) => `${x.inst.uid}|${x.copyOf ?? ''}|${x.by?.uid ?? ''}`;
+  const warded = (landings, first) => {
+    const spent = new Set(wards.map(wardKey));
+    const src = sources(s).find((x) => x.as.hooks?.ward && !spent.has(wardKey(x)));
     if (!src) return false;
-    emit({ type: 'devilWarded', src: srcRef(src), ball: 0, pocketIndex: landings[0].pocketIndex });
-    src.as.hooks.ward(commitCtx(s, src, emit, 'ward'));
+    wards.push(src);
+    emit({ type: 'devilWarded', src: srcRef(src), ball: 0, pocketIndex: landings[0].pocketIndex, first });
     s.stats.wards = (s.stats.wards ?? 0) + 1;
     return true;
   };
@@ -127,5 +137,6 @@ export function resolveSpin(s, emit) {
     miss,
   };
   lifecycle(s, 'afterSpin', emit, { result });
+  for (const src of wards) if (s.rail.includes(src.inst)) src.as.hooks.ward(commitCtx(s, src, emit, 'ward'));
   return result;
 }

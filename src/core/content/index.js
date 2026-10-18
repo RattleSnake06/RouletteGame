@@ -8,6 +8,7 @@ const DEFAULTS = {
   cursed: false,
   inCabinet: true,
   copyable: true,
+  echoable: true,
   copies: null,
   echoes: false,
   instant: false,

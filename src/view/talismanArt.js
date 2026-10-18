@@ -1567,6 +1567,7 @@ const PAINTERS = {
       [0, '#e8dfc8'],
       [1, '#b4a68a'],
     ]), C.soot, 3);
+    ctx.textAlign = 'center';
     scrawlText(ctx, '20', -12, -27, 22, C.bloodDeep);
     rrect(ctx, -64, -20, 128, 84, 10);
     fill(ctx, linear(ctx, 0, -20, 0, 64, [
@@ -1592,7 +1593,7 @@ const PAINTERS = {
     ctx.translate(-6, 4);
     ctx.scale(1.12, 1.12);
     const body = new Path2D();
-    body.moveTo(-70, 40);
+    body.moveTo(-60, 34);
     body.lineTo(-30, 12);
     body.bezierCurveTo(-20, -30, 20, -50, 40, -40);
     body.bezierCurveTo(56, -34, 58, -14, 46, -4);
@@ -1611,9 +1612,10 @@ const PAINTERS = {
     fill(ctx, C.bone);
     // Tail.
     ctx.beginPath();
+    // Kept inside the face, clear of the bezel.
     ctx.moveTo(-30, 14);
-    ctx.lineTo(-82, 64);
-    ctx.lineTo(-70, 70);
+    ctx.lineTo(-56, 44);
+    ctx.lineTo(-46, 50);
     ctx.lineTo(-22, 30);
     fill(ctx, '#16120f', C.bone, 3);
     circle(ctx, 38, -26, 4.5);
@@ -1728,8 +1730,9 @@ const PAINTERS = {
       line(ctx, pts, C.soot, w + 7);
       line(ctx, pts, wood, w);
     };
-    twig([[-64, -70], [-36, -28], [-8, 14]], 12);
-    twig([[64, -70], [36, -28], [-8, 14]], 12);
+    // The prong tips stay inside the face, clear of the bezel.
+    twig([[-56, -60], [-36, -28], [-8, 14]], 12);
+    twig([[56, -60], [36, -28], [-8, 14]], 12);
     twig([[-8, 14], [-14, 46], [-24, 76]], 14);
     // Knots and a brass ferrule at the point.
     for (const [x, y] of [[-40, -34], [40, -34]]) {

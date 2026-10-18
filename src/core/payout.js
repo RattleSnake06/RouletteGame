@@ -1,5 +1,5 @@
 import { betCovers, betOdds, getBet } from './bets.js';
-import { sources, srcRef } from './effects.js';
+import { sources, srcRef, writeData } from './effects.js';
 import { add, mulFloor } from './num.js';
 
 // One spin's payout, worked out before anything changes (doc 5.5). evaluate()
@@ -207,6 +207,24 @@ export function evaluate(state, landings) {
     }
   }
 
+  // Once every line is known: talismans that pay on the spin as a whole (the
+  // Beckoning Cat). Their coins are part of what a landing pays, so Nudge
+  // and the previews see them.
+  const winners = new Set(plan.lines.map((l) => l.chipId)).size;
+  for (const src of srcs) {
+    const fn = src.as.hooks?.spinPaid;
+    if (!fn) continue;
+    fn({
+      state,
+      self: src.self,
+      winners,
+      ...bonus(src, 'spinPaid', null),
+      setData(key, value) {
+        plan.deferred.push({ op: 'data', uid: src.inst.uid, copyOf: src.copyOf, self: src.self, key, value });
+      },
+    });
+  }
+
   // A miss is a spin where no chip paid; bonus coins do not undo it (doc 5.5).
   plan.miss = plan.lines.length === 0;
   return plan;
@@ -222,6 +240,11 @@ export function commitPlan(draft, plan, emit) {
   // spin uses the chip values it started with.
   const touched = new Set();
   for (const d of plan.deferred) {
+    if (d.op === 'data') {
+      const inst = draft.rail.find((t) => t.uid === d.uid);
+      if (inst) writeData(inst, d.copyOf, d.self, d.key, d.value);
+      continue;
+    }
     const chip = draft.chips.find((c) => c.id === d.chipId);
     if (!chip) continue;
     chip.roundValue = (chip.roundValue ?? 0) + d.amount;

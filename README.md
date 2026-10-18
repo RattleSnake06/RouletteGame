@@ -6,9 +6,10 @@ bulb, a debt you have to pay, and three nights to pay it.
 The plan for the full game is in [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md).
 **Phases 1 to 3 are playable:** the core loop; talismans, the Curio Cabinet,
 tokens and the Bell; and luck and risk: Nudge, the House's Leans, pity and the
-Devil. There are 43 talismans to build with, from a Tuning Fork that repeats
-its neighbour to Brass Scales that widen the even pockets. Madame Zero and her
-fortunes arrive in Phase 4.
+Devil. There are 41 talismans to build with (plus two cursed ones waiting for
+Madame Zero's black cards), from a Tuning Fork that repeats its neighbour to
+Brass Scales that widen the even pockets. Madame Zero and her fortunes arrive in
+Phase 4.
 
 ## Run it
 

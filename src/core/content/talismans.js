@@ -3,7 +3,7 @@ import { devilLive } from '../devil.js';
 import { ECONOMY, interestOn, owedFor } from '../economy.js';
 import { interestRateFor, omen } from '../effects.js';
 import { add, format, gt, mul, mulFloor } from '../num.js';
-import { upcomingLean } from '../nudge.js';
+import { nudgeFor, upcomingLean } from '../nudge.js';
 import { neighbourIndex } from '../wheel.js';
 
 // The talismans (design doc 6.1): the first fifteen from Phase 2, the luck
@@ -16,6 +16,8 @@ import { neighbourIndex } from '../wheel.js';
 //   inCabinet  false: never offered (cursed ones come from black cards, Phase 4)
 //   tags       build families (the sim's bots and, later, the Almanac)
 //   copyable   false: Twin Mirrors cannot copy it
+//   echoable   false: a Tuning Fork beside it has nothing to repeat (its effect
+//              cannot happen twice: a ward, a threshold, a Bell's arming)
 //   copies     'right' for Twin Mirrors
 //   echoes     true for the Tuning Fork: the talisman to its left acts again
 //   instant    true: acts when bought and never takes a hook (Lost Wallet)
@@ -39,9 +41,20 @@ const lastSpin = (state) => {
   return h && !h.devil ? h : null;
 };
 const half = (n) => (n >= 1 && n <= 18 ? 'low' : n >= 19 ? 'high' : null);
-/** What the Beckoning Cat would pay: tonight's interest on the Cage, at tonight's rate. */
-const catInterest = (state) => interestOn(state.deposited, interestRateFor(state, ECONOMY.interestRate));
-const CLOVER = { chance: 0.25, nudge: 3, blooms: 6 };
+/** Names the night under way, so state kept for one night goes stale at dawn by itself. */
+const tonight = (state) => `${state.debt}.${state.round}`;
+const CAT = { winners: 3, nights: 3 };
+/** What the Beckoning Cat would pay: three nights' interest on the Cage, at tonight's rate. */
+const catPay = (state) => mul(interestOn(state.deposited, interestRateFor(state, ECONOMY.interestRate)), CAT.nights);
+const MOUSETRAP_MAX = 2;
+const ROD = { charges: 2, nudge: 4 };
+const WEATHERVANE = 2;
+const WIND_UP_KEY = 3; // pity after this many misses in a row
+const HAMSA = 2;
+const mousetrap = (state) => Math.min(MOUSETRAP_MAX, state.missStreak);
+/** Pearls strung tonight (a string from an earlier night has broken). */
+const pearls = (data, state) => (data.strung?.night === tonight(state) ? data.strung.n : 0);
+const CLOVER = { chance: 0.25, nudge: 2, blooms: 6 };
 const inBloom = (state) => omen(state, 'four_leaf_clover') < CLOVER.chance;
 /** The Black Cat crosses your path on every 13th spin of the run. */
 const catCrosses = (state) => (state.stats.spins + 1) % 13 === 0;
@@ -256,6 +269,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['zero', 'inside'],
     text: 'When zero hits, every chip on the table wins.',
+    echoable: false,
     hooks: {
       covers(ctx) {
         if (ctx.hit.primary && greenZero(ctx.hit.pocket)) ctx.cover();
@@ -379,7 +393,7 @@ export const TALISMAN_LIST = [
     name: 'Tuning Fork',
     rarity: 'rare',
     tags: ['combo'],
-    text: 'Triggers the talisman to its left again (not Bell abilities).',
+    text: 'Triggers the talisman to its left again (not Bell abilities or one-time effects).',
     echoes: true,
     copyable: false,
   },
@@ -400,20 +414,18 @@ export const TALISMAN_LIST = [
     name: 'String of Pearls',
     rarity: 'uncommon',
     tags: ['even', 'scaling'],
-    text: 'Chips on Even: +1 Odds, and +1 more for every even number that lands tonight.',
-    init: () => ({ pearls: 0 }),
-    status: (data) => `${plural(data.pearls, 'pearl')} strung tonight: Even +${1 + data.pearls} Odds`,
+    text: 'Chips on Even: odds +1, and +1 more for every even number that lands tonight.',
+    // The string breaks at dawn, like a Matchbook's flame: it is kept with the
+    // night it was strung, so a copy that sat out the dawn breaks too.
+    init: () => ({ strung: null }),
+    status: (data, state) => `${plural(pearls(data, state), 'pearl')} strung tonight: Even odds +${1 + pearls(data, state)}`,
     hooks: {
       chipOdds(ctx) {
-        if (ctx.bet.kind === 'even') ctx.addOdds(1 + ctx.self.pearls);
+        if (ctx.bet.kind === 'even') ctx.addOdds(1 + pearls(ctx.self, ctx.state));
       },
       afterSpin(ctx) {
         const n = ctx.result.devil ? 0 : ctx.result.balls.filter(isEven).length;
-        if (n) ctx.setData('pearls', ctx.self.pearls + n);
-      },
-      // The string breaks at dawn, like a Matchbook's flame.
-      roundEnd(ctx) {
-        if (ctx.self.pearls) ctx.setData('pearls', 0);
+        if (n) ctx.setData('strung', { night: tonight(ctx.state), n: pearls(ctx.self, ctx.state) + n });
       },
     },
   },
@@ -422,10 +434,11 @@ export const TALISMAN_LIST = [
     name: 'Wind-Up Key',
     rarity: 'common',
     tags: ['luck', 'inside'],
-    text: 'Pity starts after 2 misses in a row, not 5.',
+    text: `Pity starts after ${WIND_UP_KEY} misses in a row, not 5.`,
+    echoable: false,
     hooks: {
       nudge(ctx) {
-        ctx.pityAfter(2);
+        ctx.pityAfter(WIND_UP_KEY);
       },
     },
   },
@@ -434,10 +447,10 @@ export const TALISMAN_LIST = [
     name: 'Hamsa',
     rarity: 'common',
     tags: ['luck', 'timing'],
-    text: "The night's last spin: +3 Nudge.",
+    text: `The night's last spin: +${HAMSA} Nudge.`,
     hooks: {
       nudge(ctx) {
-        if (ctx.spin.last) ctx.addNudge(3);
+        if (ctx.spin.last) ctx.addNudge(HAMSA);
       },
     },
   },
@@ -446,14 +459,20 @@ export const TALISMAN_LIST = [
     name: 'Beckoning Cat',
     rarity: 'uncommon',
     tags: ['economy', 'outside'],
-    text: "When 3 or more chips win on one spin, the Cage pays tonight's interest early, as coins.",
-    status: (data, state) => (gt(catInterest(state), 0) ? `would pay ${format(catInterest(state))}` : 'Nothing in the Cage to earn on.'),
+    text: "Once a night, when 3 or more chips win on one spin: coins worth 3 nights' interest on the Cage.",
+    init: () => ({ paid: null }),
+    status: (data, state) => {
+      if (data.paid === tonight(state)) return 'Paid tonight. It beckons again tomorrow.';
+      return gt(catPay(state), 0) ? `would pay ${format(catPay(state))}` : 'Nothing in the Cage to earn on.';
+    },
     hooks: {
-      afterSpin(ctx) {
-        if (ctx.result.devil) return;
-        if (new Set(ctx.result.lines.map((l) => l.chipId)).size < 3) return;
-        const coins = catInterest(ctx.state);
-        if (gt(coins, 0)) ctx.gainCoins(coins);
+      // A payout hook, so Nudge counts its coins when it picks a pocket.
+      spinPaid(ctx) {
+        if (ctx.winners < CAT.winners || ctx.self.paid === tonight(ctx.state)) return;
+        const coins = catPay(ctx.state);
+        if (!gt(coins, 0)) return;
+        ctx.bonusCoins(coins);
+        ctx.setData('paid', tonight(ctx.state));
       },
     },
   },
@@ -481,12 +500,12 @@ export const TALISMAN_LIST = [
     name: 'Lost Wallet',
     rarity: 'common',
     tags: ['economy'],
-    text: 'Needs no hook. When bought, it holds coins worth a fifth of this debt.',
+    text: 'Needs no hook. When bought, it holds coins worth a tenth of this debt.',
     instant: true,
     copyable: false,
     hooks: {
       purchased(ctx) {
-        if (ctx.isSelf) ctx.gainCoins(mulFloor(owedFor(ctx.state.debt), 0.2));
+        if (ctx.isSelf) ctx.gainCoins(mulFloor(owedFor(ctx.state.debt), 0.1));
       },
     },
   },
@@ -521,7 +540,7 @@ export const TALISMAN_LIST = [
     name: 'Four-Leaf Clover',
     rarity: 'common',
     tags: ['luck'],
-    text: 'Blooms on about 1 spin in 4, shown before you bet: +3 Nudge. Wilts after 6 blooms.',
+    text: `Blooms on about 1 spin in 4, shown before you bet: +${CLOVER.nudge} Nudge. Wilts after ${CLOVER.blooms} blooms.`,
     init: () => ({ blooms: 0 }),
     status: (data, state) => `${inBloom(state) ? 'In bloom for the next spin. ' : ''}${plural(CLOVER.blooms - data.blooms, 'bloom')} left`,
     hooks: {
@@ -542,6 +561,7 @@ export const TALISMAN_LIST = [
     rarity: 'uncommon',
     tags: ['safety'],
     text: 'The first time the Devil fires, he is turned away. The vial shatters.',
+    echoable: false,
     status: (data, state) => asleep(state),
     hooks: {
       ward(ctx) {
@@ -554,13 +574,18 @@ export const TALISMAN_LIST = [
     name: 'Dowsing Rod',
     rarity: 'uncommon',
     tags: ['active', 'luck'],
-    text: 'Bell, three times a debt: +5 Nudge on the next spin.',
+    text: `Bell, ${['', 'once', 'twice', 'three times'][ROD.charges]} a debt: +${ROD.nudge} Nudge on the next spin.`,
     copyable: false,
-    charges: { max: 3, refill: 'debt' },
+    echoable: false,
+    charges: { max: ROD.charges, refill: 'debt' },
     init: () => ({ armed: false }),
-    status: (data) => (data.armed ? 'twitching: +5 Nudge on the next spin' : null),
+    status: (data, state) => {
+      if (!data.armed) return nudgeFor(state).blocked ? 'still: the Black Cat crosses your path on the next spin' : null;
+      return nudgeFor(state).blocked ? `twitching: +${ROD.nudge} Nudge once the Black Cat has crossed` : `twitching: +${ROD.nudge} Nudge on the next spin`;
+    },
     bell: {
-      usable: (ctx) => ctx.charges > 0 && !ctx.self.armed,
+      // Not on a spin with no Nudge at all: the twitch would be lost.
+      usable: (ctx) => ctx.charges > 0 && !ctx.self.armed && !nudgeFor(ctx.state).blocked,
       ring(ctx) {
         ctx.spendCharge();
         ctx.setData('armed', true);
@@ -568,10 +593,11 @@ export const TALISMAN_LIST = [
     },
     hooks: {
       nudge(ctx) {
-        if (ctx.self.armed) ctx.addNudge(5);
+        if (ctx.self.armed) ctx.addNudge(ROD.nudge);
       },
+      // A Black Cat crossing cancels every Nudge: the twitch waits for the next spin.
       afterSpin(ctx) {
-        if (ctx.self.armed) ctx.setData('armed', false);
+        if (ctx.self.armed && !ctx.result.luck.blocked) ctx.setData('armed', false);
       },
     },
   },
@@ -580,11 +606,11 @@ export const TALISMAN_LIST = [
     name: 'Mousetrap',
     rarity: 'uncommon',
     tags: ['inside', 'streaks'],
-    text: 'Winning chips: +1 Stake for each miss in a row before the win.',
-    status: (data, state) => (state.missStreak ? `set: +${state.missStreak} Stake` : 'not set yet'),
+    text: `Winning chips: +1 Stake for each miss in a row before the win, up to +${MOUSETRAP_MAX}.`,
+    status: (data, state) => (mousetrap(state) ? `set: +${mousetrap(state)} Stake` : 'not set yet'),
     hooks: {
       chipStake(ctx) {
-        if (ctx.state.missStreak > 0) ctx.addStake(ctx.state.missStreak);
+        if (mousetrap(ctx.state) > 0) ctx.addStake(mousetrap(ctx.state));
       },
     },
   },
@@ -593,11 +619,11 @@ export const TALISMAN_LIST = [
     name: 'Weathervane',
     rarity: 'uncommon',
     tags: ['timing', 'luck'],
-    text: "On a Lean's spin, chips pay ×3.",
+    text: `On a Lean's spin, chips pay ×${WEATHERVANE}.`,
     status: (data, state) => (upcomingLean(state) > 0 ? 'turning: the next spin is a Lean' : null),
     hooks: {
       chipMult(ctx) {
-        if (upcomingLean(ctx.state) > 0) ctx.mul(3);
+        if (upcomingLean(ctx.state) > 0) ctx.mul(WEATHERVANE);
       },
     },
   },

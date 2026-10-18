@@ -17,6 +17,8 @@ import { hashSeed } from './rng.js';
 //     chipMult    per paying line     ctx.mul(x)
 //     chipPaid    per paying line     ctx.addChipValue(n), ctx.bonusCoins(n), ctx.bonusTokens(n)
 //     chipLost    per losing chip     ctx.bonusCoins(n), ctx.bonusTokens(n)
+//     spinPaid    once, after them    ctx.bonusCoins(n), ctx.setData(k, v) (applied when the
+//                                     spin is committed); reads ctx.winners
 //   pure luck (nudge.js, devil.js, widths.js; also shown before the spin):
 //     nudge        per spin           ctx.addNudge(n), ctx.clockwiseOnly(), ctx.straightOnly(),
 //                                     ctx.noPity(), ctx.pityAfter(n), ctx.noNudge(), ctx.anchor(number);
@@ -27,7 +29,8 @@ import { hashSeed } from './rng.js';
 //     runStart, debtStart, roundStart, beforeSpin, afterSpin, roundEnd,
 //     debtPaid, purchased, sold       ctx.gainCoins(n), ctx.gainTokens(n), ctx.setData(k, v),
 //                                     ctx.destroySelf(reason)
-//     ward (resolve.js)               the Devil fired: the first ward turns him away
+//     ward (resolve.js)               the Devil fired: the first ward turned him away, and is
+//                                     used up once the spin is over
 //     interestRate (endNight)         ctx.addRate(r)
 //     bell (def.bell.ring, bell.js)   see bell.js
 //
@@ -36,13 +39,15 @@ import { hashSeed } from './rng.js';
 /**
  * The things that act, in order. Phase 2 has only the rail, left to right.
  * Later groups slot in ahead of it: chip material, pocket enhancement, record.
- * Each source: { index, inst, def, as, self, by }
- *   inst  the rail instance that acts (whose data it reads and writes)
- *   def   its own definition
- *   as    the definition whose hooks run (differs when Twin Mirrors copies)
- *   self  the instance data the hooks read
- *   by    a Tuning Fork echoing it: the source runs again, straight after
- *         itself, and the fork is what shakes on screen
+ * Each source: { index, inst, def, as, self, copyOf, by }
+ *   inst    the rail instance that acts (whose data it reads and writes)
+ *   def     its own definition
+ *   as      the definition whose hooks run (differs when Twin Mirrors copies)
+ *   self    the instance data the hooks read
+ *   copyOf  for a Twin Mirrors, the uid of the instance it copies: the copy's
+ *           data belongs to that instance, so a new one starts fresh
+ *   by      a Tuning Fork echoing it: the source runs again, straight after
+ *           itself, and the fork is what shakes on screen
  */
 export function sources(state) {
   const out = [];
@@ -54,14 +59,20 @@ export function sources(state) {
     if (!def || def.echoes) continue;
     let as = def;
     let self = inst.data;
+    let copyOf = null;
     if (def.copies === 'right') {
-      as = copyTarget(rail, i);
-      if (!as) continue; // nothing to copy: the mirror stays dark
-      self = inst.data.copy?.[as.id] ?? as.init?.() ?? {};
+      const target = copyTargetInst(rail, i);
+      if (!target) continue; // nothing to copy: the mirror stays dark
+      as = getTalisman(target.id);
+      copyOf = target.uid;
+      self = inst.data.copy?.[copyOf] ?? as.init?.() ?? {};
       if (self.gone) continue; // a copy that was used up stays dark
     }
-    const src = { index: i, inst, def, as, self, by: null };
+    const src = { index: i, inst, def, as, self, copyOf, by: null };
     out.push(src);
+    // Some effects cannot happen twice (a ward, a pity threshold, a Bell's
+    // arming): a fork beside them has nothing to repeat.
+    if (as.echoable === false) continue;
     // Each fork to its right triggers it again; forks pass through forks.
     for (let j = i + 1; j < rail.length && getTalisman(rail[j].id)?.echoes; j++) out.push({ ...src, by: rail[j] });
   }
@@ -78,12 +89,19 @@ export function echoTarget(rail, index) {
   return def.copies === 'right' ? copyTarget(rail, j) : def;
 }
 
-/** What a Twin Mirrors at `index` copies: the next non-mirror to its right, if copyable. */
-export function copyTarget(rail, index) {
+/** The instance a Twin Mirrors at `index` copies: the next non-mirror to its right, if copyable. */
+export function copyTargetInst(rail, index) {
   let j = index + 1;
   while (j < rail.length && getTalisman(rail[j].id)?.copies === 'right') j++;
-  const target = j < rail.length ? getTalisman(rail[j].id) : null;
-  return target && target.copyable !== false ? target : null;
+  const inst = rail[j];
+  const def = inst && getTalisman(inst.id);
+  return def && def.copyable !== false ? inst : null;
+}
+
+/** What a Twin Mirrors at `index` copies: the definition, or null. */
+export function copyTarget(rail, index) {
+  const inst = copyTargetInst(rail, index);
+  return inst ? getTalisman(inst.id) : null;
 }
 
 /** How an event names its source: the instance that shakes, and whose hooks ran. */
@@ -97,13 +115,14 @@ export function omen(state, salt) {
   return hashSeed(`${state.seed}|${state.stats.spins}|${salt}`)[0] / 4294967296;
 }
 
-function writeData(src, key, value) {
-  if (src.as === src.def) {
-    src.inst.data[key] = value;
+/** Sets one key of a source's data: its own, or a mirror's copy of another instance's. */
+export function writeData(inst, copyOf, self, key, value) {
+  if (!copyOf) {
+    inst.data[key] = value;
     return;
   }
-  src.inst.data.copy ??= {};
-  src.inst.data.copy[src.as.id] = { ...(src.inst.data.copy[src.as.id] ?? src.self), [key]: value };
+  inst.data.copy ??= {};
+  inst.data.copy[copyOf] = { ...(inst.data.copy[copyOf] ?? self), [key]: value };
 }
 
 /** Commit-phase ctx: changes land on the draft straight away. */
@@ -124,7 +143,7 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
       trigger('tokens', { amount: n });
     },
     setData(key, value) {
-      writeData(src, key, value);
+      writeData(src.inst, src.copyOf, src.self, key, value);
       trigger('data', { key, amount: value });
     },
     /**
@@ -133,8 +152,8 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
      * goes dark instead (`self.gone`) and the mirror stays on its hook.
      */
     destroySelf(reason = 'spent') {
-      if (src.as !== src.def) {
-        writeData(src, 'gone', true);
+      if (src.copyOf) {
+        writeData(src.inst, src.copyOf, src.self, 'gone', true);
         trigger('gone', { reason });
         return;
       }

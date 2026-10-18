@@ -279,7 +279,7 @@ try {
     r.game.buy(0);
     return { gained: r.game.state.coins - before, hooks: r.game.state.rail.length - hooks };
   });
-  check(wallet.gained === 66 && wallet.hooks === 0, `the Lost Wallet held ${wallet.gained} coins and took no hook`);
+  check(wallet.gained === 33 && wallet.hooks === 0, `the Lost Wallet held ${wallet.gained} coins and took no hook`);
   await game(() => {
     const r = window.__roulette;
     r.debug.grant('holy_water');

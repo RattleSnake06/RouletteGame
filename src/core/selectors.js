@@ -16,11 +16,15 @@ import { liveWheel } from './widths.js';
 
 /** The rail as the view needs it, left to right. */
 export function railView(state) {
+  const srcs = sources(state);
   return state.rail.map((inst, index) => {
     const def = getTalisman(inst.id);
     const mirror = def?.copies === 'right';
     const target = mirror ? copyTarget(state.rail, index) : null;
     const echo = def?.echoes ? echoTarget(state.rail, index) : null;
+    // Lit when it really acts: a used-up copy, or a fork beside something it
+    // cannot repeat (no hooks, or an effect that cannot happen twice), is dark.
+    const acts = mirror ? srcs.some((x) => x.inst === inst) : def?.echoes ? srcs.some((x) => x.by === inst && Object.keys(x.as.hooks ?? {}).length) : true;
     return {
       uid: inst.uid,
       id: inst.id,
@@ -34,8 +38,7 @@ export function railView(state) {
       sellValue: def?.cursed ? null : sellValueOf(inst.price),
       copying: target?.id ?? null,
       echoing: echo?.id ?? null,
-      // A fork with nothing to its left that has hooks to repeat stays dark too.
-      dim: (mirror && (!target || !!inst.data.copy?.[target.id]?.gone)) || (!!def?.echoes && !Object.keys(echo?.hooks ?? {}).length),
+      dim: !acts,
       active: !!def?.bell,
       targetOnly: !!def?.bell?.targetOnly,
       usable: canAnswer(state, inst),

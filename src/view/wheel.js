@@ -29,6 +29,12 @@ export function pocketAngle(orderIndex) {
   return (bounds[c] + bounds[c + 1]) / 2;
 }
 
+/** The angle pocket `orderIndex` spans, as drawn now. */
+export function pocketSpan(orderIndex) {
+  const c = cellOf(orderIndex);
+  return bounds[c + 1] - bounds[c];
+}
+
 /**
  * Cell boundaries for these widths (wheel order). Zero's middle never moves,
  * so the wheel does not seem to turn when a pocket grows.
@@ -50,6 +56,8 @@ export const DIM = {
   pocketOuter: 3.2,
   pocketInner: 2.8,
   pocketY: 0.25,
+  fretHeight: 0.085,
+  fretWidth: 0.03,
   coneEdgeY: 0.315,
   coneTopY: 0.47,
   ballRadius: 0.115,
@@ -293,8 +301,8 @@ export function createWheel({ envMap }) {
   rotor.add(bead(DIM.pocketInner, DIM.numberY + 0.02, 0.022, brass));
 
   const fretLen = DIM.pocketOuter - DIM.pocketInner - 0.02;
-  const fretGeo = new THREE.BoxGeometry(fretLen, 0.085, 0.03);
-  fretGeo.translate(0, 0.0425, 0);
+  const fretGeo = new THREE.BoxGeometry(fretLen, DIM.fretHeight, DIM.fretWidth);
+  fretGeo.translate(0, DIM.fretHeight / 2, 0);
   const frets = shadowed(new THREE.InstancedMesh(fretGeo, silver, POCKETS));
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -477,8 +485,11 @@ export function createWheel({ envMap }) {
   /** Draws each pocket at its live width (wheel order); `animate` eases into it. */
   function setWidths(widths, { animate = true } = {}) {
     const target = widths.slice();
-    const same = target.length === widthsNow.length && target.every((w, i) => Math.abs(w - widthsNow[i]) < 1e-9);
-    if (same && !widthTween) return false;
+    // Compared with where the wheel is heading, so a sync during a swell
+    // neither restarts it nor groans again.
+    const goal = widthTween ? widthTween.to : widthsNow;
+    const same = target.length === goal.length && target.every((w, i) => Math.abs(w - goal[i]) < 1e-9);
+    if (same && (animate || !widthTween)) return false;
     if (!animate) {
       widthTween = null;
       applyWidths(target);

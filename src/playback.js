@@ -10,7 +10,7 @@ import { effectText } from './ui/notes.js';
 
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
-const PAYOUT_HOOKS = new Set(['hits', 'ballLanded', 'covers', 'chipStake', 'chipOdds', 'chipMult', 'chipPaid', 'chipLost']);
+const PAYOUT_HOOKS = new Set(['hits', 'ballLanded', 'covers', 'chipStake', 'chipOdds', 'chipMult', 'chipPaid', 'chipLost', 'spinPaid']);
 // Luck acts before the payout and is shown where it acts: Nudge during the
 // hops, the Devil's chance and the wheel's widths as the ball is thrown.
 const SHOWN_BEFORE = new Set(['nudge', 'devilChance', 'widths']);

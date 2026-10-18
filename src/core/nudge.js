@@ -112,7 +112,7 @@ export function pityFor(missStreak, { after = LUCK.pityAfter } = {}) {
  * The next spin's Nudge, with what restricts it. Pure; with `emit`, every
  * talisman that adds or restricts something emits a `trigger`.
  * Returns { total, lean, pity, charms, clockwise, straightOnly, pityBlocked,
- * pityAfter, blocked, anchors, kind }.
+ * pityAfter, blocked, anchors, anchorSrcs, kind }.
  */
 export function nudgeFor(state, emit = null) {
   const lean = upcomingLean(state);
@@ -125,6 +125,7 @@ export function nudgeFor(state, emit = null) {
   let pityBlocker = null;
   let blocked = false;
   const anchors = [];
+  const anchorSrcs = [];
   for (const src of sources(state)) {
     const fn = src.as.hooks?.nudge;
     if (!fn) continue;
@@ -161,21 +162,24 @@ export function nudgeFor(state, emit = null) {
         blocked = true;
         trigger('noNudge');
       },
-      // A passive hold, shown on no spin: it only matters when the ball lands there.
+      // A passive hold: it shows only on a spin where it keeps the ball from
+      // hopping somewhere better (resolve.js emits that trigger).
       anchor(number) {
         if (!anchors.includes(number)) anchors.push(number);
+        anchorSrcs.push({ number, src: srcRef(src) });
       },
     });
   }
   const rawPity = pityFor(state.missStreak, { after: pityAfter });
   if (pityBlocker && rawPity > 0) pityBlocker('noPity', { amount: rawPity });
-  const pity = pityBlocker ? 0 : rawPity;
-  // A blocked spin (the Black Cat crossing) has no Nudge at all, the House's included.
+  // A blocked spin (the Black Cat crossing) has no Nudge at all, the House's
+  // included, so the board shows no pity for it either.
+  const pity = pityBlocker || blocked ? 0 : rawPity;
   const total = blocked ? 0 : lean + pity + charms;
   // What the hops look like on screen: a Lean's warm spark, pity's cold one,
   // or the brass of a talisman's own luck.
   const kind = lean > 0 ? 'lean' : pity > 0 ? 'pity' : 'charm';
-  return { total, lean, pity, charms, clockwise, straightOnly, pityBlocked: !!pityBlocker, pityAfter, blocked, anchors, kind };
+  return { total, lean, pity, charms, clockwise, straightOnly, pityBlocked: !!pityBlocker, pityAfter, blocked, anchors, anchorSrcs, kind };
 }
 
 // --- Hops --------------------------------------------------------------------
@@ -198,7 +202,8 @@ function straightPockets(state) {
 /**
  * Moves one ball up to `luck.total` pockets to the reachable pocket that pays
  * the most. Ties go to fewer hops, then clockwise; a ball already on the best
- * pocket stays. Returns the new landings and the hop, or null for no move.
+ * pocket stays. Returns the new landings and the hop, null for no move, or
+ * `{ held }` when an anchored number kept the ball from a better pocket.
  */
 export function nudgeBall(state, landings, ball, luck) {
   const n = state.wheel.pockets.length;
@@ -207,8 +212,6 @@ export function nudgeBall(state, landings, ball, luck) {
   const reach = Math.min(luck.total, luck.clockwise ? n - 1 : Math.floor(n / 2));
   if (reach <= 0) return null;
   const from = landings[ball].pocketIndex;
-  // An anchored number holds the ball (the Thirteen Ball on 13).
-  if (luck.anchors?.includes(state.wheel.pockets[from].number)) return null;
   const allowed = luck.straightOnly ? straightPockets(state) : null;
   const at = (idx) => landings.map((l, i) => (i === ball ? { ...l, pocketIndex: idx } : l));
   let best = { idx: from, steps: 0, score: scoreOf(evaluate(state, landings)) };
@@ -222,20 +225,28 @@ export function nudgeBall(state, landings, ball, luck) {
     }
   }
   if (!best.steps) return null;
+  // An anchored number holds the ball (the Thirteen Ball on 13).
+  const number = state.wheel.pockets[from].number;
+  if (luck.anchors?.includes(number)) return { held: { ball, pocketIndex: from, number } };
   const dir = Math.sign(best.steps);
   const path = Array.from({ length: Math.abs(best.steps) }, (_, i) => neighbourIndex(state.wheel, from, dir * (i + 1)));
   return { landings: at(best.idx), hop: { ball, from, to: best.idx, steps: best.steps, path } };
 }
 
-/** Nudges every ball in turn. Returns { landings, hops }. */
+/** Nudges every ball in turn. Returns { landings, hops, holds }. */
 export function nudgeLandings(state, landings, luck) {
   const hops = [];
+  const holds = [];
   let out = landings;
   for (let ball = 0; ball < landings.length; ball++) {
     const moved = nudgeBall(state, out, ball, luck);
     if (!moved) continue;
+    if (moved.held) {
+      holds.push(moved.held);
+      continue;
+    }
     out = moved.landings;
     hops.push(moved.hop);
   }
-  return { landings: out, hops };
+  return { landings: out, hops, holds };
 }

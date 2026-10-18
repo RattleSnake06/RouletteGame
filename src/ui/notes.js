@@ -62,6 +62,8 @@ export function effectText(step) {
       return `${plural(step.count, 'pocket')} +${n} wide`;
     case 'gone':
       return 'used up';
+    case 'anchor':
+      return `holds ${n}`;
     default:
       return null;
   }
@@ -155,10 +157,12 @@ export function bellNote(state) {
 export function boardNote(state) {
   const luck = luckView(state);
   const lines = [];
-  if (luck.lean) lines.push(`The House leans: +${luck.lean} Nudge on the next spin.`);
+  if (luck.blocked) {
+    // The crossing cancels the Lean too, so the two read as one line.
+    lines.push(luck.lean ? `The House leans (+${luck.lean}), but the Black Cat crosses your path: no Nudge on the next spin.` : 'The Black Cat crosses your path: no Nudge on the next spin.');
+  } else if (luck.lean) lines.push(`The House leans: +${luck.lean} Nudge on the next spin.`);
   else lines.push('The LEAN lamp lights a spin ahead, before you bet.');
-  if (luck.blocked) lines.push('The Black Cat crosses your path: no Nudge on the next spin.');
-  else if (luck.total) {
+  if (!luck.blocked && luck.total) {
     const parts = [];
     if (luck.lean) parts.push(`Lean ${luck.lean}`);
     if (luck.pity) parts.push(`pity ${luck.pity}`);
@@ -171,7 +175,8 @@ export function boardNote(state) {
   const misses = luck.missStreak;
   const missText = `${misses} miss${misses === 1 ? '' : 'es'}`;
   let status = 'Nudge lets the ball hop that many pockets to the best one in reach.';
-  if (luck.pityBlocked) status = misses > 0 ? `No pity (Black Candle): ${missText} in a row.` : 'No pity (Black Candle).';
+  if (luck.blocked) status = misses > 0 ? `No pity on a crossing: ${missText} in a row.` : 'No Nudge on a crossing, from anything.';
+  else if (luck.pityBlocked) status = misses > 0 ? `No pity (Black Candle): ${missText} in a row.` : 'No pity (Black Candle).';
   else if (luck.pity) status = `Pity +${luck.pity}: ${missText} in a row. It grows until something pays.`;
   else if (misses > 0) status = `${missText} in a row. After ${luck.pityAfter}, pity nudges the ball.`;
   return { title: 'The board', lines, status };

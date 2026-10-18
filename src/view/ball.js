@@ -1,4 +1,4 @@
-import { DIM, pocketAngle } from './wheel.js';
+import { DIM, pocketAngle, pocketSpan } from './wheel.js';
 
 // Ball choreography (design doc 9.6). The result is decided by the core
 // before launch; this only makes the ball arrive there believably.
@@ -25,7 +25,15 @@ const W_END = 2.2; // ball's angular speed in the world when the drop ends
 const FULL = { lift: 0.35, orbit: 1.9, base: 13 }; // about two laps
 const SHORT = { lift: 0.25, orbit: 0.9, base: 5 }; // a re-throw: about one lap
 
-const REST_Y = DIM.pocketY + DIM.ballRadius;
+/**
+ * How high the ball sits in a pocket: on its floor, or, in a pocket drawn
+ * too narrow for it (the evens widened far enough), up on the two frets.
+ */
+function restY(pocket) {
+  const r = DIM.ballRadius;
+  const gap = DIM.ballRestRadius * Math.sin(pocketSpan(pocket) / 2) - DIM.fretWidth / 2;
+  return DIM.pocketY + Math.max(r, DIM.fretHeight + Math.sqrt(Math.max(0, r * r - gap * gap)));
+}
 const DROP_RADIUS = 3.14;
 const HOPS = [0, 0.2, 0.38, 0.54, 0.68, 0.8];
 const HOP_HEIGHT = [0.13, 0.09, 0.06, 0.035, 0.018];
@@ -63,7 +71,7 @@ export class BallAnimator {
   restAt(pocketIndex) {
     this.mode = 'rest';
     this.pocket = pocketIndex;
-    this._place(this.spin.angle + pocketAngle(pocketIndex), DIM.ballRestRadius, REST_Y);
+    this._place(this.spin.angle + pocketAngle(pocketIndex), DIM.ballRestRadius, restY(pocketIndex));
   }
 
   /**
@@ -88,7 +96,7 @@ export class BallAnimator {
 
   update(dt) {
     if (this.mode === 'rest') {
-      this._place(this.spin.angle + pocketAngle(this.pocket), DIM.ballRestRadius, REST_Y);
+      this._place(this.spin.angle + pocketAngle(this.pocket), DIM.ballRestRadius, restY(this.pocket));
       return;
     }
     if (this.mode === 'hop') {
@@ -99,7 +107,8 @@ export class BallAnimator {
       let delta = pocketAngle(h.path[h.i]) - a0;
       delta = mod(delta + Math.PI, TAU) - Math.PI; // the short way round
       const eased = smooth(u);
-      this._place(this.spin.angle + a0 + delta * eased, DIM.ballRestRadius - 0.03 * Math.sin(Math.PI * u), REST_Y + 0.07 * Math.sin(Math.PI * u));
+      const y = lerp(restY(h.from), restY(h.path[h.i]), eased) + 0.07 * Math.sin(Math.PI * u);
+      this._place(this.spin.angle + a0 + delta * eased, DIM.ballRestRadius - 0.03 * Math.sin(Math.PI * u), y);
       if (u >= 1) {
         this.pocket = h.path[h.i];
         h.onHop?.(h.i);
@@ -128,11 +137,11 @@ export class BallAnimator {
       if (tau < f.lift) {
         const p = tau / f.lift;
         r = lerp(DIM.ballRestRadius, DIM.trackRadius, smooth(p));
-        y = lerp(REST_Y, DIM.trackY, smooth(p)) + 0.12 * Math.sin(Math.PI * p);
+        y = lerp(restY(this.pocket), DIM.trackY, smooth(p)) + 0.12 * Math.sin(Math.PI * p);
       } else if (tau > f.orbit) {
         const p = (tau - f.orbit) / T_DROP;
         r = lerp(DIM.trackRadius, DROP_RADIUS, smooth(p));
-        y = lerp(DIM.trackY, REST_Y + 0.06, p) + 0.06 * Math.sin(Math.PI * p);
+        y = lerp(DIM.trackY, restY(f.target) + 0.06, p) + 0.06 * Math.sin(Math.PI * p);
       }
       this._place(theta, r, y);
       this.onRoll?.(Math.min(1, (f.w0 - f.decel * tau) / 8));
@@ -145,7 +154,7 @@ export class BallAnimator {
     const eased = 1 - (1 - u) ** 2.2;
     const phi = f.phiStart + f.delta * eased;
     const r = lerp(DROP_RADIUS, DIM.ballRestRadius, smooth(Math.min(1, u * 1.25))) + 0.045 * Math.sin(u * 17) * (1 - u) ** 2;
-    let y = REST_Y;
+    let y = restY(f.target);
     for (let i = 0; i < HOP_HEIGHT.length; i++) {
       if (u >= HOPS[i] && u < HOPS[i + 1]) {
         const p = (u - HOPS[i]) / (HOPS[i + 1] - HOPS[i]);
