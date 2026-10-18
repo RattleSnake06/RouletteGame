@@ -99,6 +99,11 @@ img.mark {
 .hud {
   position: fixed;
   inset: 0;
+  /* Phones (doc 9.10): notches, rounded corners and the home bar. */
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
   pointer-events: none;
   user-select: none;
   opacity: 0;
@@ -144,8 +149,8 @@ img.mark {
 
 /* Coins and the night's tally, top-left. */
 .hud-coins {
-  left: calc(30 * var(--u));
-  top: calc(20 * var(--u));
+  left: calc(30 * var(--u) + var(--safe-l));
+  top: calc(20 * var(--u) + var(--safe-t));
   font-size: calc(70 * var(--u));
   transform: rotate(-2.2deg);
   transform-origin: left top;
@@ -261,7 +266,7 @@ img.mark {
 
 /* The debt, top-centre: compact and dark so the wheel stays a shape behind. */
 .hud-debt {
-  top: calc(12 * var(--u));
+  top: calc(12 * var(--u) + var(--safe-t));
   left: 50%;
   translate: -50% 0;
   display: flex;
@@ -396,8 +401,9 @@ img.mark {
 
 /* Tokens, top-right: below the debt in the order of things. */
 .hud-tokens {
-  right: calc(32 * var(--u));
-  top: calc(22 * var(--u));
+  /* Clear of the menu button in the corner. */
+  right: calc(32 * var(--u) + 40px + var(--safe-r));
+  top: calc(22 * var(--u) + var(--safe-t));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -591,12 +597,12 @@ img.mark {
 }
 
 .hud-nav-left {
-  left: calc(14 * var(--u));
+  left: calc(14 * var(--u) + var(--safe-l));
   transform: translateY(-50%) rotate(-4deg);
 }
 
 .hud-nav-right {
-  right: calc(14 * var(--u));
+  right: calc(14 * var(--u) + var(--safe-r));
   transform: translateY(-50%) rotate(3deg);
 }
 
@@ -656,6 +662,55 @@ img.mark {
 /* Keyboard and pad focus: a bone scratch under the word, never a box. */
 .hud-nav:focus-visible .focus-mark {
   opacity: 1;
+}
+
+/* The menu (Esc on a keyboard): three scratched bars in the top-right corner. */
+.hud-menu {
+  position: absolute;
+  top: calc(6px + var(--safe-t));
+  right: calc(6px + var(--safe-r));
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.hud-menu .bar {
+  display: block;
+  width: 22px !important;
+  height: 5px !important;
+  margin: 0 !important;
+}
+
+.hud-menu:hover,
+.hud-menu:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.hud.spinning .hud-menu {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Touch (doc 9.10): no key caps, and every control at least 44 px square. */
+.touch .hud-nav .key {
+  display: none;
+}
+
+.touch .hud-nav {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
 }
 
 /* The bet note: scrawled beside the spot, with a scratch leading to it. The
@@ -866,7 +921,7 @@ img.mark {
 .hud-hint {
   position: absolute;
   left: 50%;
-  bottom: calc(26 * var(--u));
+  bottom: calc(26 * var(--u) + var(--safe-b));
   translate: -50% 0;
   max-width: calc(100% - 32px);
   font-size: calc(17 * var(--u));
@@ -1133,6 +1188,12 @@ img.mark {
   cursor: pointer;
 }
 
+.touch .modal-btn {
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+}
+
 .modal-btn:focus-visible {
   outline: none;
 }
@@ -1270,5 +1331,24 @@ img.mark {
   /* The hint wraps here; the toast sits clear above it. */
   .hud-toast {
     bottom: calc(150 * var(--u));
+  }
+}
+
+/* ---- Phones held upright: the room needs the width (doc 9.10) ---------------- */
+
+@media (orientation: portrait) and (pointer: coarse) {
+  body::after {
+    content: 'Turn your phone sideways.';
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #050403;
+    color: var(--bone);
+    font-family: var(--typed);
+    font-size: 20px;
+    text-align: center;
   }
 }

@@ -23,6 +23,31 @@ const VIEW_NAMES = { cage: 'Cage', table: 'Table', cabinet: 'Cabinet' };
 const FOCUS_BETS = ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'dozen:2', 'dozen:3', 'column:1', 'column:2', 'column:3'];
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// The hint line (doc 8.4). [Key] marks a key. On a touch screen the hints
+// name touches instead (doc 9.10).
+const KEY_HINTS = {
+  cage: 'Banked coins count toward the debt. They cannot come back out.',
+  cabinet: 'Click a compartment to buy, or press [1] [2] [3]. [R] turns the crank.',
+  lookAtCabinet: 'Your tokens buy talismans at the Cabinet. [D] to look.',
+  chooseNight: 'Choose how to spend the night: click a card, or press [1], [2] or [3].',
+  placeChip: 'Click the felt to place a chip.',
+  reorder: 'Talismans act left to right: drag them to reorder.',
+  spinOrRing: 'Fling the wheel, or press [Space] to spin. [B] rings the Bell.',
+  spin: 'Fling the wheel, or press [Space] to spin.',
+  nightOver: 'The night is over. Bank your coins at the Cage, then press [E] to end the night.',
+};
+const TOUCH_HINTS = {
+  cage: 'Banked coins count toward the debt. They cannot come back out.',
+  cabinet: 'Tap a compartment to buy. The crank restocks.',
+  lookAtCabinet: 'Your tokens buy talismans at the Cabinet. Swipe left to look.',
+  chooseNight: 'Choose how to spend the night: tap a card.',
+  placeChip: 'Tap the felt to place a chip.',
+  reorder: 'Talismans act left to right: drag them to reorder.',
+  spinOrRing: 'Fling the wheel to spin. Tap the Bell to ring it.',
+  spin: 'Fling the wheel to spin.',
+  nightOver: 'The night is over. Bank at the Cage, then tap the card to end the night.',
+};
+
 /** A stable name for a focusable object, so focus survives the list changing. */
 const focusKey = (t) => `${t.kind}:${t.uid ?? t.betId ?? t.slot ?? t.plaque ?? ''}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -246,21 +271,20 @@ export class Game {
 
   updateHint() {
     const s = this.state;
+    const hints = this.touch ? TOUCH_HINTS : KEY_HINTS;
     let hint = '';
     const offers = cabinetView(s).slots.filter((x) => x.id);
     if (this.busy) hint = '';
     else if (s.phase === PHASE.GAME_OVER) hint = '';
-    else if (this.view === 'cage') hint = 'Banked coins count toward the debt. They cannot come back out.';
-    else if (this.view === 'cabinet') hint = 'Click a compartment to buy, or press [1] [2] [3]. [R] turns the crank.';
-    else if (s.phase === PHASE.ROUND_START && !this.seen.has('cabinet') && offers.some((x) => x.affordable)) {
-      hint = 'Your tokens buy talismans at the Cabinet. [D] to look.';
-    } else if (s.phase === PHASE.ROUND_START) hint = 'Choose how to spend the night: click a card, or press [1], [2] or [3].';
-    else if (s.phase === PHASE.BETTING && chipsOnTable(s).length === 0) hint = 'Click the felt to place a chip.';
-    else if (s.phase === PHASE.BETTING && s.rail.length > 1 && !this.seen.has('moved')) {
-      hint = 'Talismans act left to right: drag them to reorder.';
-    } else if (s.phase === PHASE.BETTING && bellView(s).head) hint = 'Fling the wheel, or press [Space] to spin. [B] rings the Bell.';
-    else if (s.phase === PHASE.BETTING) hint = 'Fling the wheel, or press [Space] to spin.';
-    else if (s.phase === PHASE.NIGHT_OVER) hint = 'The night is over. Bank your coins at the Cage, then press [E] to end the night.';
+    else if (this.view === 'cage') hint = hints.cage;
+    else if (this.view === 'cabinet') hint = hints.cabinet;
+    else if (s.phase === PHASE.ROUND_START && !this.seen.has('cabinet') && offers.some((x) => x.affordable)) hint = hints.lookAtCabinet;
+    else if (s.phase === PHASE.ROUND_START) hint = hints.chooseNight;
+    else if (s.phase === PHASE.BETTING && chipsOnTable(s).length === 0) hint = hints.placeChip;
+    else if (s.phase === PHASE.BETTING && s.rail.length > 1 && !this.seen.has('moved')) hint = hints.reorder;
+    else if (s.phase === PHASE.BETTING && bellView(s).head) hint = hints.spinOrRing;
+    else if (s.phase === PHASE.BETTING) hint = hints.spin;
+    else if (s.phase === PHASE.NIGHT_OVER) hint = hints.nightOver;
     this.hud.setHint(hint);
   }
 
@@ -1225,7 +1249,9 @@ export class Game {
       title: 'Paused',
       lines: [
         `Debt <b>${s.debt}</b>, night <b>${s.round}</b>. Seed <b>${s.seed}</b>.`,
-        'Space spins · A/D turn · 1/2/3 choose a night or buy · E ends the night · B rings the Bell · R restocks · Tab walks the rail · F fast spins · M sound',
+        this.touch
+          ? 'Swipe or tap the edge tabs to turn · fling the wheel to spin · drag talismans to reorder'
+          : 'Space spins · A/D turn · 1/2/3 choose a night or buy · E ends the night · B rings the Bell · R restocks · Tab walks the rail · F fast spins · M sound',
       ],
       actions: [
         { label: 'Resume', primary: true, onClick: () => (this.menuClose = null) },

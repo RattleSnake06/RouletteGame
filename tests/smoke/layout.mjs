@@ -58,8 +58,11 @@ async function measure({ view, roles, min }) {
   const failures = [];
   const warnings = [];
 
-  // HTML controls.
-  const controls = [...document.querySelectorAll('button, [role=button], a[href], input, select')].filter(shown);
+  // HTML controls. A card (the pause menu, a modal) blocks the room on
+  // purpose: then only its own controls count.
+  const cards = [...document.querySelectorAll('.modal-backdrop.show')];
+  const scope = cards.length ? cards[cards.length - 1] : document;
+  const controls = [...scope.querySelectorAll('button, [role=button], a[href], input, select')].filter(shown);
   for (const el of controls) {
     const b = el.getBoundingClientRect();
     if (b.width < min - 0.5 || b.height < min - 0.5) failures.push(`small control ${name(el)}: ${Math.round(b.width)}×${Math.round(b.height)}`);
@@ -89,7 +92,7 @@ async function measure({ view, roles, min }) {
     for (let n = o; n; n = n.parent) if (!n.visible) return false;
     return true;
   };
-  r.stage.scene.traverse((o) => {
+  if (!cards.length) r.stage.scene.traverse((o) => {
     if (!o.isMesh || !roles.includes(o.userData.role) || !visibleInWorld(o)) return;
     const box = new THREE.Box3().setFromObject(o);
     if (box.isEmpty()) return;
@@ -101,7 +104,7 @@ async function measure({ view, roles, min }) {
     targets.push({ what: o.userData.role, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2, w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) });
   });
   // Bet spots: points on the felt, sized by the gap to the nearest other spot.
-  if (view === 'table' && r.game.state.phase === 'betting') {
+  if (view === 'table' && r.game.state.phase === 'betting' && !cards.length) {
     const { SPOTS } = await import('/src/view/felt.js');
     const spots = [...SPOTS.keys()].map((id) => ({ id, ...project(r.table.spotWorldPosition(id)) }));
     for (const s of spots) {

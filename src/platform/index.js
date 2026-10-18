@@ -1,7 +1,7 @@
-// Platform services: storage now, achievements and window control later.
-// The web adapter uses localStorage. The desktop build (design doc 9.10)
-// will install its own adapter on window.rnvpPlatform before the game boots,
-// writing saves to the user-data folder that Steam Cloud syncs.
+// Platform services: storage and the back button now, achievements and window
+// control later. The web adapter uses localStorage. The phone build (Capacitor)
+// and the desktop build (Electron, design doc 9.10) will install their own
+// adapter on window.rnvpPlatform before the game boots.
 
 const PREFIX = 'rien-ne-va-plus.';
 
@@ -30,6 +30,20 @@ const webPlatform = {
     }
   },
   unlockAchievement() {},
+  /**
+   * The system back button or gesture (Android). On the web it is the
+   * browser's back: a history entry held in hand turns it into a call, so it
+   * pauses the game instead of leaving the page. Only on touch screens: a
+   * desktop browser's back button should still leave.
+   */
+  onBack(fn) {
+    if (typeof window === 'undefined' || !window.matchMedia?.('(pointer: coarse)').matches) return;
+    history.pushState({ rnvp: true }, '');
+    window.addEventListener('popstate', () => {
+      history.pushState({ rnvp: true }, '');
+      fn();
+    });
+  },
 };
 
 export const platform = (typeof window !== 'undefined' && window.rnvpPlatform) || webPlatform;

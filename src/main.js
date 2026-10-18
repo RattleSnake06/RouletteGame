@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { WheelAudio } from './audio/audio.js';
 import { Game } from './game.js';
 import { createInput } from './input/actions.js';
+import { createSwipe, isTouchScreen } from './input/touch.js';
 import { loadSettings, platform, saveSettings } from './platform/index.js';
 import { loadFonts } from './ui/fonts.js';
 import { createHud } from './ui/hud.js';
@@ -36,6 +37,9 @@ function introPower(t) {
 
 async function init() {
   await loadFonts();
+  // Touch screens get touch hints, bigger targets and no key caps (doc 9.10).
+  const touch = isTouchScreen();
+  document.documentElement.classList.toggle('touch', touch);
 
   const canvas = document.getElementById('scene');
   const stage = createStage(canvas);
@@ -146,7 +150,7 @@ async function init() {
   lighting.flashes = settings.flashes !== false;
   const sparks = createSparks(scene);
   sparks.flashes = lighting.flashes;
-  game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting, sparks });
+  game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -191,6 +195,17 @@ async function init() {
   input.on('sell', play(() => game.sellFocused()));
   input.on('toggleMute', () => game.toggleMute());
   input.on('menu', () => (game.menuClose || !modalOpen()) && game.toggleMenu());
+  // Touch (doc 9.10): a swipe across empty space turns; the menu button and
+  // the Android back button open the menu.
+  createSwipe(canvas, {
+    ignore: (ev) => interaction.consumed.has(ev) || interaction.captured || !!game?.busy || spin.grabbableAt(ev),
+    onSwipe: (dir) => input.emit(dir < 0 ? 'turnLeft' : 'turnRight'),
+  });
+  hud.refs.menu.addEventListener('click', (e) => {
+    e.currentTarget.blur();
+    input.emit('menu');
+  });
+  platform.onBack?.(() => input.emit('menu'));
   // Browsers only allow sound after a gesture.
   const wake = () => audio.start();
   window.addEventListener('pointerdown', wake);

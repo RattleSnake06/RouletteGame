@@ -83,6 +83,7 @@ export function createHud(root = document.body) {
     <div class="hud-flavor" data-k="flavor"><span class="words scrawl fat"></span></div>
     <button class="hud-nav hud-nav-left" data-k="navLeft" type="button" hidden></button>
     <button class="hud-nav hud-nav-right" data-k="navRight" type="button" hidden></button>
+    <button class="hud-menu" data-k="menu" type="button" aria-label="Menu"></button>
     <div class="hud-note" data-k="tooltip" aria-live="polite"><div class="note-body"></div></div>
     <div class="hud-toast typed" data-k="toast"><span></span></div>
     <div class="hud-hint typed" data-k="hint"></div>
@@ -112,6 +113,7 @@ export function createHud(root = document.body) {
     flavor: $('flavor'),
     navLeft: $('navLeft'),
     navRight: $('navRight'),
+    menu: $('menu'),
     tooltip: $('tooltip'),
     toast: $('toast'),
     hint: $('hint'),
@@ -156,6 +158,10 @@ export function createHud(root = document.body) {
     return word;
   }
   const navWords = { left: buildNav(refs.navLeft, 'left', 'A'), right: buildNav(refs.navRight, 'right', 'D') };
+  // The menu: three scratched bars, the same ink as the arrows.
+  for (const [i, y0] of [6, 15, 24].entries()) {
+    refs.menu.append(markImg(lineMark(34, 8, 61 + i, INK.bone, 2.6, { y0: 4 + (i % 2), y1: 4 - (i % 2) }), 'bar', 0.03));
+  }
 
   // ---- Attention: values flare when they change, then settle back -------------
   const flareTimers = new Map();
