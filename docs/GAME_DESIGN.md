@@ -947,6 +947,9 @@ bounces, never the result.
   state ringed in chalk.
 - **Cards and signs in the room** are lettered in the same hand: the night cards
   are black card stock with bone words and a blood swipe under the spin count.
+  They stand propped on the felt, leaning toward the player's eye, and are lit
+  evenly (dimming with the table lamp) so the lamp's hot spot never washes the
+  lettering out; lying flat they were seen edge-on and could not be read.
 
 ### 8.5 Art direction
 

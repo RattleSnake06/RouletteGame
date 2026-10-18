@@ -18,18 +18,23 @@ const TOP_Y = 0.95;
 const FELT_Y = TOP_Y + 0.002;
 const FELT_Z = -0.035;
 const TRAY = { x0: 0.27, z: 0.262, step: 0.052 };
-const CARD = { w: 0.17, h: 0.24 };
+// The night cards stand propped toward the player's eye (about 50° up from
+// the felt): lying flat they were seen edge-on and could not be read.
+const CARD = { w: 0.19, h: 0.268, tilt: 0.78, gap: 0.215, z: 0.045 };
 const CARD_ORDER = ['long', 'short', 'sitout'];
 
 // Night cards are black card stock lettered in the HUD's hand: bone words, a
-// blood swipe under the number that matters (design doc 8.4).
+// blood swipe under the number that matters (design doc 8.4). They are drawn
+// in a 360 × 508 layout and rendered at 1.5×, so the small print stays crisp.
+const CARD_RES = 1.5;
 function darkCard(draw, seed) {
   const W = 360;
   const H = 508;
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W * CARD_RES;
+  canvas.height = H * CARD_RES;
   const ctx = canvas.getContext('2d');
+  ctx.scale(CARD_RES, CARD_RES);
   const r = rng(seed);
   const g = ctx.createRadialGradient(W / 2, H * 0.45, 40, W / 2, H / 2, H * 0.62);
   g.addColorStop(0, '#2a221d');
@@ -73,25 +78,25 @@ function drawNightCard(ctx, { id, cost, affordable, key }) {
   const pkg = PACKAGES[id];
   const seed = 300 + key * 7;
   drawKey(ctx, String(key), seed);
-  scrawlText(ctx, pkg.name, 180, 104, 38, INK.bone, { maxWidth: 300 });
-  paintSwipe(ctx, 76, 176, 210, 96, seed + 1, INK.bloodDeep, { slope: -0.06 });
-  scrawlText(ctx, String(pkg.spins), 186, 226, 112, INK.bone);
+  scrawlText(ctx, pkg.name, 172, 100, 44, INK.bone, { maxWidth: 270 });
+  paintSwipe(ctx, 76, 166, 210, 96, seed + 1, INK.bloodDeep, { slope: -0.06 });
+  scrawlText(ctx, String(pkg.spins), 186, 216, 112, INK.bone);
+  ctx.font = typedFont(34);
+  ctx.fillStyle = INK.bone;
+  ctx.fillText(pkg.spins === 1 ? 'spin' : 'spins', 180, 304);
   ctx.font = typedFont(30);
-  ctx.fillStyle = INK.boneDim;
-  ctx.fillText(pkg.spins === 1 ? 'spin' : 'spins', 180, 318);
-  ctx.font = typedFont(23);
   const plural = (n) => `+${n} token${n === 1 ? '' : 's'}`;
   const bonus = id === 'short' ? plural(pkg.tokens) : id === 'sitout' ? `${plural(ECONOMY.sitOutTokens)} when the debt is paid` : 'the most spins';
-  wrapText(ctx, bonus, 180, 366, 270, 30);
+  wrapText(ctx, bonus, 180, 350, 300, 34);
   if (cost === '0') {
-    scrawlText(ctx, 'free', 180, 446, 36, INK.bone);
+    scrawlText(ctx, 'free', 180, 450, 46, INK.bone);
   } else {
-    ctx.font = typedFont(24);
-    ctx.fillStyle = INK.boneDim;
+    ctx.font = typedFont(30);
+    ctx.fillStyle = INK.bone;
     ctx.textAlign = 'right';
-    ctx.fillText('costs', 164, 450);
+    ctx.fillText('costs', 170, 456);
     ctx.textAlign = 'left';
-    scrawlText(ctx, cost, 178, 444, 38, INK.blood);
+    scrawlText(ctx, cost, 184, 448, 50, INK.blood);
     ctx.textAlign = 'center';
   }
   if (!affordable) {
@@ -105,12 +110,12 @@ function drawNightCard(ctx, { id, cost, affordable, key }) {
 
 function drawEndCard(ctx, { line }) {
   drawKey(ctx, 'E', 391);
-  scrawlText(ctx, 'End the', 180, 150, 46, INK.bone);
+  scrawlText(ctx, 'End the', 180, 150, 50, INK.bone);
   paintSwipe(ctx, 74, 186, 216, 70, 393, INK.bloodDeep, { slope: -0.05 });
-  scrawlText(ctx, 'night', 182, 216, 54, INK.bone);
-  ctx.fillStyle = INK.boneDim;
-  ctx.font = typedFont(25);
-  wrapText(ctx, line, 180, 318, 270, 34);
+  scrawlText(ctx, 'night', 182, 216, 58, INK.bone);
+  ctx.fillStyle = INK.bone;
+  ctx.font = typedFont(30);
+  wrapText(ctx, line, 180, 318, 300, 38);
 }
 
 function wrapText(ctx, text, x, y, maxW, lineH) {
@@ -530,11 +535,12 @@ export function createTable({ materials, interaction, callbacks }) {
   const cardGeo = new THREE.PlaneGeometry(CARD.w, CARD.h);
 
   function makeCardMesh(id, onClick, isEnabled) {
-    const material = new THREE.MeshStandardMaterial({ roughness: 0.95, transparent: true, opacity: 0 });
+    // Unlit, and dimmed with the table lamp in update(): under the lamp's hot
+    // spot a lit card's bone ink went past the bloom threshold and smeared.
+    const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
     const mesh = new THREE.Mesh(cardGeo, material);
-    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.x = -Math.PI / 2 + CARD.tilt;
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
     mesh.visible = false;
     mesh.userData.role = id === 'end' ? 'end-card' : 'night-card';
     mesh.userData.card = id;
@@ -554,12 +560,14 @@ export function createTable({ materials, interaction, callbacks }) {
     return card;
   }
 
+  // Propped up, a card's bottom edge rests on the felt and its middle rises.
+  const cardY = FELT_Y + 0.006 + (CARD.h / 2) * Math.sin(CARD.tilt);
   CARD_ORDER.forEach((id, i) => {
     const card = makeCardMesh(id, () => callbacks.onChoose?.(id), () => card.affordable);
-    card.base.set((i - 1) * 0.2, FELT_Y + 0.025, FELT_Z + 0.005);
+    card.base.set((i - 1) * CARD.gap, cardY, FELT_Z + CARD.z);
   });
   const endCard = makeCardMesh('end', () => callbacks.onEndNight?.(), () => true);
-  endCard.base.set(0, FELT_Y + 0.025, FELT_Z + 0.005);
+  endCard.base.set(0, cardY, FELT_Z + CARD.z);
 
   function setCardTexture(card, tex) {
     card.material.map?.dispose();
@@ -628,6 +636,8 @@ export function createTable({ materials, interaction, callbacks }) {
       card.material.opacity += ((card.shown ? 1 : 0) - card.material.opacity) * (1 - Math.exp(-dt * 10));
       card.mesh.position.set(card.base.x, targetY, card.base.z + (1 - appear) * 0.06);
       card.mesh.rotation.z = card.hover ? 0.03 : 0;
+      // As bright as the lamp lets it be, never brighter than paper.
+      card.material.color.setScalar(0.28 + 0.6 * lampLevel);
       if (!card.shown && card.material.opacity < 0.02) card.mesh.visible = false;
     }
     // The LEAN lamp hums: a slow swell with a little flutter in it.
