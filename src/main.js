@@ -288,7 +288,7 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting, sparks };
+  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting, sparks, THREE };
   if (import.meta.env.DEV) {
     const tunedDevil = { ...DEVIL };
     window.__roulette.debug = {

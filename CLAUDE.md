@@ -2,7 +2,8 @@
 
 A roulette roguelike with the feel of Clover Pit (dark, diegetic, debt-driven),
 built on roulette's own mechanics. Three.js + Vite. Developed in the browser,
-shipping on Steam as an Electron app.
+shipping first on phones (App Store and Play Store, wrapped with Capacitor) and
+second on Steam (Electron).
 
 ## The design doc is the source of truth
 
@@ -23,8 +24,11 @@ roadmap.
 - Chips are owned bets; the risk is the coin cost per spin.
 - Keep the current render; the low-res "crunch" filter is optional.
 - Leans are announced one spin early.
-- Steam is a target: route input through `src/input/` actions and saves and
-  platform calls through `src/platform/` from the start (doc 9.10).
+- Phones are the main target, landscape only; Steam is the second (doc 9.10,
+  decisions 18–21). Every control must be reachable by touch, at least 44 px,
+  and none may cover another clickable: run `npm run layout` after any HUD or
+  camera change. Route input through `src/input/` actions and saves and
+  platform calls through `src/platform/` (doc 9.10).
 
 ## Architecture rules (doc section 9)
 
@@ -51,8 +55,8 @@ Phases 1 (core loop), 2 (talismans, the Curio Cabinet, tokens and the Bell)
 and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done,
 plus twenty more talismans built ahead of Phase 4 at the owner's request
 (43 in all; doc 6.1, decisions 15–17), with pocket widths drawn live.
-Next is Phase 4: Madame Zero, fortunes (white and black cards), engravings and
-records. The best simulator bot at each debt pays debts 1–4 in about 99%, 74%,
+Next is M1, touch and the phone layout (doc 10, decision 21), then Phase 4:
+Madame Zero, fortunes (white and black cards), engravings and records. The best simulator bot at each debt pays debts 1–4 in about 99%, 74%,
 25% and 8% of runs, inside the Phase 3 targets but close to the debt 2 ceiling
 and the debt 3 floor (see `npm run sim`, which grades the best Lean-playing bot
 at each debt; `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
@@ -68,6 +72,8 @@ luck or jackpot change.
 - `npm run build` writes a static build to `dist/`.
 - `npm test` runs the core unit tests (vitest). Keep them green.
 - `npm run sim` runs the balance simulator. Re-run it after any economy change.
+- `npm run layout` checks the phone layout at three landscape sizes (nothing
+  covered, controls at least 44 px); it takes `CHROME_PATH` like the smoke test.
 - `npm run smoke` plays a debt end to end in headless Chromium; set
   `CHROME_PATH` (in the cloud container: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
 - In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`,

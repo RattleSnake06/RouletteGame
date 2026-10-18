@@ -5,7 +5,8 @@ Decisions made so far are listed under [Decisions](#12-decisions).
 
 Status: Phase 1 (the core loop), Phase 2 (talismans, the Curio Cabinet,
 tokens and the Bell) and Phase 3 (Nudge, the Lean, pity, the Devil, cursed
-talismans) are built; see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
+talismans) are built; touch and the phone layout (M1) come next, then Phase 4.
+Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
 **Contents**
@@ -1246,32 +1247,72 @@ play back strictly left to right. Every hook that changes something emits a
     render scale.
 - **Platform:** see 9.10.
 
-### 9.10 Steam
+### 9.10 Platforms: phones first, Steam second
 
-The game ships on Steam. It is developed and tested in the browser, then wrapped
-as a desktop app. Building it in from the start costs little; retrofitting it
-late is expensive.
+The game ships first on phones (App Store and Play Store) and second on Steam
+(owner's decisions, 18–21). It is developed and tested in the browser, and the
+same web build is wrapped twice: Capacitor for phones, Electron for Steam.
+Building both in from the start costs little; retrofitting either late is
+expensive.
+
+**Phones**
+
+- **Landscape only.** The room is a wide scene and the felt needs the width. A
+  phone held upright gets a "turn your phone sideways" card, not a squashed
+  table; the store builds lock the orientation.
+- **Nothing hidden, nothing covered.** Every control is reachable by touch, at
+  least 44 px (44 pt) square, and no control covers another clickable: HUD text
+  never sits over a button, a card or a bet spot. `npm run layout` checks this
+  at three phone sizes (667×375, 844×390, 932×430) at every station.
+- **Touch controls** (M1): swipe to turn between stations, with small edge tabs
+  for the same; a brass SPIN button in thumb reach (hold it for fast spins;
+  flinging the wheel still works); tap a chip, then tap a bet (dragging still
+  works), with a close-up of the felt and a magnifier under the finger while
+  placing; a long press opens an object's note, and notes carry the action
+  buttons (Sell, Ring, Buy, move ◀ ▶), so one stray tap never buys or sells; an
+  on-screen menu button, and the Android back button opens the menu. Hints name
+  touches, not keys.
+- **Screen:** safe-area insets (notches, rounded corners, the home bar) through
+  `viewport-fit=cover`; a compact HUD on short screens; each station's camera
+  fits the screen's shape; a close-up for the night cards.
+- **Wrapper: Capacitor** (M3): native saves, pause and resume (the run is saved
+  when the app goes to the background), haptics on hops and payouts, the
+  orientation lock, and the audio session (silent switch, other apps' music).
+- **Performance** (M2): a phone quality preset (render scale, shadows, the
+  procedural textures cached), holding 60 fps on a mid-range phone without
+  overheating, and loading in a few seconds.
+- **Price:** a one-time purchase. Premium: no ads, no in-app purchases, no
+  accounts.
+- **Store side** (M5, Phase 9): Apple's developer program ($99 a year, and
+  builds need a Mac or a cloud build service), Google Play ($25 once); an age
+  rating for simulated gambling (likely 17+ on the App Store); a privacy policy
+  (the game collects nothing) and store listings with screenshots and a
+  trailer. Game Center and Play Games achievements are optional (M4).
+
+**Steam (second platform)**
 
 - **Wrapper: Electron**, not Tauri. Tauri uses the system webview, which on Linux
   (including Steam Deck) is WebKitGTK, whose WebGL performance and consistency are
   poor. Electron ships its own Chromium, so the game renders the same everywhere.
 - **Steamworks: steamworks.js** (a Node addon for Electron) for achievements, Steam
   Cloud and the overlay. The overlay needs its documented Electron workaround.
+- **Input actions:** code against actions ("place chip", "spin", "turn left",
+  "open tooltip"), not raw mouse events, so touch, gamepad and Steam Input map
+  onto the same names. Anything shown on hover must also be reachable by a long
+  press and by gamepad focus.
+- **Steam Deck:** 1280×800, gamepad only, a 7-inch screen. A Deck quality preset
+  and a minimum text size legible there.
+- **Store side:** a Steam Direct fee, a store page with capsule art, screenshots
+  and a trailer.
+
+**Both**
+
 - **Platform adapter from Phase 1.** The core never touches storage or platform
   APIs directly. A small `platform/` layer provides save and load (localStorage
-  on the web, files in the user-data folder on desktop, which Steam Auto-Cloud
-  syncs), achievements (no-op on the web), and fullscreen and resolution.
-- **Input actions from Phase 1.** Code against actions ("place chip", "spin",
-  "turn left", "open tooltip"), not raw mouse events, so gamepad and Steam Input
-  can be added without rewrites. Anything shown on hover must also be reachable
-  by gamepad focus.
-- **Steam Deck as a target device:** 1280×800, gamepad only, a 7-inch screen.
-  Plan a Deck quality preset that holds a steady frame rate, and a minimum HUD
-  and tooltip text size that stays legible there.
+  on the web, native storage on phones, files in the user-data folder on
+  desktop, which Steam Auto-Cloud syncs), the back button, achievements (no-op
+  on the web), and fullscreen.
 - **Achievements** map onto Almanac unlocks (7.4), so they are designed once.
-- **Store side:** a Steam Direct fee per app, a store page with capsule art,
-  screenshots and a trailer, and a release build pipeline. All of it comes after
-  the game is fun (Phase 9).
 
 ---
 
@@ -1285,12 +1326,13 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **1. Core loop** (done) | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
 | **2. Builds** (done) | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
 | **3. Luck and risk** (done) | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
+| **M1. Touch and the phone layout** (now, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; long-press notes with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
-| **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, performance, touch, optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
-| **9. Steam** | Electron build; steamworks.js (achievements, Cloud saves, overlay); full gamepad and Steam Input; Steam Deck preset and testing; store page and release pipeline | The game runs and saves through Steam on Windows and Steam Deck, playable start to finish on a gamepad |
+| **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
+| **9. Store releases** | Capacitor builds for iOS and Android (M3: native saves, pause and resume, haptics, the orientation lock, the audio session); Game Center and Play Games (M4, optional); App Store and Play Store listings, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset) | The game installs from TestFlight and a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
 
 ### Phase 1 breakdown
 
@@ -1374,7 +1416,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 3 | Look | **Keep the current render, with an optional low-resolution crunch filter.** (8.5) |
 | 4 | Leans | **Announced one spin early.** (5.6) |
 | 5 | Name | **Rien Ne Va Plus.** |
-| 6 | Platform | **Plan for Steam.** Developed in the browser, shipped as an Electron app. (9.10) |
+| 6 | Platform | **Phones first, Steam second** (revised by 18; first decided as Steam only). Developed in the browser; one web build ships as a Capacitor app on phones and an Electron app on Steam. (9.10) |
 | 7 | Token income | **+1 token at the end of every night**, and the debt reward goes from +1 to +2 tokens. Short nights (+1) and sitting out (+3 per night) stay. (5.1, 5.2) |
 | 8 | Wheel of Fortune | **Ring before the spin to arm it.** If that spin pays nothing, the ball is thrown again; the charge is spent even when the spin pays. (5.8) |
 | 9 | The Cabinet's 4th compartment | **Boarded up until oddities exist (Phase 5).** (5.8) |
@@ -1386,3 +1428,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 15 | Twenty more talismans before Phase 4 | **Built now, at the owner's request, from systems that exist.** Content for Phase 7 pulled forward; tuned back inside the Phase 3 targets for the best bot at every debt. After review the Beckoning Cat pays once a night (3 nights' interest), the Mousetrap stops at +2 Stake and a Tuning Fork does not repeat the Dowsing Rod (owner's go-ahead on the review fixes). (6.1) |
 | 16 | Brass Scales ("more Even") | **Real pocket widths, drawn to scale.** The live-width wheel is pulled forward from Phase 5; widths come from talismans until Phase 5's wheel work. (5.4) |
 | 17 | Number Punches (renumber 3 pockets) | **Waits for Phase 5**, with the other wheel-building tools. (5.4, 6.1) |
+| 18 | Main platform | **Phones (App Store and Play Store) are the main target; Steam stays as a second platform**, since the same web build serves both for little extra: Capacitor for phones, Electron for Steam. (9.10) |
+| 19 | Phones | **Landscape only.** Every control is reachable by touch, and no control covers another clickable. (9.10) |
+| 20 | Price | **A one-time price**: premium, no ads, no in-app purchases. (9.10) |
+| 21 | When | **Touch and the phone layout (M1) come now, before Phase 4**, so everything after is built touch-first. (10) |

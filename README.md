@@ -92,7 +92,7 @@ src/
   ui/          HUD, popups, notes, modals
   audio/       synthesised sound
   input/       keys → game actions (gamepad later)
-  platform/    saves and settings (web now, Steam desktop later)
+  platform/    saves, settings and the back button (web now; phones, then Steam)
   game.js      connects the rules to the room
   playback.js  plays a spin's payout back, talisman by talisman
   main.js      boot and frame loop
