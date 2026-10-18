@@ -27,6 +27,9 @@ body {
   height: 100%;
   background: var(--bg);
   overflow: hidden;
+  /* Touch: no grey or blue flash over a tapped control, no callout menus. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 #scene {
@@ -700,6 +703,50 @@ img.mark {
 .hud.spinning .hud-menu {
   opacity: 0;
   pointer-events: none;
+}
+
+/* SPIN (touch): a brass button under the right thumb. Dull until chips are
+   down; it stays up during the spin, to be held for a fast one. */
+.hud-spin {
+  position: absolute;
+  right: calc(14px + var(--safe-r));
+  bottom: calc(14px + var(--safe-b));
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid #3a2a12;
+  background: radial-gradient(circle at 38% 32%, #f2d79a, #c49a52 38%, #7a5a26 72%, #3a2a12);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.55), 0 6px 14px rgba(0, 0, 0, 0.8), inset 0 -4px 8px rgba(0, 0, 0, 0.45);
+  color: #1c1208;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  opacity: 0.55;
+  filter: saturate(0.5);
+  transition: opacity 0.2s, filter 0.2s, transform 0.08s;
+}
+
+.hud-spin.ready {
+  opacity: 1;
+  filter: none;
+}
+
+.hud-spin:active {
+  transform: scale(0.94);
+}
+
+.hud.spinning .hud-spin {
+  opacity: 0.6;
+}
+
+.hud-spin[hidden] {
+  display: none;
 }
 
 /* Touch (doc 9.10): no key caps, and every control at least 44 px square. */

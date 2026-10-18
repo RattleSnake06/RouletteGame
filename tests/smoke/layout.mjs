@@ -123,6 +123,17 @@ async function measure({ view, roles, min }) {
     const cs = getComputedStyle(el);
     return b.width > 1 && b.height > 1 && cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05;
   });
+  // HUD text drawn over a control hides it too (a card covers the HUD).
+  for (const el of cards.length ? [] : controls) {
+    const b = el.getBoundingClientRect();
+    for (const p of painted) {
+      if (p.contains(el)) continue;
+      const q = p.getBoundingClientRect();
+      const ix = Math.min(b.right, q.right) - Math.max(b.left, q.left);
+      const iy = Math.min(b.bottom, q.bottom) - Math.max(b.top, q.top);
+      if (ix > 0.5 && iy > 0.5) failures.push(`hidden control ${name(el)} under ${name(p)}`);
+    }
+  }
   let small = 0;
   for (const t of targets) {
     if (t.x < 0 || t.y < 0 || t.x > W || t.y > H) continue;

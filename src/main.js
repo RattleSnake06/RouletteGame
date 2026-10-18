@@ -201,6 +201,21 @@ async function init() {
     ignore: (ev) => interaction.consumed.has(ev) || interaction.captured || !!game?.busy || spin.grabbableAt(ev),
     onSwipe: (dir) => input.emit(dir < 0 ? 'turnLeft' : 'turnRight'),
   });
+  // The SPIN button acts like Space: a press spins, and holding it spins fast.
+  const spinBtn = hud.refs.spinBtn;
+  spinBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (!modalOpen()) input.press('spin');
+    // Kept while the finger slides off the button, so the hold is not lost.
+    try {
+      spinBtn.setPointerCapture(e.pointerId);
+    } catch {
+      // No such pointer any more: the release still arrives as pointerup.
+    }
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) spinBtn.addEventListener(type, () => input.release('spin'));
+  // Enter or Space on the focused button (no pointer): a plain spin.
+  spinBtn.addEventListener('click', (e) => e.detail === 0 && !modalOpen() && input.emit('spin'));
   hud.refs.menu.addEventListener('click', (e) => {
     e.currentTarget.blur();
     input.emit('menu');

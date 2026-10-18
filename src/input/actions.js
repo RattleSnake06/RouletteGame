@@ -71,5 +71,14 @@ export function createInput(target = window) {
     },
     isHeld: (action) => held.has(action),
     emit,
+    /** An on-screen button pressed like a key: the action fires and stays held. */
+    press(action) {
+      if (held.has(action)) return;
+      held.add(action);
+      emit(action);
+    },
+    release(action) {
+      held.delete(action);
+    },
   };
 }

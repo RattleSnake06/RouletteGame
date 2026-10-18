@@ -84,6 +84,7 @@ export function createHud(root = document.body) {
     <button class="hud-nav hud-nav-left" data-k="navLeft" type="button" hidden></button>
     <button class="hud-nav hud-nav-right" data-k="navRight" type="button" hidden></button>
     <button class="hud-menu" data-k="menu" type="button" aria-label="Menu"></button>
+    <button class="hud-spin" data-k="spin" type="button" aria-label="Spin (hold to spin fast)" hidden><span class="typed">Spin</span></button>
     <div class="hud-note" data-k="tooltip" aria-live="polite"><div class="note-body"></div></div>
     <div class="hud-toast typed" data-k="toast"><span></span></div>
     <div class="hud-hint typed" data-k="hint"></div>
@@ -114,6 +115,7 @@ export function createHud(root = document.body) {
     navLeft: $('navLeft'),
     navRight: $('navRight'),
     menu: $('menu'),
+    spinBtn: $('spin'),
     tooltip: $('tooltip'),
     toast: $('toast'),
     hint: $('hint'),
@@ -494,6 +496,12 @@ export function createHud(root = document.body) {
     hud.classList.toggle('spinning', mode === 'spin');
   }
 
+  /** The SPIN button: shown at the table on a touch screen, lit when a spin can start. */
+  function setSpinButton({ shown, ready }) {
+    refs.spinBtn.hidden = !shown;
+    refs.spinBtn.classList.toggle('ready', !!ready);
+  }
+
   /**
    * At the Cage its own sign carries the debt, so the HUD's copy steps back;
    * at the Cabinet prices are in tokens, so the tokens come forward.
@@ -533,6 +541,7 @@ export function createHud(root = document.body) {
     note,
     tooltip,
     setMode,
+    setSpinButton,
     setView,
     setDread,
     approx: toNumber,

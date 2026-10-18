@@ -43,8 +43,8 @@ const TOUCH_HINTS = {
   chooseNight: 'Choose how to spend the night: tap a card.',
   placeChip: 'Tap the felt to place a chip.',
   reorder: 'Talismans act left to right: drag them to reorder.',
-  spinOrRing: 'Fling the wheel to spin. Tap the Bell to ring it.',
-  spin: 'Fling the wheel to spin.',
+  spinOrRing: 'Tap SPIN or fling the wheel. Tap the Bell to ring it.',
+  spin: 'Tap SPIN or fling the wheel. Hold SPIN to spin fast.',
   nightOver: 'The night is over. Bank at the Cage, then tap the card to end the night.',
 };
 
@@ -286,6 +286,12 @@ export class Game {
     else if (s.phase === PHASE.BETTING) hint = hints.spin;
     else if (s.phase === PHASE.NIGHT_OVER) hint = hints.nightOver;
     this.hud.setHint(hint);
+    // The SPIN button stays up through the spin, so it can be held for speed.
+    const atTable = this.view === 'table' && s.phase !== PHASE.GAME_OVER;
+    this.hud.setSpinButton({
+      shown: this.touch && atTable && (this.busy || s.phase === PHASE.BETTING),
+      ready: !this.busy && s.phase === PHASE.BETTING && chipsOnTable(s).length > 0,
+    });
   }
 
   updateNav() {
@@ -1250,7 +1256,7 @@ export class Game {
       lines: [
         `Debt <b>${s.debt}</b>, night <b>${s.round}</b>. Seed <b>${s.seed}</b>.`,
         this.touch
-          ? 'Swipe or tap the edge tabs to turn · fling the wheel to spin · drag talismans to reorder'
+          ? 'Swipe or tap the edge tabs to turn · tap SPIN or fling the wheel, hold SPIN to spin fast · drag talismans to reorder'
           : 'Space spins · A/D turn · 1/2/3 choose a night or buy · E ends the night · B rings the Bell · R restocks · Tab walks the rail · F fast spins · M sound',
       ],
       actions: [
