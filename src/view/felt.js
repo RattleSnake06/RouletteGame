@@ -173,6 +173,11 @@ export class FeltCanvas {
     return { x: x / this.metersPerUnit + LAYOUT_W / 2, y: z / this.metersPerUnit + LAYOUT_H / 2 };
   }
 
+  /** Layout units → pixels on the felt's canvas. */
+  toCanvas(x, y) {
+    return { x: this._u(x), y: this._u(y) };
+  }
+
   _u(v) {
     return (v + MARGIN) * this.px;
   }

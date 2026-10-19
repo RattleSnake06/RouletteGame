@@ -17,6 +17,18 @@ import * as THREE from 'three';
 
 const CLICK_SLOP = 6; // px a press may wander and still count as a click
 
+// Capture keeps a drag when the pointer leaves the canvas; a pointer that is
+// already gone (a touch the system cancelled) cannot be captured, and the
+// drag still ends on pointerup or pointercancel.
+const capture = (dom, id, on) => {
+  try {
+    if (on) dom.setPointerCapture?.(id);
+    else dom.releasePointerCapture?.(id);
+  } catch {
+    // No such pointer: nothing to hold.
+  }
+};
+
 export class Interaction {
   constructor(dom, camera) {
     this.dom = dom;
@@ -102,7 +114,7 @@ export class Interaction {
     ev.preventDefault();
     if (p.handler.down?.(p.hit, ev, this)) {
       this.captured = p.handler;
-      this.dom.setPointerCapture?.(ev.pointerId);
+      capture(this.dom, ev.pointerId, true);
       return;
     }
     this.pressed = { handler: p.handler, x: ev.clientX, y: ev.clientY };
@@ -126,7 +138,7 @@ export class Interaction {
     if (this.captured) {
       const handler = this.captured;
       this.captured = null;
-      this.dom.releasePointerCapture?.(ev.pointerId);
+      capture(this.dom, ev.pointerId, false);
       handler.up?.(ev, this);
       this._hover(ev);
       return;

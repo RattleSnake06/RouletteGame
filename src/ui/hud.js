@@ -85,6 +85,8 @@ export function createHud(root = document.body) {
     <button class="hud-nav hud-nav-right" data-k="navRight" type="button" hidden></button>
     <button class="hud-menu" data-k="menu" type="button" aria-label="Menu"></button>
     <button class="hud-spin" data-k="spin" type="button" aria-label="Spin (hold to spin fast)" hidden><span class="typed">Spin</span></button>
+    <button class="hud-back typed" data-k="back" type="button" hidden>&#8593; The wheel</button>
+    <div class="hud-loupe" data-k="loupe" aria-hidden="true"><canvas></canvas><span class="label typed"></span></div>
     <div class="hud-note" data-k="tooltip" aria-live="polite"><div class="note-body"></div></div>
     <div class="hud-toast typed" data-k="toast"><span></span></div>
     <div class="hud-hint typed" data-k="hint"></div>
@@ -116,6 +118,8 @@ export function createHud(root = document.body) {
     navRight: $('navRight'),
     menu: $('menu'),
     spinBtn: $('spin'),
+    back: $('back'),
+    loupe: $('loupe'),
     tooltip: $('tooltip'),
     toast: $('toast'),
     hint: $('hint'),
@@ -496,6 +500,40 @@ export function createHud(root = document.body) {
     hud.classList.toggle('spinning', mode === 'spin');
   }
 
+  /** The felt close-up (touch): the HUD steps aside for the felt; Back leaves it. */
+  function setZoomed(on) {
+    hud.classList.toggle('zoomed', on);
+    refs.back.hidden = !on;
+  }
+
+  // The magnifier: the felt under the finger, shown beside it, never under it.
+  const LOUPE = 132;
+  const loupeCanvas = refs.loupe.querySelector('canvas');
+  const loupeCtx = loupeCanvas.getContext('2d');
+  /** draw(ctx, sizeInPixels) paints the magnified felt; label names the bet. */
+  function showLoupe({ x, y, draw, label }) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const px = Math.round(LOUPE * dpr);
+    if (loupeCanvas.width !== px) loupeCanvas.width = loupeCanvas.height = px;
+    draw(loupeCtx, px);
+    refs.loupe.querySelector('.label').textContent = label;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    let cx = x;
+    let cy = y - 104;
+    // No room above the finger: beside it, toward the middle of the screen.
+    if (cy - LOUPE / 2 < 4) {
+      cx = x + (x < W / 2 ? 1 : -1) * 124;
+      cy = Math.min(Math.max(y, LOUPE / 2 + 4), H - LOUPE / 2 - 24);
+    }
+    cx = Math.min(Math.max(cx, LOUPE / 2 + 4), W - LOUPE / 2 - 4);
+    refs.loupe.style.transform = `translate(${Math.round(cx - LOUPE / 2)}px, ${Math.round(cy - LOUPE / 2)}px)`;
+    refs.loupe.classList.add('show');
+  }
+  function hideLoupe() {
+    refs.loupe.classList.remove('show');
+  }
+
   /** The SPIN button: shown at the table on a touch screen, lit when a spin can start. */
   function setSpinButton({ shown, ready }) {
     refs.spinBtn.hidden = !shown;
@@ -542,6 +580,9 @@ export function createHud(root = document.body) {
     tooltip,
     setMode,
     setSpinButton,
+    setZoomed,
+    showLoupe,
+    hideLoupe,
     setView,
     setDread,
     approx: toNumber,

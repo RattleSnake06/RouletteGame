@@ -749,6 +749,73 @@ img.mark {
   display: none;
 }
 
+/* The felt close-up (touch): only the felt, Back and SPIN. */
+.hud.zoomed .hud-coins,
+.hud.zoomed .hud-debt,
+.hud.zoomed .hud-tokens,
+.hud.zoomed .hud-nav,
+.hud.zoomed .hud-hint,
+.hud.zoomed .hud-menu {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.hud-back {
+  position: absolute;
+  left: calc(14px + var(--safe-l));
+  bottom: calc(14px + var(--safe-b));
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(237, 229, 211, 0.35);
+  border-radius: 22px;
+  color: var(--bone);
+  font-size: 15px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hud-back[hidden] {
+  display: none;
+}
+
+/* The magnifier: a brass-rimmed lens over the felt, with the bet named under it. */
+.hud-loupe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 132px;
+  height: 132px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.hud-loupe.show {
+  opacity: 1;
+}
+
+.hud-loupe canvas {
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+  border: 3px solid var(--brass);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.8), 0 8px 18px rgba(0, 0, 0, 0.85);
+  background: #000;
+}
+
+.hud-loupe .label {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  translate: -50% 2px;
+  white-space: nowrap;
+  font-size: 14px;
+  color: var(--bone);
+  text-shadow: var(--halo);
+}
+
 /* Touch (doc 9.10): no key caps, and every control at least 44 px square. */
 .touch .hud-nav .key {
   display: none;

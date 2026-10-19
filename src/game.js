@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getBet } from './core/bets.js';
 import { getTalisman } from './core/content/index.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
@@ -74,6 +75,8 @@ export class Game {
     this.leanShown = null;
     this.justSpun = false;
     this.leanTimer = null; // a Lean's creak, waiting for the payout to finish
+    this.feltZoom = false; // the felt close-up (touch betting)
+    this.selectedChip = null; // a chip picked up by a tap (touch)
   }
 
   // ---- Lifecycle ------------------------------------------------------------
@@ -137,6 +140,8 @@ export class Game {
 
   syncAll() {
     const s = this.state;
+    // The close-up is for betting: a night that ends or a new run leaves it.
+    if (this.feltZoom && (s.phase !== PHASE.BETTING || this.view !== 'table')) this.zoomFelt(false);
     this.table.syncChips(s);
     this.table.updateMarquee(s.history);
     this.hud.setCoins(s.coins);
@@ -317,6 +322,7 @@ export class Game {
   turnTo(view) {
     if (this.busy && view !== 'table') return;
     if (view === this.view && this.director.current === view) return;
+    this.leaveFelt();
     this.clearFocus();
     this.view = view;
     this.clearNote();
@@ -339,12 +345,97 @@ export class Game {
 
   onClickBet(betId) {
     if (this.busy) return;
+    // On a phone the felt is small from the chair: a tap leans in first.
+    if (this.touch && !this.feltZoom) {
+      this.zoomFelt(true);
+      return;
+    }
+    // A chip picked up by a tap goes where the next tap says.
+    const picked = this.selectedChip;
+    if (picked) {
+      this.selectChip(null);
+      this.placeChip(picked, betId);
+      return;
+    }
     const free = this.state.chips.find((c) => !this.state.placements[c.id]);
     if (!free) {
-      this.hud.toast('All your chips are on the table. Drag one to move it.');
+      this.hud.toast(this.touch ? 'All your chips are down. Tap one to pick it up, then tap where it goes.' : 'All your chips are on the table. Drag one to move it.');
       return;
     }
     this.placeChip(free.id, betId);
+  }
+
+  /** A tap on a chip: off the felt (mouse), or picked up to put down elsewhere (touch). */
+  onChipTapped(chipId) {
+    if (this.busy) return;
+    if (!this.touch) {
+      if (this.state.placements[chipId]) this.removeChip(chipId);
+      return;
+    }
+    if (!this.feltZoom) this.zoomFelt(true);
+    if (this.selectedChip !== chipId) {
+      this.selectChip(chipId);
+      return;
+    }
+    // Tapped again: it comes off the felt.
+    this.selectChip(null);
+    if (this.state.placements[chipId]) this.removeChip(chipId);
+  }
+
+  selectChip(chipId) {
+    if (this.selectedChip === chipId) return;
+    this.selectedChip = chipId;
+    this.table.setSelectedChip(chipId);
+    this.table.syncChips(this.state);
+  }
+
+  /**
+   * The felt close-up (doc 9.10): on a phone, betting leans in over the felt
+   * so its spots are big enough for a finger. Back, a turn or a spin leaves.
+   */
+  zoomFelt(on) {
+    const can = this.touch && this.view === 'table' && !this.busy && this.state.phase === PHASE.BETTING;
+    if (on && !can) return;
+    if (!on) {
+      this.leaveFelt();
+      this.director.goTo('table', { duration: 0.5 });
+      return;
+    }
+    if (this.feltZoom) return;
+    this.feltZoom = true;
+    this.clearNote();
+    this.hud.setZoomed(true);
+    this.director.goTo('felt', { duration: 0.5 });
+  }
+
+  /** Out of the close-up, leaving the camera to whoever moves it next. */
+  leaveFelt() {
+    if (!this.feltZoom) return;
+    this.feltZoom = false;
+    this.hud.setZoomed(false);
+    this.hud.hideLoupe();
+    this.selectChip(null);
+  }
+
+  /** The Android back button: out of the close-up, else the menu. Returns true if it acted. */
+  back() {
+    if (!this.feltZoom) return false;
+    this.zoomFelt(false);
+    return true;
+  }
+
+  /** The magnifier follows a finger aiming at the felt; null hides it. */
+  onAim(aim) {
+    if (!aim || !aim.at) {
+      this.hud.hideLoupe();
+      return;
+    }
+    this.hud.showLoupe({
+      x: aim.x,
+      y: aim.y,
+      label: aim.bet ? `${getBet(aim.bet).label} · pays ${betNote(this.state, aim.bet).pays.odds}×` : 'Not a bet',
+      draw: (ctx, size) => this.table.drawLoupe(ctx, aim.at, size, size / 1.7),
+    });
   }
 
   placeChip(chipId, betId) {
@@ -374,9 +465,11 @@ export class Game {
       return;
     }
     this.noteTarget = null;
+    this.rail.setPlaques(previewBet(this.state, betId) ?? baseFactors());
+    // In the close-up the magnifier names the bet and its pay: no note over the felt.
+    if (this.feltZoom) return;
     const anchor = this.screenPosition(this.table.spotWorldPosition(betId)) ?? { x: ev.clientX, y: ev.clientY };
     this.hud.note(betNote(this.state, betId), anchor);
-    this.rail.setPlaques(previewBet(this.state, betId) ?? baseFactors());
   }
 
   // ---- Notes and keyboard focus -------------------------------------------
@@ -962,6 +1055,9 @@ export class Game {
     const stale = () => id !== this.runId;
     const detail = events.filter((e) => e.type !== 'spin');
     const fast = this.settings.fast;
+    // A spin from the close-up: the wheel has to be in view.
+    const fromFelt = this.feltZoom;
+    this.leaveFelt();
     this.syncSpins();
     this.updateHint();
     this.updateNav();
@@ -978,7 +1074,7 @@ export class Game {
     if (!fast) {
       this.view = 'table';
       this.director.goTo('wide', { duration: 1.0, onProgress: (e) => e > 0.3 && this.stage.setFigureGhost(false) });
-    } else if (this.view !== 'table') {
+    } else if (this.view !== 'table' || fromFelt) {
       // Fast spins skip the wide shot, so they must be watched from the table.
       this.view = 'table';
       this.director.goTo('table', { duration: 0.4 });

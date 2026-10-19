@@ -35,6 +35,7 @@ const MIN = 44;
 // Which room objects belong to which station's view.
 const ROLES = {
   table: ['night-card', 'end-card', 'board', 'bell', 'bell-tag', 'plaque', 'talisman-mesh'],
+  felt: [],
   cage: ['cage-button', 'devil-counter'],
   cabinet: ['compartment', 'crank', 'chart'],
 };
@@ -104,7 +105,7 @@ async function measure({ view, roles, min }) {
     targets.push({ what: o.userData.role, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2, w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) });
   });
   // Bet spots: points on the felt, sized by the gap to the nearest other spot.
-  if (view === 'table' && r.game.state.phase === 'betting' && !cards.length) {
+  if ((view === 'table' || view === 'felt') && r.game.state.phase === 'betting' && !cards.length) {
     const { SPOTS } = await import('/src/view/felt.js');
     const spots = [...SPOTS.keys()].map((id) => ({ id, ...project(r.table.spotWorldPosition(id)) }));
     for (const s of spots) {
@@ -168,7 +169,8 @@ for (const size of SIZES) {
     if (setup) await game(setup);
     await game((view) => {
       const r = window.__roulette;
-      r.game.turnTo(view);
+      if (view === 'felt') r.game.zoomFelt(true);
+      else r.game.turnTo(view);
       r.director.goTo(view, { cut: true });
     }, view);
     // Notes and toasts fade on drawn frames; give the HUD a few.
@@ -187,6 +189,7 @@ for (const size of SIZES) {
     g.placeChip('c1', 'red');
     g.placeChip('c2', 'straight:17');
   });
+  await at('felt close-up', 'felt');
   await at('cabinet', 'cabinet');
   await at('cage', 'cage');
   await at('table, night over', 'table', () => {

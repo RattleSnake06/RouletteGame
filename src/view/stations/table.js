@@ -5,7 +5,7 @@ import { canAfford, costOf } from '../../core/run.js';
 import { SANS } from '../../ui/fonts.js';
 import { rng } from '../../ui/marks.js';
 import { CHIP, createChipMesh } from '../chips.js';
-import { FeltCanvas, SPOTS, betAt, numbersFor } from '../felt.js';
+import { FeltCanvas, LAYOUT_H, LAYOUT_W, SPOTS, betAt, numbersFor } from '../felt.js';
 import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from '../ink.js';
 
 // The Table: a baize lectern at the wheel's rim where the player stands
@@ -418,6 +418,20 @@ export function createTable({ materials, interaction, callbacks }) {
   let locked = false;
   const chips = new Map(); // id → { mesh, target, glow }
   let dragging = null;
+  let selected = null; // a chip picked up by a tap, waiting for a spot (touch)
+
+  /**
+   * Touch aiming (doc 9.10): where a finger on the felt would put a chip.
+   * The spot under it lights up and onAim reports it, so the HUD can show
+   * the magnifier; null when the finger lifts.
+   */
+  function aimAt(ev, inter) {
+    const at = layoutAt(ev, inter);
+    const bet = at ? betAt(at.x, at.y) : null;
+    setHoverBet(bet, ev);
+    callbacks.onAim?.({ x: ev.clientX, y: ev.clientY, at, bet });
+    return bet;
+  }
 
   function chipHandler(id) {
     return {
@@ -439,6 +453,8 @@ export function createTable({ materials, interaction, callbacks }) {
         dragging.bet = bet;
         setHoverBet(bet, ev);
         callbacks.onHoverMove?.(ev);
+        // A finger hides the chip it drags: the magnifier shows where it goes.
+        if (ev.pointerType !== 'mouse') callbacks.onAim?.({ x: ev.clientX, y: ev.clientY, at, bet });
         if (bet) c.target.copy(spotLocal(bet)).add(new THREE.Vector3(0, 0.03, 0));
         else {
           const p = felt.toLocal(at.x, at.y);
@@ -449,6 +465,7 @@ export function createTable({ materials, interaction, callbacks }) {
         const d = dragging;
         dragging = null;
         setHoverBet(null);
+        callbacks.onAim?.(null);
         if (!d) return;
         if (!d.moved) {
           callbacks.onChipClicked?.(id);
@@ -460,6 +477,11 @@ export function createTable({ materials, interaction, callbacks }) {
         callbacks.onDragEnd?.();
       },
     };
+  }
+
+  /** A chip picked up by a tap rises off the felt until it is put down. */
+  function setSelectedChip(id) {
+    selected = id;
   }
 
   /** Put every chip where the run state says it is. */
@@ -488,6 +510,7 @@ export function createTable({ materials, interaction, callbacks }) {
         c.target.set(TRAY.x0 + trayIndex * TRAY.step, TOP_Y + 0.012 + CHIP.height / 2, TRAY.z);
         trayIndex += 1;
       }
+      if (chip.id === selected) c.target.y += 0.03;
     }
   }
 
@@ -508,22 +531,92 @@ export function createTable({ materials, interaction, callbacks }) {
     if (c) c.glow = 1.6;
   }
 
+  let aiming = false;
   interaction.add(feltMesh, {
     enabled: () => !locked && !dragging,
     hover(hit, ev) {
+      if (aiming) return;
       const p = felt.toLayout(...localXZ(hit.point));
       setHoverBet(betAt(p.x, p.y), ev);
       callbacks.onHoverMove?.(ev);
     },
     leave() {
+      if (!aiming) setHoverBet(null);
+    },
+    // A finger on the close-up felt aims: press, slide to the spot the
+    // magnifier shows, lift to bet there.
+    down(hit, ev, inter) {
+      if (ev.pointerType === 'mouse' || !callbacks.canAim?.()) return false;
+      aiming = true;
+      aimAt(ev, inter);
+      return true;
+    },
+    drag(ev, inter) {
+      if (aiming) aimAt(ev, inter);
+    },
+    up(ev, inter) {
+      if (!aiming) return;
+      aiming = false;
+      const bet = aimAt(ev, inter);
       setHoverBet(null);
+      callbacks.onAim?.(null);
+      if (bet) callbacks.onClickBet?.(bet);
     },
     click(hit) {
       const p = felt.toLayout(...localXZ(hit.point));
       const bet = betAt(p.x, p.y);
       if (bet) callbacks.onClickBet?.(bet);
+      else callbacks.onClickFelt?.();
     },
   });
+
+  /**
+   * The magnifier (doc 9.10): the felt around a layout point, `scale` canvas
+   * pixels per layout unit, drawn into a square canvas of `size` pixels. The
+   * lit spot and the chips already down are drawn too.
+   */
+  function drawLoupe(ctx, at, size, scale) {
+    const k = scale / felt.px;
+    const sx = (v) => size / 2 + (v - at.x) * scale;
+    const sy = (v) => size / 2 + (v - at.y) * scale;
+    const c0 = felt.toCanvas(at.x, at.y);
+    ctx.save();
+    ctx.clearRect(0, 0, size, size);
+    ctx.setTransform(k, 0, 0, k, size / 2 - c0.x * k, size / 2 - c0.y * k);
+    ctx.drawImage(felt.base, 0, 0);
+    ctx.drawImage(felt.overlay, 0, 0, felt.width, felt.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (const c of chips.values()) {
+      if (c.target.y > TOP_Y + 0.1) continue;
+      const p = felt.toLayout(c.target.x, c.target.z - FELT_Z);
+      if (p.x < -1 || p.x > LAYOUT_W + 1 || p.y < -1 || p.y > LAYOUT_H + 1) continue;
+      ctx.beginPath();
+      ctx.arc(sx(p.x), sy(p.y), 0.22 * scale, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(237, 229, 211, 0.85)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(142, 18, 25, 0.9)';
+      ctx.stroke();
+    }
+    // Where the finger is.
+    ctx.strokeStyle = 'rgba(237, 229, 211, 0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(size / 2 - 7, size / 2);
+    ctx.lineTo(size / 2 + 7, size / 2);
+    ctx.moveTo(size / 2, size / 2 - 7);
+    ctx.lineTo(size / 2, size / 2 + 7);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** The felt's centre in world space, the way toward the player, and its size (for the close-up camera). */
+  function feltFrame() {
+    group.updateMatrixWorld();
+    const center = group.localToWorld(new THREE.Vector3(0, FELT_Y, FELT_Z));
+    const toward = group.localToWorld(new THREE.Vector3(0, FELT_Y, FELT_Z + 1)).sub(center).normalize();
+    return { center, toward, width: feltW, depth: feltH };
+  }
 
   function localXZ(worldPoint) {
     const p = group.worldToLocal(worldPoint.clone());
@@ -680,6 +773,9 @@ export function createTable({ materials, interaction, callbacks }) {
     setLocked,
     setLampLevel,
     setMarks,
+    setSelectedChip,
+    drawLoupe,
+    feltFrame,
     topY: TOP_Y,
     update,
     get isDragging() {

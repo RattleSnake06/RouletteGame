@@ -62,7 +62,10 @@ async function init() {
       onClickBet: (betId) => game.onClickBet(betId),
       onPlace: (chipId, betId) => game.placeChip(chipId, betId),
       onRemove: (chipId) => game.removeChip(chipId),
-      onChipClicked: (chipId) => game.state.placements[chipId] && game.removeChip(chipId),
+      onChipClicked: (chipId) => game.onChipTapped(chipId),
+      onClickFelt: () => game.touch && game.zoomFelt(true),
+      canAim: () => game.feltZoom && !game.busy,
+      onAim: (aim) => game.onAim(aim),
       onChoose: (id) => game.choosePackage(id),
       onEndNight: () => game.requestEndNight(),
       onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
@@ -220,7 +223,12 @@ async function init() {
     e.currentTarget.blur();
     input.emit('menu');
   });
-  platform.onBack?.(() => input.emit('menu'));
+  hud.refs.back.addEventListener('click', (e) => {
+    e.currentTarget.blur();
+    game.zoomFelt(false);
+  });
+  // Back leaves the felt close-up first, then opens the menu.
+  platform.onBack?.(() => (modalOpen() && !game.menuClose) || game.back() || input.emit('menu'));
   // Browsers only allow sound after a gesture.
   const wake = () => audio.start();
   window.addEventListener('pointerdown', wake);

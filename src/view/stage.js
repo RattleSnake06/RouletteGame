@@ -78,6 +78,28 @@ export function createStage(canvas) {
     }
   }
 
+  /**
+   * The felt close-up for touch betting (doc 9.10): looking down at the felt,
+   * which fills most of the screen's width and sits high, leaving a strip
+   * under it for the Back and SPIN buttons.
+   */
+  function feltCloseUp(frame, aspect) {
+    const FILL = 0.92; // of the screen's width
+    const LIFT = 0.16; // the felt's centre sits this far above the middle (of half the height)
+    const vfov = deg(40);
+    const elev = deg(60);
+    const hfov = hfovOf(vfov, aspect);
+    const dist = frame.width / 2 / (FILL * Math.tan(hfov / 2));
+    const out = frame.toward.clone().multiplyScalar(Math.cos(elev)).add(new THREE.Vector3(0, Math.sin(elev), 0));
+    const position = frame.center.clone().addScaledVector(out, dist);
+    // Pitch down past the centre, so the felt appears above the middle.
+    const view = frame.center.clone().sub(position).normalize();
+    const right = view.clone().cross(new THREE.Vector3(0, 1, 0)).normalize();
+    const pitch = -Math.atan(LIFT * Math.tan(vfov / 2));
+    view.applyAxisAngle(right, pitch);
+    return { position, target: position.clone().add(view), fov: THREE.MathUtils.radToDeg(vfov), kind: 'eye' };
+  }
+
   /** Camera anchors for the current aspect ratio. */
   function anchorsFor(aspect, { table, cage, cabinet }) {
     // Wide: the reference composition, tightened around the wheel on narrow screens.
@@ -109,6 +131,7 @@ export function createStage(canvas) {
       table: { position: tableEye, target: tableLook, fov: tableFov, kind: 'eye' },
       cage: { position: eye.clone(), target: cageLook, fov: eyeFov(50, 70), kind: 'eye' },
     };
+    if (table.feltFrame) anchors.felt = feltCloseUp(table.feltFrame(), aspect);
     if (cabinet) {
       // Lean in over the counter so the price tags read on a small screen.
       cabinet.group.updateMatrixWorld();
