@@ -55,8 +55,10 @@ Phases 1 (core loop), 2 (talismans, the Curio Cabinet, tokens and the Bell)
 and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done,
 plus twenty more talismans built ahead of Phase 4 at the owner's request
 (43 in all; doc 6.1, decisions 15–17), with pocket widths drawn live.
-Next is M1, touch and the phone layout (doc 10, decision 21), then Phase 4:
-Madame Zero, fortunes (white and black cards), engravings and records. The best simulator bot at each debt pays debts 1–4 in about 99%, 74%,
+M1, touch and the phone layout (doc 9.10, 10), is done: `npm run touch` plays
+debt 1 by touch alone on a landscape phone with nothing covered. Next is Phase
+4: Madame Zero, fortunes (white and black cards), engravings and records,
+built touch-first (decision 21). The best simulator bot at each debt pays debts 1–4 in about 99%, 74%,
 25% and 8% of runs, inside the Phase 3 targets but close to the debt 2 ceiling
 and the debt 3 floor (see `npm run sim`, which grades the best Lean-playing bot
 at each debt; `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
