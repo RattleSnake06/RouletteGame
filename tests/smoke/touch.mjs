@@ -68,9 +68,7 @@ async function tap(p, what) {
 /** Press, slide to `to` in a few moves, lift. */
 async function slide(from, to) {
   await touch('touchStart', from);
-  await frames(1);
   for (let k = 1; k <= 4; k++) await touch('touchMove', { x: from.x + ((to.x - from.x) * k) / 4, y: from.y + ((to.y - from.y) * k) / 4 });
-  await frames(1);
   await touch('touchEnd', to);
   await frames(2);
 }
@@ -162,6 +160,15 @@ try {
       await tap(await spot('black'), 'black');
       check((await state()).placements[red] === 'black', 'the next tap puts it on black');
       await layout('felt', 'betting up close');
+    }
+
+    // Night 2: "↑ The wheel" leaves the close-up; SPIN works from the table
+    // view too. (A fling of the wheel cannot be tested here: its speed comes
+    // from the touch's timing, which software rendering stretches to seconds.)
+    if (night === 2) {
+      await tapElement('.hud-back');
+      await still();
+      check(!(await state()).zoom, '"↑ The wheel" leaves the close-up');
     }
 
     // Spin with the SPIN button until the night is over.
