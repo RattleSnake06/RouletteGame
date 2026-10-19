@@ -799,7 +799,7 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   hub.castShadow = true;
   arm.castShadow = true;
   // A generous invisible handle around the handle's whole sweep.
-  const crankHit = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.11), new THREE.MeshBasicMaterial());
+  const crankHit = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.11), new THREE.MeshBasicMaterial());
   crankHit.material.visible = false;
   crankHit.position.z = 0.05;
   crankHit.userData.role = 'crank';
@@ -826,6 +826,11 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
   // drawCrankTag punches the eyelet 8.5% down from the top.
   crankTag.position.y = -CRANK_TAG.h * 0.415;
   crankTag.userData.role = 'crank';
+  // An invisible margin round the tag, so a finger finds it (doc 9.10).
+  const crankTagPad = new THREE.Mesh(new THREE.PlaneGeometry(CRANK_TAG.w * 1.15, CRANK_TAG.h * 1.45), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  crankTagPad.material.visible = false;
+  crankTagPad.position.z = -0.002;
+  crankTag.add(crankTagPad);
   crankTagPivot.add(crankTag);
   crankTagAt.add(crankTagPivot);
   const tagNail = new THREE.Mesh(axisZ(new THREE.CylinderGeometry(0.005, 0.005, 0.016, 10)), darkMetal);

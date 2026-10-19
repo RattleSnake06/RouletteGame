@@ -190,6 +190,12 @@ export function createCage({ materials, interaction, callbacks }) {
     mesh.position.set(x, 0.85, 0.27);
     mesh.userData.role = 'cage-button';
     mesh.userData.button = id;
+    // A finger needs more than the plate (doc 9.10): an invisible pad runs
+    // down the bare counter front below it.
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.3, 0.03), new THREE.MeshBasicMaterial());
+    pad.material.visible = false;
+    pad.position.y = -0.09;
+    mesh.add(pad);
     group.add(mesh);
     const button = { id, mesh, mat, t, enabled: false, hover: false, label: '', sub: '' };
     interaction.add(mesh, {

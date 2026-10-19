@@ -155,6 +155,10 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     plate.rotation.y = -sx * 0.18;
     plate.userData.role = 'plaque';
     plate.userData.plaque = key;
+    // An invisible margin, so a finger can find the note.
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.09, 0.006), new THREE.MeshBasicMaterial());
+    pad.material.visible = false;
+    plate.add(pad);
     group.add(plate);
     plaques[key] = { t, mat, mesh: plate, label, value: null, lit: 0 };
     interaction.add(plate, {

@@ -66,7 +66,8 @@ async function init() {
       onClickFelt: () => game.touch && game.zoomFelt(true),
       canAim: () => game.feltZoom && !game.busy,
       onAim: (aim) => game.onAim(aim),
-      onChoose: (id) => game.choosePackage(id),
+      // On a phone the first tap leans in to read the cards; the next chooses.
+      onChoose: (id) => (game.touch && !game.feltZoom ? game.zoomFelt(true) : game.choosePackage(id)),
       onEndNight: () => game.requestEndNight(),
       onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
       onHoverBoard: (on, ev) => game?.onHoverItem(on ? { kind: 'board' } : null, ev),

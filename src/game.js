@@ -41,7 +41,7 @@ const TOUCH_HINTS = {
   cage: 'Banked coins count toward the debt. They cannot come back out.',
   cabinet: 'Tap a compartment to look, then Buy. The crank restocks.',
   lookAtCabinet: 'Your tokens buy talismans at the Cabinet. Swipe left to look.',
-  chooseNight: 'Choose how to spend the night: tap a card.',
+  chooseNight: 'Choose how to spend the night: tap the cards to read them, then tap one.',
   placeChip: 'Tap the felt to place a chip.',
   reorder: 'Talismans act left to right: drag them to reorder.',
   spinOrRing: 'Tap SPIN or fling the wheel. Tap the Bell to ring it.',
@@ -141,7 +141,7 @@ export class Game {
   syncAll() {
     const s = this.state;
     // The close-up is for betting: a night that ends or a new run leaves it.
-    if (this.feltZoom && (s.phase !== PHASE.BETTING || this.view !== 'table')) this.zoomFelt(false);
+    if (this.feltZoom && ((s.phase !== PHASE.BETTING && s.phase !== PHASE.ROUND_START) || this.view !== 'table')) this.zoomFelt(false);
     this.table.syncChips(s);
     this.table.updateMarquee(s.history);
     this.hud.setCoins(s.coins);
@@ -394,7 +394,8 @@ export class Game {
    * so its spots are big enough for a finger. Back, a turn or a spin leaves.
    */
   zoomFelt(on) {
-    const can = this.touch && this.view === 'table' && !this.busy && this.state.phase === PHASE.BETTING;
+    // The night cards stand on the felt: the close-up reads them too.
+    const can = this.touch && this.view === 'table' && !this.busy && (this.state.phase === PHASE.BETTING || this.state.phase === PHASE.ROUND_START);
     if (on && !can) return;
     if (!on) {
       this.leaveFelt();

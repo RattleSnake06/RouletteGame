@@ -5,8 +5,10 @@
 //     centre would hit (nothing lies on top of it), and no two overlap;
 //   - every clickable object in the room (bet spots, cards, buttons, charms,
 //     the Bell...) that is on screen is not covered by any HTML element.
-// Objects in the room smaller than 44 px are listed as warnings: the felt's
-// close-up and magnifier are what make those reachable.
+// Objects in the room that act (buttons, cards, compartments, charms, the
+// Bell) must also give a finger 44 px; ones that only show a note (the board,
+// the plaques, the 666 counter, the chart) and the felt's bet spots, which the
+// close-up and its magnifier serve, are listed as warnings when smaller.
 //
 //   npm run layout
 //   CHROME_PATH=/path/to/chrome npm run layout
@@ -42,6 +44,7 @@ const ROLES = {
 
 /** Everything a tap could hit in this view, measured in the page. */
 async function measure({ view, roles, min }) {
+  const READ_ONLY = ['board', 'plaque', 'devil-counter', 'chart'];
   const r = window.__roulette;
   const canvas = document.getElementById('scene');
   const W = window.innerWidth;
@@ -102,8 +105,32 @@ async function measure({ view, roles, min }) {
     if (corners.some((c) => c.behind)) return;
     const xs = corners.map((c) => c.x);
     const ys = corners.map((c) => c.y);
-    targets.push({ what: o.userData.role, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2, w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) });
+    targets.push({ what: o.userData.role, mesh: o, x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 });
   });
+  // The real tap area: how far from the centre a tap still reaches the same
+  // object, by the game's own picking (a box's projection overstates it).
+  // Raw picking: a disabled button still has its size.
+  const answer = (x, y) => {
+    for (const h of r.interaction.ray({ clientX: x, clientY: y }).intersectObjects(r.interaction.targets, true)) {
+      if (h.object.visible && h.object.userData.interact) return h.object.userData.interact;
+    }
+    return null;
+  };
+  for (const t of targets) {
+    const own = answer(t.x, t.y);
+    if (!own || own !== t.mesh.userData.interact) {
+      t.w = t.h = 0;
+      t.blocked = true;
+      continue;
+    }
+    const reach = (dx, dy) => {
+      let k = 1;
+      while (k < 200 && answer(t.x + dx * k, t.y + dy * k) === own) k += 1;
+      return k - 1;
+    };
+    t.w = reach(-1, 0) + reach(1, 0) + 1;
+    t.h = reach(0, -1) + reach(0, 1) + 1;
+  }
   // Bet spots: points on the felt, sized by the gap to the nearest other spot.
   if ((view === 'table' || view === 'felt') && r.game.state.phase === 'betting' && !cards.length) {
     const { SPOTS } = await import('/src/view/felt.js');
@@ -135,7 +162,7 @@ async function measure({ view, roles, min }) {
       if (ix > 0.5 && iy > 0.5) failures.push(`hidden control ${name(el)} under ${name(p)}`);
     }
   }
-  let small = 0;
+  const small = [];
   for (const t of targets) {
     if (t.x < 0 || t.y < 0 || t.x > W || t.y > H) continue;
     const top = document.elementFromPoint(t.x, t.y);
@@ -144,9 +171,19 @@ async function measure({ view, roles, min }) {
       const b = el.getBoundingClientRect();
       if (t.x >= b.left && t.x <= b.right && t.y >= b.top && t.y <= b.bottom) failures.push(`hidden ${t.what} at ${Math.round(t.x)},${Math.round(t.y)} under ${name(el)}`);
     }
-    if (Math.min(t.w, t.h) < min) small += 1;
+    if (Math.min(t.w, t.h) < min) small.push(t);
   }
-  if (small) warnings.push(`${small} of ${targets.length} room targets under ${min} px`);
+  if (small.length) {
+    // Bet spots are named as a count: inside bets sit half a cell apart by design.
+    const spots = small.filter((t) => t.what.startsWith('spot '));
+    const others = small.filter((t) => !t.what.startsWith('spot '));
+    if (spots.length) warnings.push(`${spots.length} bet spots under ${min} px apart`);
+    for (const t of others) {
+      const text = t.blocked ? `${t.what} behind another object` : `${t.what} ${Math.round(t.w)}×${Math.round(t.h)}`;
+      if (READ_ONLY.includes(t.what)) warnings.push(text);
+      else failures.push(`small ${text}`);
+    }
+  }
   return { failures, warnings, controls: controls.length, targets: targets.length };
 }
 
