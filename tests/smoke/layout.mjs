@@ -198,6 +198,13 @@ for (const size of SIZES) {
     g.syncAll();
   });
   await at('pause menu', 'table', () => window.__roulette.game.toggleMenu());
+  await at('a talisman card', 'table', () => {
+    const r = window.__roulette;
+    r.game.toggleMenu();
+    r.debug.grant('wheel_of_fortune');
+    r.debug.grant('red_ribbon');
+    r.game.openTalisman(r.game.state.rail[0].uid);
+  });
   await ctx.close();
 }
 

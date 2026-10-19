@@ -39,7 +39,7 @@ const KEY_HINTS = {
 };
 const TOUCH_HINTS = {
   cage: 'Banked coins count toward the debt. They cannot come back out.',
-  cabinet: 'Tap a compartment to buy. The crank restocks.',
+  cabinet: 'Tap a compartment to look, then Buy. The crank restocks.',
   lookAtCabinet: 'Your tokens buy talismans at the Cabinet. Swipe left to look.',
   chooseNight: 'Choose how to spend the night: tap a card.',
   placeChip: 'Tap the felt to place a chip.',
@@ -896,8 +896,77 @@ export class Game {
     if (v.cursed) lines.push('<i>Cursed. It will not come off the hook.</i>');
     const actions = [{ label: 'Keep', primary: true, onClick: done() }];
     if (v.active && v.usable) actions.push({ label: v.targetOnly ? 'Smash it' : 'Ring for it', onClick: done(() => this.ringBell(uid)) });
+    // Order matters (doc 5.8): move it along the rail without a drag.
+    if (this.state.rail.length > 1) {
+      const step = (dir) => () => {
+        const i = this.state.rail.findIndex((t) => t.uid === uid);
+        if (i + dir < 0 || i + dir >= this.state.rail.length || !this.moveTalisman(uid, i + dir)) this.audio.deny();
+      };
+      actions.push({ label: '◀ Left', keepOpen: true, onClick: step(-1) }, { label: 'Right ▶', keepOpen: true, onClick: step(1) });
+    }
     if (!v.cursed) actions.push({ label: `Sell · +${v.sellValue}`, danger: true, onClick: done(() => this.sell(uid)) });
     showModal({ kicker: `The rail · ${v.rarity}`, title: v.name, lines, actions });
+  }
+
+  // On a touch screen a stray tap must never buy, restock or ring (doc 9.10):
+  // these open a card, and only its button acts.
+
+  /** A compartment: its card, with Buy. */
+  offerSlot(slot) {
+    if (this.busy || this.menuClose) return;
+    const v = cabinetView(this.state).slots[slot];
+    if (!v?.id) {
+      this.showNote({ kind: 'slot', slot });
+      return;
+    }
+    this.clearNote();
+    const spec = slotNote(this.state, slot);
+    const lines = [escapeHtml(v.text)];
+    if (spec.status) lines.push(`<i>${escapeHtml(spec.status)}</i>`);
+    if (!v.affordable) lines.push(`<i>${escapeHtml(v.short)} short.</i>`);
+    showModal({
+      kicker: `Curio Cabinet · ${v.rarity}`,
+      title: v.name,
+      lines,
+      actions: [
+        { label: `Buy · ${plural(v.price, 'token')}`, primary: true, onClick: () => this.buy(slot) },
+        { label: 'Not now' },
+      ],
+    });
+  }
+
+  /** The crank: a card, with Restock and its price. */
+  offerRestock() {
+    if (this.busy || this.menuClose) return;
+    this.clearNote();
+    const cost = cabinetView(this.state).restockCost;
+    showModal({
+      kicker: 'Curio Cabinet',
+      title: 'Restock',
+      lines: ['New talismans in every compartment.'],
+      actions: [
+        { label: isZero(cost) ? 'Restock · free' : `Restock · ${format(cost)} coins`, primary: true, onClick: () => this.restock() },
+        { label: 'Not now' },
+      ],
+    });
+  }
+
+  /** The Bell: a card naming who would answer, with Ring. With no one to answer, it just rings dull. */
+  offerRing() {
+    if (this.busy || this.menuClose) return;
+    const head = bellView(this.state).head;
+    if (!head) {
+      this.ringBell();
+      return;
+    }
+    this.clearNote();
+    const name = getTalisman(this.state.rail.find((t) => t.uid === head).id).name;
+    showModal({
+      kicker: 'The Bell',
+      title: 'Ring the Bell?',
+      lines: [`${escapeHtml(name)} answers it.`],
+      actions: [{ label: 'Ring', primary: true, onClick: () => this.ringBell() }, { label: 'Not now' }],
+    });
   }
 
   confirmSell(uid) {
@@ -1352,7 +1421,7 @@ export class Game {
       lines: [
         `Debt <b>${s.debt}</b>, night <b>${s.round}</b>. Seed <b>${s.seed}</b>.`,
         this.touch
-          ? 'Swipe or tap the edge tabs to turn · tap SPIN or fling the wheel, hold SPIN to spin fast · drag talismans to reorder'
+          ? 'Swipe or tap the edge tabs to turn · tap SPIN or fling the wheel, hold SPIN to spin fast · tap anything to read it · tap a talisman to sell, ring or move it'
           : 'Space spins · A/D turn · 1/2/3 choose a night or buy · E ends the night · B rings the Bell · R restocks · Tab walks the rail · F fast spins · M sound',
       ],
       actions: [

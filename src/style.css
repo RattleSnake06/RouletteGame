@@ -817,7 +817,8 @@ img.mark {
 }
 
 /* Touch (doc 9.10): no key caps, and every control at least 44 px square. */
-.touch .hud-nav .key {
+.touch .hud-nav .key,
+.touch .modal-card .keyhint {
   display: none;
 }
 

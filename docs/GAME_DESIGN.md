@@ -1268,9 +1268,11 @@ expensive.
   for the same; a brass SPIN button in thumb reach (hold it for fast spins;
   flinging the wheel still works); tap a chip, then tap a bet (dragging still
   works), with a close-up of the felt and a magnifier under the finger while
-  placing; a long press opens an object's note, and notes carry the action
-  buttons (Sell, Ring, Buy, move ◀ ▶), so one stray tap never buys or sells; an
-  on-screen menu button, and the Android back button opens the menu. Hints name
+  placing; a tap shows an object's note (a tap on nothing closes it), and an
+  object that acts opens a card whose buttons do it (a compartment's Buy, the
+  crank's Restock, the Bell's Ring, a talisman's Sell, Ring and ◀ ▶), so one
+  stray tap never buys, sells, restocks or rings; an on-screen menu button, and
+  the Android back button leaves the felt close-up or opens the menu. Hints name
   touches, not keys.
 - **Screen:** safe-area insets (notches, rounded corners, the home bar) through
   `viewport-fit=cover`; a compact HUD on short screens; each station's camera
@@ -1326,7 +1328,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **1. Core loop** (done) | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
 | **2. Builds** (done) | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
 | **3. Luck and risk** (done) | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
-| **M1. Touch and the phone layout** (now, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; long-press notes with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
+| **M1. Touch and the phone layout** (now, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; notes on a tap and cards with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |

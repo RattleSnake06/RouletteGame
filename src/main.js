@@ -101,7 +101,8 @@ async function init() {
     callbacks: {
       onSelect: (uid) => game.openTalisman(uid),
       onMove: (uid, to) => game.moveTalisman(uid, to),
-      onRing: (uid) => game.ringBell(uid),
+      // On a touch screen a tag opens the talisman's card, where Ring is a button.
+      onRing: (uid) => (game.touch ? game.openTalisman(uid) : game.ringBell(uid)),
       onHover: onHoverItem,
     },
   });
@@ -109,7 +110,7 @@ async function init() {
   const bell = createBell({
     materials: wheel.materials,
     interaction,
-    callbacks: { onRing: () => game.ringBell(), onHover: onHoverItem },
+    callbacks: { onRing: () => (game.touch ? game.offerRing() : game.ringBell()), onHover: onHoverItem },
   });
   table.group.add(bell.group);
 
@@ -118,8 +119,8 @@ async function init() {
     interaction,
     makeCharm,
     callbacks: {
-      onBuy: (slot) => game.buy(slot),
-      onRestock: () => game.restock(),
+      onBuy: (slot) => (game.touch ? game.offerSlot(slot) : game.buy(slot)),
+      onRestock: () => (game.touch ? game.offerRestock() : game.restock()),
       onHover: onHoverItem,
     },
   });
@@ -173,6 +174,12 @@ async function init() {
   }
   resize();
   new ResizeObserver(resize).observe(canvas);
+
+  // A tap on nothing closes an open note (touch has no pointer to leave it).
+  interaction.onMiss = () => {
+    game.clearFocus();
+    game.clearNote();
+  };
 
   // ---- Input -----------------------------------------------------------------
   const input = createInput(window);

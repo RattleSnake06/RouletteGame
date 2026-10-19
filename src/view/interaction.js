@@ -14,6 +14,9 @@ import * as THREE from 'three';
 //
 // Presses that hit an interactive object are marked as consumed, so the wheel
 // fling (registered after this) ignores them.
+//
+// Touch has no hover (doc 9.10): a tap on an object with no click shows what
+// hovering would (its note), and a tap on nothing calls onMiss.
 
 const CLICK_SLOP = 6; // px a press may wander and still count as a click
 
@@ -42,6 +45,7 @@ export class Interaction {
     this.pressed = null;
     this.consumed = new WeakSet();
     this.fallbackCursor = () => 'default';
+    this.onMiss = null;
     this.lastEvent = null;
 
     dom.addEventListener('pointerdown', (e) => this._down(e));
@@ -109,7 +113,10 @@ export class Interaction {
     if (ev.button !== undefined && ev.button !== 0) return;
     this.lastEvent = ev;
     const p = this.pick(ev);
-    if (!p) return;
+    if (!p) {
+      if (ev.pointerType !== 'mouse') this.onMiss?.(ev);
+      return;
+    }
     this.consumed.add(ev);
     ev.preventDefault();
     if (p.handler.down?.(p.hit, ev, this)) {
@@ -148,6 +155,11 @@ export class Interaction {
     if (!pressed) return;
     if (Math.hypot(ev.clientX - pressed.x, ev.clientY - pressed.y) > CLICK_SLOP) return;
     const p = this.pick(ev);
-    if (p && p.handler === pressed.handler) p.handler.click?.(p.hit, ev);
+    if (!p || p.handler !== pressed.handler) return;
+    if (p.handler.click) p.handler.click(p.hit, ev);
+    else if (ev.pointerType !== 'mouse') {
+      this._setHovered(p);
+      p.handler.hover?.(p.hit, ev);
+    }
   }
 }
