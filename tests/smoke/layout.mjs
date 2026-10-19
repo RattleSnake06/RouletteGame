@@ -68,7 +68,11 @@ for (const size of SIZES) {
 
   await at('table, choosing a night', 'table');
   await at('table, betting', 'table', () => {
-    const g = window.__roulette.game;
+    const r = window.__roulette;
+    const g = r.game;
+    // Charms on the rail, one with a Bell tag.
+    r.debug.grant('wheel_of_fortune');
+    r.debug.grant('red_ribbon');
     g.choosePackage('long');
     g.placeChip('c1', 'red');
     g.placeChip('c2', 'straight:17');
@@ -85,8 +89,6 @@ for (const size of SIZES) {
   await at('a talisman card', 'table', () => {
     const r = window.__roulette;
     r.game.toggleMenu();
-    r.debug.grant('wheel_of_fortune');
-    r.debug.grant('red_ribbon');
     r.game.openTalisman(r.game.state.rail[0].uid);
   });
   await ctx.close();

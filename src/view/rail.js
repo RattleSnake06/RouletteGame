@@ -18,6 +18,7 @@ const RAIL_Z = -0.3;
 const BAR_Y = 1.13;
 const HOOK_Y = BAR_Y - 0.012;
 const HOOK_STEP = 0.16;
+const PAD_Z = 0.03; // a charm's tap pad, this far in front of it
 const HOOKS = 6;
 const hookX = (i) => (i - (HOOKS - 1) / 2) * HOOK_STEP;
 
@@ -212,6 +213,17 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     const pivot = new THREE.Group();
     pivot.position.set(hookX(order.length), HOOK_Y, RAIL_Z + 0.006);
     const charm = makeCharm(view.id);
+    // A charm is about 20 px on a phone: an invisible pad, as wide as its
+    // hook's share of the rail, gives a finger room (doc 9.10). It hangs down
+    // from the hook, never up over the wheel behind the rail, and a little in
+    // front, over the felt's bare far margin (never over a bet spot).
+    const disc = new THREE.Box3().setFromObject(charm).getCenter(new THREE.Vector3());
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(HOOK_STEP, 0.2, 0.01), new THREE.MeshBasicMaterial());
+    pad.material.visible = false;
+    // Touch only: with a mouse the Bell tag in front of it must stay clickable.
+    pad.userData.touchOnly = true;
+    pad.position.set(disc.x, disc.y - 0.06, disc.z + PAD_Z);
+    charm.add(pad);
     pivot.add(charm);
     group.add(pivot);
     const item = { pivot, charm, tag: null, x: pivot.position.x, swing: (Math.random() - 0.5) * 0.2, vel: 0, glow: 0, id: view.id, lift: 0 };

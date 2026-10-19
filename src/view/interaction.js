@@ -80,6 +80,8 @@ export class Interaction {
     const hits = this.ray(ev).intersectObjects(this.targets, true);
     for (const hit of hits) {
       if (!hit.object.visible) continue;
+      // A finger's pad (a charm's) is not there for a mouse.
+      if (hit.object.userData.touchOnly && ev.pointerType === 'mouse') continue;
       const handler = hit.object.userData.interact;
       if (!handler) continue;
       if (handler.enabled && !handler.enabled()) continue;

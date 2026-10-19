@@ -87,6 +87,22 @@ export async function measure({ view, roles, min }) {
     }
     return null;
   };
+  // A finger's pad in front of a target, belonging to the same talisman (a
+  // charm's pad over its Bell tag), serves it: on touch the tag opens the
+  // talisman's card, as the pad does.
+  const padOf = (x, y) => {
+    for (const h of r.interaction.ray({ clientX: x, clientY: y }).intersectObjects(r.interaction.targets, true)) {
+      if (!h.object.visible || !h.object.userData.interact) continue;
+      return h.object.userData.touchOnly ? h.object : null;
+    }
+    return null;
+  };
+  for (let i = targets.length - 1; i >= 0; i--) {
+    const t = targets[i];
+    // The tag and the charm hang from the same pivot.
+    const pad = t.what === 'bell-tag' ? padOf(t.x, t.y) : null;
+    if (pad && pad.parent?.parent === t.mesh.parent) targets.splice(i, 1);
+  }
   for (const t of targets) {
     const own = answer(t.x, t.y);
     if (!own || own !== t.mesh.userData.interact) {
@@ -102,6 +118,15 @@ export async function measure({ view, roles, min }) {
     t.w = reach(-1, 0) + reach(1, 0) + 1;
     t.h = reach(0, -1) + reach(0, 1) + 1;
   }
+  // One object, one target: its parts (a charm's disc, ring and lug) share a
+  // handler, so keep the part that gives the most room.
+  const byHandler = new Map();
+  for (const t of targets) {
+    const k = t.mesh.userData.interact;
+    const best = byHandler.get(k);
+    if (!best || Math.min(t.w, t.h) > Math.min(best.w, best.h)) byHandler.set(k, t);
+  }
+  targets.splice(0, targets.length, ...byHandler.values());
   // Bet spots: points on the felt, sized by the gap to the nearest other spot.
   if ((view === 'table' || view === 'felt') && r.game.state.phase === 'betting' && !cards.length) {
     const { SPOTS } = await import('/src/view/felt.js');
@@ -110,6 +135,11 @@ export async function measure({ view, roles, min }) {
       let gap = Infinity;
       for (const o of spots) if (o !== s) gap = Math.min(gap, Math.hypot(o.x - s.x, o.y - s.y));
       targets.push({ what: `spot ${s.id}`, x: s.x, y: s.y, w: gap, h: gap });
+      // A spot must answer to the felt (or a chip on it), never to a charm's pad.
+      const hit = r.interaction.pick({ clientX: s.x, clientY: s.y })?.hit.object;
+      let charm = false;
+      for (let o = hit; o; o = o.parent) if (o.name?.startsWith('talisman:')) charm = true;
+      if (charm && s.x >= 0 && s.y >= 0 && s.x <= W && s.y <= H) failures.push(`spot ${s.id} at ${Math.round(s.x)},${Math.round(s.y)} answers to a talisman`);
     }
   }
   // HUD text that stays on screen (the clusters, the hint) lets taps through,
