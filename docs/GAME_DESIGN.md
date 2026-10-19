@@ -1263,7 +1263,9 @@ expensive.
 - **Nothing hidden, nothing covered.** Every control is reachable by touch, at
   least 44 px (44 pt) square, and no control covers another clickable: HUD text
   never sits over a button, a card or a bet spot. `npm run layout` checks this
-  at three phone sizes (667×375, 844×390, 932×430) at every station.
+  at three phone sizes (667×375, 844×390, 932×430) at every station, measuring
+  each object's real tap area; `npm run touch` plays debt 1 with touch input
+  alone and checks the same at every step.
 - **Touch controls** (M1): swipe to turn between stations, with small edge tabs
   for the same; a brass SPIN button in thumb reach (hold it for fast spins;
   flinging the wheel still works); tap a chip, then tap a bet (dragging still
@@ -1328,7 +1330,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **1. Core loop** (done) | `core/` with tests; felt layout and chips; choreographed ball to a decided pocket; payouts and popups; coins, spins, rounds, debts, the Cage; game over and restart; flat HUD | Debts 1–3 can be played start to finish with no items, and tests show base EV = 36/37 |
 | **2. Builds** (done) | Talismans (first 15) on the rail; Curio Cabinet with restocks; tokens; the Bell; tooltips | Two playthroughs with different talismans feel different |
 | **3. Luck and risk** (done) | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
-| **M1. Touch and the phone layout** (now, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; notes on a tap and cards with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
+| **M1. Touch and the phone layout** (now, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; notes on a tap and cards with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` and `npm run touch` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |

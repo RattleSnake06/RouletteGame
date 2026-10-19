@@ -73,6 +73,8 @@ seed; it only applies when no run is in progress.
 | `npm test` | Unit tests for the rules (vitest) |
 | `npm run sim` | Balance simulator: bots play thousands of runs headless |
 | `npm run smoke` | Plays a debt end to end in headless Chromium (`CHROME_PATH=…` to pick a browser) |
+| `npm run layout` | Checks the phone layout at three landscape sizes: every control reachable, nothing covered |
+| `npm run touch` | Plays debt 1 on a phone-sized screen with real touch input only |
 
 ## How it's built
 

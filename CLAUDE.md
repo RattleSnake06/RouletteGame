@@ -74,6 +74,10 @@ luck or jackpot change.
 - `npm run sim` runs the balance simulator. Re-run it after any economy change.
 - `npm run layout` checks the phone layout at three landscape sizes (nothing
   covered, controls at least 44 px); it takes `CHROME_PATH` like the smoke test.
+- `npm run touch` plays debt 1 at 844×390 with real touch input only (sent
+  through the DevTools protocol, so there are real pointers to capture), and
+  runs the layout checks at every station. Synthetic `PointerEvent`s cannot
+  be captured; use CDP touches (`Input.dispatchTouchEvent`) for touch tests.
 - `npm run smoke` plays a debt end to end in headless Chromium; set
   `CHROME_PATH` (in the cloud container: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
 - In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`,

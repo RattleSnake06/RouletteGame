@@ -10,7 +10,8 @@
     "test": "vitest run",
     "sim": "node sim/run-sim.js",
     "smoke": "node tests/smoke/smoke.mjs",
-    "layout": "node tests/smoke/layout.mjs"
+    "layout": "node tests/smoke/layout.mjs",
+    "touch": "node tests/smoke/touch.mjs"
   },
   "dependencies": {
     "@fontsource/mansalva": "^5.3.0",
