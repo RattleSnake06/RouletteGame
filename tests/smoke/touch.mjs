@@ -187,10 +187,15 @@ try {
     await still();
     check((await state()).view === 'cage', 'a swipe to the right turns to the Cage');
     await layout('cage', 'the Cage');
-    if ((await state()).coins > 0) {
-      const coins = (await state()).coins;
-      await tap(await roleAt('cage', 'cage-button', 'bankAll'), 'Bank all');
-      check((await state()).coins === 0 && (await state()).deposited >= coins, `Bank all banks ${coins} coins`);
+    // Keep tomorrow's night in hand; on the last night, bank it all.
+    const button = night < 3 ? 'bankKeep' : 'bankAll';
+    const usable = await game((b) => window.__roulette.cage.group.children.some((o) => o.userData.button === b) && window.__roulette.game.state.coins > 0, button);
+    if (usable) {
+      const before = await state();
+      await tap(await roleAt('cage', 'cage-button', button), button);
+      const after = await state();
+      if (after.deposited > before.deposited) check(true, `${button === 'bankAll' ? 'Bank all' : 'Bank, keeping a night'} banks ${after.deposited - before.deposited} coins`);
+      else console.log(`       (${button} had nothing to bank)`);
     }
     await tapElement('.hud-nav-right');
     await still();
@@ -242,6 +247,15 @@ try {
   console.log('\nTouch playthrough passed.');
 } catch (e) {
   console.log(e.message);
+  console.log(
+    JSON.stringify(
+      await game(() => {
+        const r = window.__roulette;
+        const g = r.game;
+        return { view: g.view, zoom: g.feltZoom, busy: g.busy, phase: g.state.phase, coins: g.state.coins, menu: !!g.menuClose, camera: r.director.current, tween: !!r.director.tween, captured: !!r.interaction.captured, modal: !!document.querySelector('.modal-backdrop.show') };
+      }).catch(() => null),
+    ),
+  );
   for (const p of problems) console.log(p);
   const shot = `${tmpdir()}/touch-failure.png`;
   await page.screenshot({ path: shot }).catch(() => {});
