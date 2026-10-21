@@ -5,20 +5,22 @@
 //   npm run sim -- --runs 5000 --bot adaptive
 //   npm run sim -- --bot solo:glass_eye  one talisman from the first spin
 //   npm run sim -- --bot solo:brass_scales,string_of_pearls  several, left to right
-//   npm run sim -- --skip hamsa,mousetrap  bots never buy these (to measure what they add)
+//   npm run sim -- --skip hamsa,mousetrap  bots never buy, take or play these (talismans,
+//                                       fortunes or records), to measure what they add
+//   npm run sim -- --no-oracle           bots never visit Madame Zero (no fortunes, no records)
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
 //   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
 //   npm run sim -- --set debt.2=240       override what a debt owes
 
-import { TALISMANS, getTalisman } from '../src/core/content/index.js';
+import { TALISMANS, contentName, getFortune, getRecord, getTalisman } from '../src/core/content/index.js';
 import { DEVIL, devilLive } from '../src/core/devil.js';
 import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
 import { LUCK, nudgeFor, nudgeLandings } from '../src/core/nudge.js';
 import { add, format, gt, gte, lt, sub, toNumber } from '../src/core/num.js';
 import { evaluate } from '../src/core/payout.js';
-import { PHASE, act, canAfford, costOf, createRun, grantTalisman, isFinalNight, nextRestockCost, owed } from '../src/core/run.js';
-import { bellView, cabinetView } from '../src/core/selectors.js';
+import { PHASE, act, canAfford, costOf, createRun, grantTalisman, hooksFor, isFinalNight, nextRestockCost, owed } from '../src/core/run.js';
+import { bellView, cabinetView, oracleView } from '../src/core/selectors.js';
 import { EUROPEAN_ORDER } from '../src/core/wheel.js';
 import { liveChances } from '../src/core/widths.js';
 
@@ -37,7 +39,8 @@ const TEMPO = !!args.tempo;
 const LUCK_ITEMS = ['rabbits_foot', 'pocket_watch', 'salt_cellar', 'evil_eye', 'compass', 'lodestone', 'wind_up_key', 'hamsa', 'four_leaf_clover', 'dowsing_rod', 'weathervane', 'holy_water'];
 const NO_NEW = !!args['no-new'];
 const SKIP = typeof args.skip === 'string' ? args.skip.split(',') : [];
-for (const id of SKIP) if (!getTalisman(id)) throw new Error(`--skip: no talisman ${id}`);
+for (const id of SKIP) if (!getTalisman(id) && !getFortune(id) && !getRecord(id)) throw new Error(`--skip: no talisman, fortune or record ${id}`);
+const NO_ORACLE = !!args['no-oracle'];
 // --set overrides are checked, so a typo fails loudly instead of quietly
 // running the drafted numbers.
 const TABLES = { economy: ECONOMY, luck: LUCK, devil: DEVIL };
@@ -72,14 +75,14 @@ for (const kv of args.set === undefined ? [] : [args.set].flat()) {
   }
 }
 
-// Phase 3 targets for the best bot (doc 9.8): debt 1 ≥ 90%, debt 2 60–75%,
-// debt 3 25–40%, debt 4 5–15%. Chips and wheel work (Phase 5) carry the later
-// debts.
+// Phase 4 targets for the best bot (doc 9.8, decision 25): debt 1 ≥ 90%, debt
+// 2 65–80%, debt 3 30–45%, debt 4 10–20%. Chips and wheel work (Phase 5) carry
+// the later debts.
 const TARGETS = [
   [1, 0.9, 1],
-  [2, 0.6, 0.75],
-  [3, 0.25, 0.4],
-  [4, 0.05, 0.15],
+  [2, 0.65, 0.8],
+  [3, 0.3, 0.45],
+  [4, 0.1, 0.2],
 ];
 
 // --- Where chips go ---------------------------------------------------------
@@ -293,11 +296,12 @@ function shop(s, bot, log) {
     let bought = false;
     for (const o of offers) {
       // An instant talisman (the Lost Wallet) never needs a hook.
-      const full = !getTalisman(o.id).instant && s.rail.length >= s.railHooks;
+      const full = !getTalisman(o.id).instant && s.rail.length >= hooksFor(s);
       let sellUid;
       if (full) {
-        const worst = [...s.rail].sort((a, b) => rank(list, b.id) - rank(list, a.id))[0];
-        if (rank(list, worst.id) <= rank(list, o.id)) continue;
+        // A cursed talisman (from a black card) will not come off its hook.
+        const worst = s.rail.filter((t) => !getTalisman(t.id).cursed).sort((a, b) => rank(list, b.id) - rank(list, a.id))[0];
+        if (!worst || rank(list, worst.id) <= rank(list, o.id)) continue;
         sellUid = worst.uid;
       }
       const refund = sellUid ? s.rail.find((t) => t.uid === sellUid).price : 0;
@@ -383,6 +387,62 @@ function canMiss(s) {
   return false;
 }
 
+// --- Madame Zero and the gramophone -------------------------------------------
+
+// Which card a bot takes: the first in its colour's list that was dealt.
+const WHITE_RANK = ['record_left', 'carved_in_brass', 'stranger_tips', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'bell_rings_twice'];
+const BLACK_RANK = ['feed_zero', 'ask_figures', 'shiny_things', 'burn_ledger', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
+// Which record a bot plays, by the bets it makes. None plays Waltz in Green:
+// nights at half again the price cost every bot more than its Nudge won back.
+const RECORD_RANK = {
+  red: ['red_light_tango', 'overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero'],
+  outside: ['overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango'],
+  inside: ['carousel', 'overture_of_excess', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango'],
+};
+const recordFamily = (s, bot) => {
+  const layout = layoutFor(s, bot.layout);
+  return layout === 'red' || layout === 'black' ? 'red' : layout === 'inside' || layout === 'spread' || layout === 'corner' ? 'inside' : 'outside';
+};
+const notSkipped = (id) => !SKIP.includes(id);
+const ORACLE_REROLLS = 5;
+
+/**
+ * A visit to Madame Zero, once a debt. Before the Devil is live, on the first
+ * night; once he is, after he fires (for black cards), or on the last night at
+ * the latest. The bot takes the best card for it, rerolling while the deal
+ * is poor and a night's coins are spare. Rerolls are cheap (the debt's number
+ * and up), but past three or so they stop finding anything better.
+ */
+function visitOracle(s, bot, log) {
+  if (NO_ORACLE || bot.noOracle) return s;
+  const view = oracleView(s);
+  if (view.taken !== null) return s;
+  if (!view.dealt && devilLive(s) && !s.devil.firedThisDebt && !isFinalNight(s)) return s;
+  if (!view.dealt) s = step(s, { type: 'pullLever' }, log);
+  const rank = (v) => {
+    const list = (v.kind === 'black' ? BLACK_RANK : WHITE_RANK).filter(notSkipped);
+    const order = recordFamily(s, bot) === 'red' && v.kind === 'white' ? ['reds_run_warm', ...list] : list;
+    return v.cards.filter((c) => c.takeable && order.includes(c.id)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))[0] ?? null;
+  };
+  let pick = rank(oracleView(s));
+  const poor = (p) => !p || (oracleView(s).kind === 'white' && WHITE_RANK.indexOf(p.id) > 1);
+  for (let n = 0; n < ORACLE_REROLLS && poor(pick) && oracleView(s).canReroll && gte(sub(s.coins, oracleView(s).rerollCost), costOf(s, 'long')); n++) {
+    s = step(s, { type: 'pullLever' }, log);
+    pick = rank(oracleView(s));
+  }
+  if (pick) s = step(s, { type: 'takeFortune', index: pick.index }, log);
+  return chooseRecord(s, bot);
+}
+
+/** The best record in the crate for the bot's bets. */
+function chooseRecord(s, bot) {
+  if (!s.records.length) return s;
+  const best = RECORD_RANK[recordFamily(s, bot)].filter(notSkipped).find((id) => s.records.includes(id)) ?? null;
+  if (best === s.playing) return s;
+  const r = act(s, { type: 'playRecord', id: best });
+  return r.events.some((e) => e.type === 'rejected') ? s : r.state;
+}
+
 function newMetrics() {
   return { spins: 0, paying: 0, payouts: [], triggerSpins: 0, dry: 0, maxDry: 0, jackpot: 0, bells: 0, restocks: 0, tokensIn: 0, tokensOut: 0, leans: 0, hops: 0, devils: 0, devilRuns: 0, lost: 0 };
 }
@@ -401,9 +461,11 @@ function playRun(seed, bot, m, picks, firstPicks) {
       }
       if (e.type === 'bellRung' && e.uid) m.bells += 1;
       if (e.type === 'offersRestocked' && e.paid) m.restocks += 1;
+      if (e.type === 'fortuneTaken') picks[`fortune:${e.id}`] = (picks[`fortune:${e.id}`] ?? 0) + 1;
     }
   };
   while (s.phase !== PHASE.GAME_OVER && s.debt <= MAX_DEBT) {
+    s = visitOracle(s, bot, log);
     s = shop(s, bot, log);
     const tempo = TEMPO && s.debt <= 2 && s.round === 1;
     const pkg = !tempo && canAfford(s, 'long') ? 'long' : canAfford(s, 'short') ? 'short' : 'sitout';
@@ -481,7 +543,7 @@ function runBot(name) {
 // --- Report -----------------------------------------------------------------
 
 const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
-console.log(`${RUNS} runs per bot · Phase 3 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil)${TEMPO ? ' · tempo' : ''}\n`);
+console.log(`${RUNS} runs per bot · Phase 4 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings)${TEMPO ? ' · tempo' : ''}\n`);
 const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
 console.log(header.join(' '));
 const results = names.map(runBot);
@@ -507,7 +569,7 @@ for (const r of results) {
 // The targets are for the best bot (doc 9.8): at each debt, the best of the
 // bots that play the House's luck, whichever that is.
 const graded = results.filter((r) => botFor(r.name).leans);
-console.log('\nPhase 3 targets for the best bot at each debt:');
+console.log('\nPhase 4 targets for the best bot at each debt:');
 for (const [d, lo, hi] of TARGETS) {
   if (d > MAX_DEBT || !graded.length) continue;
   const best = graded.reduce((a, b) => (b.paid[d] > a.paid[d] ? b : a));
@@ -524,10 +586,19 @@ for (const r of results.filter((x) => Object.keys(x.picks).length)) {
     '  ' +
       Object.entries(r.picks)
         .sort((a, b) => b[1] - a[1])
+        .filter(([id]) => !id.startsWith('fortune:'))
         .map(([id, n]) => `${getTalisman(id).name} ${((100 * n) / RUNS).toFixed(0)}`)
         .join(' · '),
   );
-  console.log(`  first purchase: ${getTalisman(top[0]).name} ${pct(top[1], total)} of runs · median paying spin ${median(r.m.payouts)} · biggest spin ${(r.m.jackpot * 100).toFixed(0)}% of the debt`);
+  if (top) console.log(`  first purchase: ${getTalisman(top[0]).name} ${pct(top[1], total)} of runs · median paying spin ${median(r.m.payouts)} · biggest spin ${(r.m.jackpot * 100).toFixed(0)}% of the debt`);
   console.log(`  tokens earned ${(r.m.tokensIn / RUNS).toFixed(1)}, spent ${(r.m.tokensOut / RUNS).toFixed(1)} per run`);
+  const fortunes = Object.entries(r.picks).filter(([id]) => id.startsWith('fortune:'));
+  if (fortunes.length) {
+    const text = fortunes
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, n]) => `${contentName(id.slice(8))} ${((100 * n) / RUNS).toFixed(0)}`)
+      .join(' · ');
+    console.log(`  fortunes taken per 100 runs: ${text}`);
+  }
 }
 console.log(`\nStart: ${ECONOMY.startCoins} coins, ${ECONOMY.startTokens} tokens, ${ECONOMY.startChips} chips of value 1. (${format(12345)} formatting check)`);

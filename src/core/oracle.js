@@ -77,16 +77,6 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
       s.coins = mul(s.coins, 2);
       effect('setCoins', { amount: s.coins });
     },
-    addChipValue(n) {
-      for (const chip of s.chips) chip.value += n;
-      effect('chipValue', { amount: n });
-    },
-    addChip() {
-      const id = `c${s.nextChipId}`;
-      s.nextChipId += 1;
-      s.chips.push({ id, value: 1, material: 'clay', roundValue: 0 });
-      effect('chip', { chipId: id });
-    },
     rechargeBell() {
       const uids = [];
       for (const inst of s.rail) {

@@ -78,13 +78,9 @@ describe('Madame Zero', () => {
 });
 
 describe('white cards', () => {
-  it('tokens, chip value, a new chip, a hook (once a run)', () => {
+  it('tokens, and a hook (once a run)', () => {
     const s = setup();
-    expect(take(s, 'stranger_tips').state.tokens).toBe(s.tokens + 5);
-    expect(take(s, 'stack_grows').state.chips.map((c) => c.value)).toEqual([2, 2, 2]);
-    const chip = take(s, 'new_chip').state;
-    expect(chip.chips).toHaveLength(4);
-    expect(chip.chips[3]).toMatchObject({ id: 'c4', value: 1 });
+    expect(take(s, 'stranger_tips').state.tokens).toBe(s.tokens + 2);
     const hook = take(s, 'another_hook').state;
     expect(hook.railHooks).toBe(7);
     expect(act(dealt(hook, ['another_hook']), { type: 'takeFortune', index: 0 }).events[0].code).toBe('notUsable');
@@ -96,17 +92,17 @@ describe('white cards', () => {
     expect(take(s, 'bell_rings_twice').state.rail.map((t) => t.charges)).toEqual([2, 1]);
   });
 
-  it('the cabinet owes you: 2 tokens off every talisman until the next restock', () => {
+  it('the cabinet owes you: a token off every talisman until the next restock', () => {
     let s = take(setup(), 'cabinet_owes').state;
     const offer = cabinetView(s).slots[0];
-    expect(offer.price).toBe(offer.listPrice - 2);
+    expect(offer.price).toBe(offer.listPrice - 1);
     s = play({ ...s, coins: 100 }, { type: 'restock' }).state;
     expect(cabinetView(s).slots[0].price).toBe(cabinetView(s).slots[0].listPrice);
   });
 
-  it('the reds run warm: every red pocket +0.25, for good', () => {
+  it('the reds run warm: every red pocket +0.15, for good', () => {
     const s = take(setup(), 'reds_run_warm').state;
-    expect([widthOf(s, 32), widthOf(s, 15), widthOf(s, 0)]).toEqual([1.25, 1, 1]);
+    expect([widthOf(s, 32), widthOf(s, 15), widthOf(s, 0)]).toEqual([1.15, 1, 1]);
   });
 
   it('someone left a record: it goes in the crate and plays if nothing is playing', () => {
@@ -193,7 +189,7 @@ describe('records', () => {
     expect(owed(s)).toBe(120);
     s = play({ ...s, phase: 'nightOver', round: 3, deposited: 200 }, { type: 'endNight' }).state;
     expect(s.deposited).toBe(200 + 10 - 120); // the night's interest, then the doubled debt
-    expect(owed(s)).toBe(333);
+    expect(owed(s)).toBe(400);
   });
 
   it('Funeral March: +2 tokens every night, chips pay ×0.75', () => {
@@ -203,19 +199,28 @@ describe('records', () => {
     expect(night.tokens).toBe(s.tokens + 1 + 2);
   });
 
-  it('Boogie-Woogie: +1 Stake per paying spin in a row, gone on a miss', () => {
+  it('Boogie-Woogie: +1 Stake per paying spin in a row (up to +2), gone on a miss', () => {
     let s = withRecord(setup({ chips: { c1: 'red' } }), 'boogie_woogie');
     s = spinOn(s, 32).state;
+    s = spinOn(s, 32).state;
+    expect(paysOn(s, 32).lines[0].factors.stake).toBe(3);
     s = spinOn(s, 32).state;
     expect(paysOn(s, 32).lines[0].factors.stake).toBe(3);
     s = spinOn(s, 2).state;
     expect(paysOn(s, 32).lines[0].factors.stake).toBe(1);
   });
 
-  it("Nocturne: the night's last spin pays ×4", () => {
+  it("Nocturne: the night's last spin pays ×3", () => {
     const s = play(withRecord(setup({ chips: { c1: 'red' } }), 'nocturne'), { type: 'choosePackage', packageId: 'short' }).state;
     expect(amounts(paysOn(s, 32))).toEqual([2]);
-    expect(amounts(paysOn({ ...s, spinsLeft: 1 }, 32))).toEqual([8]);
+    expect(amounts(paysOn({ ...s, spinsLeft: 1 }, 32))).toEqual([6]);
+  });
+
+  it('Carousel: Nudge that is there at all reaches a pocket further', () => {
+    const s = withRecord(setup(), 'carousel');
+    expect(nudgeFor(noHouseLuck(s)).total).toBe(0);
+    const figures = take(s, 'ask_figures').state;
+    expect(nudgeFor(noHouseLuck(figures))).toMatchObject({ total: 2, charms: 2 });
   });
 
   it('Static: +1 hook, and it will not stop while a talisman hangs on that hook', () => {
@@ -300,5 +305,14 @@ describe('saves', () => {
     s = { ...s, rail: [{ ...s.rail[0], engraving: 'keen' }] };
     const back = deserializeRun(serializeRun(s));
     expect(back).toEqual(s);
+  });
+
+  it('a card the game no longer knows leaves the deal on load', () => {
+    const open = dealt(setup(), ['stranger_tips', 'gone_card', 'cabinet_owes']);
+    expect(deserializeRun(serializeRun(open)).oracle).toMatchObject({ cards: ['stranger_tips', 'cabinet_owes'], taken: null });
+    const took = { ...open, oracle: { ...open.oracle, taken: 2 } };
+    expect(deserializeRun(serializeRun(took)).oracle.taken).toBe(1);
+    const gone = { ...open, oracle: { ...open.oracle, taken: 1 } };
+    expect(oracleView(deserializeRun(serializeRun(gone)))).toMatchObject({ taken: -1, cards: [{ takeable: false }, { takeable: false }] });
   });
 });

@@ -186,15 +186,18 @@ At the start of each round, choose one:
 | **Short night** | 3 | 3 × spin cost | +1 token now |
 | **Sit out** | 0 | none | +3 tokens when the debt is paid |
 
-Debt table (first draft, debts 2 and 4 tuned in Phase 3). Spin cost follows
-Fibonacci, a small detail players can spot.
+Debt table (first draft, debts 2 and 4 tuned in Phases 3 and 4). Spin cost
+follows Fibonacci, a small detail players can spot. Phase 3 set debt 2 to 333
+(half of 666) and debt 4 to 1,332 (twice 666). Madame Zero's lasting cards
+then carried too many runs through, so Phase 4 raised them to 400 and 2,664
+(four times 666). Debt 3 stays 666 (decision 14).
 
 | Debt | Owed | Spin cost | Restock base |
 |---|---|---|---|
 | 1 | 60 | 1 | 2 |
-| 2 | **333** | 2 | 5 |
+| 2 | **400** | 2 | 5 |
 | 3 | **666** | 3 | 15 |
-| 4 | **1,332** | 5 | 50 |
+| 4 | **2,664** | 5 | 50 |
 | 5 | 12,000 | 8 | 200 |
 | 6 | 36,000 | 13 | 700 |
 | 7 | 120,000 | 21 | 2,000 |
@@ -755,31 +758,41 @@ at least one item at each rarity before content lock (Phase 7).
 *As built (Phase 4, decision 22):* the cards below work as written, with these
 exceptions. Waiting for their phase: "Outside bets are safe bets" and "Fortune
 favours the bold" (bet levels, Phase 5), "Gold finds gold" (gilded pockets,
-Phase 5), "Neighbours talk" (special bets). "A new chip in your pocket" gives a
-plain chip until chip materials (Phase 5). "Feed the zero" makes zero's pocket
+Phase 5), "Neighbours talk" (special bets). The two chip cards, "Your stack
+grows heavy" and "A new chip in your pocket", wait for Phase 5's chip axis too.
+A run starts with three chips of value 1, so each was a third more stake for
+the rest of the run, by far the strongest card in the simulator. They will be
+tuned with chip materials. "Feed the zero" makes zero's pocket
 twice as wide (the second zero pocket comes with Phase 5's wheel work). "Ask
 the figures" gives its +1 Nudge; the figure leaving comes with the figures
 (Phase 6). Two black cards were added for decision 11, the cursed talismans'
 only source: **"Roll the bones."** (the Bone Dice hang on your rail, uncommon)
 and **"A candle for the dark."** (the Black Candle, uncommon). One white card
 was added: **"Someone left a record."** (a record for the gramophone,
-uncommon). Pocket widenings are wheel work: they last the run. Lore lines are
-in `src/core/content/fortunes.js`.
+legendary, once a run: records come "occasionally" from fortunes, 5.10).
+Pocket widenings are wheel work: they last the run. "Something carved in
+brass" never gives the Cursed engraving. Lore lines are in
+`src/core/content/fortunes.js`.
+
+Tuned with the simulator (9.8): a card a debt adds up, since most of them last
+the run. A stranger tips 2 tokens (drafted 5), the Cabinet owes 1 token
+(drafted 2), and the reds and blacks widen by 0.15 (drafted 0.25). The tables
+below give the tuned numbers.
 
 **White cards**
 
 | Card | Effect | Rarity | Max picks |
 |---|---|---|---|
-| "A stranger tips well." | +5 tokens | Common | none |
-| "Your stack grows heavy." | All chips +1 value | Common | none |
+| "A stranger tips well." | +2 tokens | Common | none |
+| "Your stack grows heavy." | All chips +1 value (waits for Phase 5) | Common | none |
 | "The bell rings twice." | Recharge all Bell talismans | Common | none |
-| "The cabinet owes you." | Talismans cost 2 fewer tokens until the next restock | Common | none |
-| "The reds run warm tonight." | Widen every red pocket +0.25 | Common | none |
-| "The blacks run cold and deep." | Widen every black pocket +0.25 | Common | none |
+| "The cabinet owes you." | Talismans cost 1 token less until the next restock | Common | none |
+| "The reds run warm tonight." | Widen every red pocket +0.15 | Common | none |
+| "The blacks run cold and deep." | Widen every black pocket +0.15 | Common | none |
 | "Outside bets are safe bets." | Dozen, column and even-money bets +1 level | Uncommon | none |
 | "Fortune favours the bold." | Straight-up +1 level | Uncommon | none |
 | "Another hook on the wall." | +1 talisman hook | Uncommon | 1 |
-| "A new chip in your pocket." | Gain a chip of a random material | Uncommon | none |
+| "A new chip in your pocket." | Gain a chip of a random material (waits for Phase 5) | Uncommon | none |
 | "Gold finds gold." | Gild 3 random pockets | Rare | none |
 | "Something carved in brass." | A random engraving on a random talisman | Rare | none |
 | "Neighbours talk." | Unlock the Neighbours bet this run | Rare | 1 |
@@ -799,8 +812,14 @@ in `src/core/content/fortunes.js`.
 
 *As built (Phase 4):* all but Danse Macabre, which waits for the figures
 (Phase 6). Red Light Tango reads the colour of the number that lands, for every
-bet. Waltz in Green rounds a night's price up. Carousel's "1 pocket further" is
-+1 Nudge. Overture of Excess and Static: see 5.10.
+bet. Waltz in Green rounds a night's price up. Carousel's "1 pocket further"
+is +1 to any Nudge a spin already has (a Lean, pity, a talisman): a spin with
+none stays put, which keeps it apart from Waltz in Green. Overture of Excess
+and Static: see 5.10. Tuned with the simulator (9.8): Boogie-Woogie's Stake
+stops at +2, and Nocturne pays ×3 (drafted ×4). A Stake point doubles a line
+(5.5), so an uncapped streak grew without limit for outside bets that pay three
+spins in four. In the simulator no bot gains from Waltz in Green: half again
+on every night costs more than its Nudge wins back.
 
 | Record | Rule while it plays |
 |---|---|
@@ -809,8 +828,8 @@ bet. Waltz in Green rounds a night's price up. Carousel's "1 pocket further" is
 | Lullaby for Zero | No Devil; no Leans |
 | Overture of Excess | Debts ×2; all payouts ×3 |
 | Funeral March | +2 tokens per round; payouts ×0.75 |
-| Boogie-Woogie | Each win adds +1 Stake until the next miss |
-| Nocturne | The last spin of each round pays ×4 |
+| Boogie-Woogie | Each win adds +1 Stake (up to +2) until the next miss |
+| Nocturne | The last spin of each round pays ×3 |
 | Static | No music; +1 talisman hook |
 | Carousel | The wheel turns backwards; Nudge reaches 1 pocket further |
 | Danse Macabre | +1% interest for each figure standing in the dark |
@@ -969,7 +988,7 @@ bounces, never the result.
     two spins left. When coins change, the old total shows small and struck out,
     then fades.
   - *Top-centre:* "DEBT 2 · NIGHT" with past nights struck and tonight ringed in
-    red chalk; below it banked / owed ("64 / 333", owed in red) over a thin ink
+    red chalk; below it banked / owed ("64 / 400", owed in red) over a thin ink
     meter. When banked covers the debt, the owed figure is struck off. At the Cage
     this cluster fades, since the Cage's own sign carries it.
   - *Top-right:* tokens, smaller than the debt, with a scratched brass hexagon.
@@ -1301,6 +1320,19 @@ play back strictly left to right. Every hook that changes something emits a
   it.
 - **Phase 4 targets** (the best bot, with Madame Zero, records and engravings;
   decision 25): debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20%.
+  Bots visit her once a debt: on the first night before the Devil is live,
+  and once he is, after he fires (for black cards) or on the last night. Each
+  takes the best card for its bets and rerolls while the deal is poor. Rerolls
+  are cheap, but past three or so they stop finding anything better. Each bot
+  then plays the record in its crate that suits its bets. `--no-oracle` keeps
+  the bots away from her, and `--skip` also takes fortunes and records.
+  *Results (2,000 runs):* the best bot pays debts 1–4 in 97%, 68%, 44% and
+  14% of runs (adaptive, inside, inside, outside). Debt 2 sits low in its band
+  and debt 3 high: the cards that last carry runs from debt 2 into debt 3.
+  Without Madame Zero the same bots pay 98%, 73%, 30% and 12% at the Phase 3
+  debts. As drafted, her cards took the best bot to about 80% at debt 3 and 67%
+  at debt 4. The two chip cards were the biggest part of that, then records
+  and the tips. Phase 4 also raised debts 2 and 4 (5.2).
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1522,4 +1554,4 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 22 | Phase 4 scope | **Build the fortunes and records that work with what exists**; cards that need bet levels, gilded pockets, chip materials or the Neighbours bet, and Danse Macabre (the figures), wait for their phase. Two new black cards hang the cursed talismans (decision 11). (6.2, 6.3) |
 | 23 | Records' music | **A synthesised loop for each record**, no audio files; a quiet hall hum when nothing plays. (5.10, 8.6) |
 | 24 | Madame Zero's place | **One new station left of the Cage**: her glass booth, the gramophone on a stool beside it. Turning order: Madame Zero, Cage, Table, Cabinet. (8.1) |
-| 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. (9.8) |
+| 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. Outcome: debt 2 owes 400 and debt 4 2,664, and the two chip cards wait for Phase 5. (9.8) |

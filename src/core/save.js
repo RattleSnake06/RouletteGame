@@ -149,6 +149,14 @@ function tidy(state) {
       rail: state.rail.map((t) => (t.engraving && !getEngraving(t.engraving) ? { ...t, engraving: null } : t)),
     };
   }
+  // A deal on her counter keeps the cards it still knows; a taken card that
+  // is gone leaves the deal taken (-1), with nothing marked.
+  const deal = state.oracle;
+  if (deal?.cards.some((id) => !getFortune(id))) {
+    const cards = deal.cards.filter((id) => getFortune(id));
+    const taken = deal.taken === null ? null : cards.indexOf(deal.cards[deal.taken]);
+    state = { ...state, oracle: { ...deal, cards, taken } };
+  }
   const unknown = state.rail.filter((t) => !getTalisman(t.id));
   const staleOffer = (x) => x.kind === 'talisman' && x.id && !getTalisman(x.id);
   const stale = state.cabinet.slots.some(staleOffer);

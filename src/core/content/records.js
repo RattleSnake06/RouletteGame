@@ -9,7 +9,14 @@
 //   extraHooks talisman hooks it adds while it plays
 //   doublesDebt true: a debt it plays during owes twice as much
 //   reverse    true: the wheel turns the other way (the view)
+//   reach      pockets added to any Nudge a spin already has (nudge.js)
 //   hooks      effect hooks, as for talismans; a record acts before the rail
+
+// Tuned with the simulator (doc 9.8).
+const RECORD = {
+  boogieMax: 2, // drafted without a cap
+  nocturne: 3, // drafted ×4
+};
 
 const lastSpinOfNight = (state) => state.phase === 'betting' && state.spinsLeft === 1;
 
@@ -81,7 +88,7 @@ export const RECORD_LIST = [
   {
     id: 'boogie_woogie',
     name: 'Boogie-Woogie',
-    rule: 'Each paying spin: +1 Stake, until a spin pays nothing.',
+    rule: `Each paying spin: +1 Stake (up to +${RECORD.boogieMax}), until a spin pays nothing.`,
     tune: 'boogie',
     init: () => ({ streak: 0 }),
     hooks: {
@@ -89,7 +96,7 @@ export const RECORD_LIST = [
         if (ctx.self.streak > 0) ctx.addStake(ctx.self.streak);
       },
       afterSpin(ctx) {
-        const streak = ctx.result.miss ? 0 : ctx.self.streak + 1;
+        const streak = ctx.result.miss ? 0 : Math.min(RECORD.boogieMax, ctx.self.streak + 1);
         if (streak !== ctx.self.streak) ctx.setData('streak', streak);
       },
     },
@@ -97,11 +104,11 @@ export const RECORD_LIST = [
   {
     id: 'nocturne',
     name: 'Nocturne',
-    rule: "The night's last spin pays ×4.",
+    rule: `The night's last spin pays ×${RECORD.nocturne}.`,
     tune: 'nocturne',
     hooks: {
       chipMult(ctx) {
-        if (lastSpinOfNight(ctx.state)) ctx.mul(4);
+        if (lastSpinOfNight(ctx.state)) ctx.mul(RECORD.nocturne);
       },
     },
   },
@@ -115,13 +122,11 @@ export const RECORD_LIST = [
   {
     id: 'carousel',
     name: 'Carousel',
-    rule: 'The wheel turns backwards. +1 Nudge on every spin.',
+    rule: 'The wheel turns backwards. Any Nudge reaches 1 pocket further.',
     tune: 'carousel',
     reverse: true,
-    hooks: {
-      nudge(ctx) {
-        ctx.addNudge(1);
-      },
-    },
+    // Only a spin that has Nudge already (a Lean, pity, a talisman) gets the
+    // extra pocket, so nudge.js adds it after every other source.
+    reach: 1,
   },
 ];

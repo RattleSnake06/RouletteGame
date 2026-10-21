@@ -15,6 +15,10 @@
 //
 // Cards that need later systems (bet levels, gilded pockets, chip materials,
 // the Neighbours bet, the figures in the dark) wait for their phase (decision 22).
+// So do the two chip cards ("Your stack grows heavy", "A new chip in your
+// pocket"): a run starts with three chips of value 1, so each was a third
+// more stake for the rest of the run, by far the strongest card in the sim.
+// They come back with Phase 5's chip axis (materials, Ember pockets).
 
 import { getTalisman } from './index.js';
 
@@ -25,6 +29,14 @@ const hasBellTalisman = (state) => state.rail.some((t) => getTalisman(t.id)?.bel
 const freeHook = (state, hooks) => state.rail.length < hooks;
 const owns = (state, id) => state.rail.some((t) => t.id === id);
 
+// Tuned with the simulator (doc 9.8): a card a debt is worth a lot, because
+// most of them last the run.
+const FORTUNE = {
+  tips: 2, // drafted 5
+  discount: 1, // drafted 2
+  widen: 0.15, // drafted 0.25
+};
+
 export const FORTUNE_LIST = [
   // --- White cards ---------------------------------------------------------
   {
@@ -32,21 +44,10 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'A stranger tips well.',
-    effect: '+5 tokens.',
+    effect: `+${FORTUNE.tips} tokens.`,
     lore: 'IT ALL ADDS UP TO 666',
     take(ctx) {
-      ctx.gainTokens(5);
-    },
-  },
-  {
-    id: 'stack_grows',
-    kind: 'white',
-    rarity: 'common',
-    text: 'Your stack grows heavy.',
-    effect: 'Every chip +1 value, for good.',
-    lore: 'ZERO IS NOT EMPTY',
-    take(ctx) {
-      ctx.addChipValue(1);
+      ctx.gainTokens(FORTUNE.tips);
     },
   },
   {
@@ -66,10 +67,10 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'The cabinet owes you.',
-    effect: 'Talismans cost 2 tokens less until the next restock.',
+    effect: `Talismans cost ${FORTUNE.discount} token${FORTUNE.discount === 1 ? '' : 's'} less until the next restock.`,
     lore: 'EVERYTHING HAS A PRICE',
     take(ctx) {
-      ctx.discount(2);
+      ctx.discount(FORTUNE.discount);
     },
   },
   {
@@ -77,10 +78,10 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'The reds run warm tonight.',
-    effect: 'Every red pocket +0.25 wide, for good.',
+    effect: `Every red pocket +${FORTUNE.widen} wide, for good.`,
     lore: "DON'T TRUST THE LEAN",
     take(ctx) {
-      ctx.widen(red, 0.25);
+      ctx.widen(red, FORTUNE.widen);
     },
   },
   {
@@ -88,10 +89,10 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'The blacks run cold and deep.',
-    effect: 'Every black pocket +0.25 wide, for good.',
+    effect: `Every black pocket +${FORTUNE.widen} wide, for good.`,
     lore: 'THE WHEEL REMEMBERS',
     take(ctx) {
-      ctx.widen(black, 0.25);
+      ctx.widen(black, FORTUNE.widen);
     },
   },
   {
@@ -107,23 +108,13 @@ export const FORTUNE_LIST = [
     },
   },
   {
-    id: 'new_chip',
-    kind: 'white',
-    rarity: 'uncommon',
-    text: 'A new chip in your pocket.',
-    effect: 'Gain a chip.',
-    lore: 'CLAY REMEMBERS EVERY HAND',
-    take(ctx) {
-      ctx.addChip();
-    },
-  },
-  {
     id: 'record_left',
     kind: 'white',
-    rarity: 'uncommon',
+    rarity: 'legendary', // records come "occasionally" from fortunes (5.10)
     text: 'Someone left a record.',
     effect: 'A record for the gramophone. It plays if nothing is playing.',
     lore: 'THE MUSIC NEVER STOPS',
+    maxPicks: 1,
     requires: (state, { recordsLeft }) => recordsLeft > 0,
     take(ctx) {
       ctx.giveRecord();

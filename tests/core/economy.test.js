@@ -3,9 +3,9 @@ import { owedFor, packageCost, spinCostFor } from '../../src/core/economy.js';
 import { isBig } from '../../src/core/num.js';
 
 describe('economy', () => {
-  it('uses the debt table (debts 2 and 4 tuned in Phase 3: half and twice 666)', () => {
+  it('uses the debt table (debts 2 and 4 tuned with Madame Zero in Phase 4; debt 3 stays 666)', () => {
     expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map(owedFor)).toEqual([
-      60, 333, 666, 1332, 12000, 36000, 120000, 370000, 1300000,
+      60, 400, 666, 2664, 12000, 36000, 120000, 370000, 1300000,
     ]);
   });
 

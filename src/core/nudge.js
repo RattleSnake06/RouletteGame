@@ -179,6 +179,12 @@ export function nudgeFor(state, emit = null) {
   // A blocked spin (the Black Cat crossing) has no Nudge at all, the House's
   // included, so the board shows no pity for it either.
   const pity = pityBlocker || blocked ? 0 : rawPity;
+  // Carousel: Nudge that is there at all reaches a pocket further.
+  const record = state.playing ? getRecord(state.playing) : null;
+  if (record?.reach && !blocked && lean + pity + charms > 0) {
+    charms += record.reach;
+    emit?.({ type: 'trigger', src: { uid: 'record', id: record.id, as: record.id }, hook: 'nudge', effect: 'nudge', amount: record.reach });
+  }
   const total = blocked ? 0 : lean + pity + charms;
   // What the hops look like on screen: a Lean's warm spark, pity's cold one,
   // or the brass of a talisman's own luck.

@@ -56,16 +56,22 @@ and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done,
 plus twenty more talismans built ahead of Phase 4 at the owner's request
 (43 in all; doc 6.1, decisions 15–17), with pocket widths drawn live.
 M1, touch and the phone layout (doc 9.10, 10), is done: `npm run touch` plays
-debt 1 by touch alone on a landscape phone with nothing covered. Next is Phase
-4: Madame Zero, fortunes (white and black cards), engravings and records,
-built touch-first (decision 21). The best simulator bot at each debt pays debts 1–4 in about 99%, 74%,
-25% and 8% of runs, inside the Phase 3 targets but close to the debt 2 ceiling
-and the debt 3 floor (see `npm run sim`, which grades the best Lean-playing bot
-at each debt; `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
-off talismans, `--bot solo:a,b` hangs talismans from the first spin). One point
-of Nudge is worth a lot (a straight-up's return grows with 2N + 1), and a
-multiplier on one number pays a whole debt in a hit: re-run the sim after any
-luck or jackpot change.
+debt 1 by touch alone on a landscape phone with nothing covered. Phase 4 is under
+way, built touch-first (decision 21). The core is done: Madame Zero's fortunes
+(white and black cards), records and engravings, with 16 cards and 9 records
+(doc 6.2, 6.3; the two chip cards wait for Phase 5). So is the simulator tuning.
+Next are the view (her booth and the gramophone left of the Cage, decision 24)
+and each record's synthesised loop. The best simulator bot at each debt pays
+debts 1–4 in about 97%, 68%, 44% and 14% of runs. That is inside the Phase 4
+targets (decision 25), but debt 2 is near its floor and debt 3 near its
+ceiling. Debts 2 and 4 now owe 400 and 2,664. See `npm run sim`, which grades
+the best Lean-playing bot at each debt; `--no-oracle` keeps the bots away from
+Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
+off talismans, fortunes or records, and `--bot solo:a,b` hangs talismans from
+the first spin. One point of Nudge is worth a lot (a straight-up's return grows
+with 2N + 1). A Stake point doubles a line, and a multiplier on one number pays
+a whole debt in a hit. Re-run the sim after any luck, jackpot or fortune
+change.
 
 ## Commands
 

@@ -33,9 +33,9 @@ export const PACKAGES = {
 
 export const DEBT_TABLE = [
   { owed: 60, restock: 2 },
-  { owed: 333, restock: 5 }, // half of 666 (Phase 3 tuning; drafted as 180)
+  { owed: 400, restock: 5 }, // drafted as 180; 333 in Phase 3, 400 with Madame Zero (Phase 4)
   { owed: 666, restock: 15 },
-  { owed: 1332, restock: 50 }, // twice 666 (Phase 3 tuning; drafted as 2,500)
+  { owed: 2664, restock: 50 }, // four times 666 (drafted as 2,500; 1,332 in Phase 3)
   { owed: 12000, restock: 200 },
   { owed: 36000, restock: 700 },
   { owed: 120000, restock: 2000 },

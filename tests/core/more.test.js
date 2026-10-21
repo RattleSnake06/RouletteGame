@@ -376,7 +376,7 @@ describe('economy talismans', () => {
     expect(state.tokens).toBe(2);
     expect(state.rail).toHaveLength(6);
     expect(events[0]).toMatchObject({ type: 'bought', id: 'lost_wallet', instant: true });
-    expect(grantTalisman({ ...s, debt: 2 }, 'lost_wallet').coins).toBe(10 + 33);
+    expect(grantTalisman({ ...s, debt: 2 }, 'lost_wallet').coins).toBe(10 + 40);
   });
 });
 

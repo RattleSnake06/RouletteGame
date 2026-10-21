@@ -270,16 +270,17 @@ try {
   });
   check(roomy.width === 3 && roomy.echoing === 'brass_scales', 'Brass Scales and a Tuning Fork make the even pockets three times as wide');
   check(roomy.moved, 'the wheel is drawn with the wider pockets');
-  const wallet = await game(() => {
+  const wallet = await game(async () => {
+    const { owed } = await import('/src/core/run.js');
     const r = window.__roulette;
     const s = r.game.state;
     r.game.state = { ...s, tokens: s.tokens + 3, cabinet: { ...s.cabinet, slots: [{ kind: 'talisman', id: 'lost_wallet', sold: false }, ...s.cabinet.slots.slice(1)] } };
     const before = r.game.state.coins;
     const hooks = r.game.state.rail.length;
     r.game.buy(0);
-    return { gained: r.game.state.coins - before, hooks: r.game.state.rail.length - hooks };
+    return { gained: r.game.state.coins - before, tenth: Math.floor(owed(s) / 10), hooks: r.game.state.rail.length - hooks };
   });
-  check(wallet.gained === 33 && wallet.hooks === 0, `the Lost Wallet held ${wallet.gained} coins and took no hook`);
+  check(wallet.gained === wallet.tenth && wallet.hooks === 0, `the Lost Wallet held ${wallet.gained} coins (a tenth of the debt is ${wallet.tenth}) and took no hook`);
   await game(() => {
     const r = window.__roulette;
     r.debug.grant('holy_water');
