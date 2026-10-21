@@ -1,4 +1,4 @@
-import { getTalisman } from './content/index.js';
+import { getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
 import { add } from './num.js';
 import { hashSeed } from './rng.js';
 
@@ -18,7 +18,9 @@ import { hashSeed } from './rng.js';
 //     chipPaid    per paying line     ctx.addChipValue(n), ctx.bonusCoins(n), ctx.bonusTokens(n)
 //     chipLost    per losing chip     ctx.bonusCoins(n), ctx.bonusTokens(n)
 //     spinPaid    once, after them    ctx.bonusCoins(n), ctx.setData(k, v) (applied when the
-//                                     spin is committed); reads ctx.winners
+//                                     spin is committed); reads ctx.winners, ctx.lines
+//   pure prices (run.js):
+//     packageCost  a night's cost     ctx.mulCost(x)
 //   pure luck (nudge.js, devil.js, widths.js; also shown before the spin):
 //     nudge        per spin           ctx.addNudge(n), ctx.clockwiseOnly(), ctx.straightOnly(),
 //                                     ctx.noPity(), ctx.pityAfter(n), ctx.noNudge(), ctx.anchor(number);
@@ -37,9 +39,11 @@ import { hashSeed } from './rng.js';
 // Calling a method a hook point does not offer throws (its ctx lacks it).
 
 /**
- * The things that act, in order. Phase 2 has only the rail, left to right.
- * Later groups slot in ahead of it: chip material, pocket enhancement, record.
- * Each source: { index, inst, def, as, self, copyOf, by }
+ * The things that act, in order: the record on the gramophone, then lasting
+ * fortunes (boons) in the order they were taken, then the rail left to right,
+ * each talisman's engraving straight after it. Chip materials and pocket
+ * enhancements will slot in ahead of the record (Phase 5).
+ * Each source: { index, inst, def, as, self, copyOf, by, kind }
  *   inst    the rail instance that acts (whose data it reads and writes)
  *   def     its own definition
  *   as      the definition whose hooks run (differs when Twin Mirrors copies)
@@ -48,35 +52,61 @@ import { hashSeed } from './rng.js';
  *           data belongs to that instance, so a new one starts fresh
  *   by      a Tuning Fork echoing it: the source runs again, straight after
  *           itself, and the fork is what shakes on screen
+ *   kind    'record', 'boon', 'talisman' or 'engraving'. A record or a boon
+ *           acts through a stand-in instance ({ uid, id, data }) so its data
+ *           reads and writes like a talisman's.
  */
 export function sources(state) {
   const out = [];
+  const record = state.playing ? getRecord(state.playing) : null;
+  if (record) {
+    const inst = { uid: 'record', id: record.id, data: state.recordData?.[record.id] ?? record.init?.() ?? {} };
+    out.push({ index: -1, inst, def: record, as: record, self: inst.data, copyOf: null, by: null, kind: 'record' });
+  }
+  for (const boon of state.boons ?? []) {
+    const def = getFortune(boon.id);
+    if (def && Object.keys(def.hooks).length) out.push({ index: -1, inst: boon, def, as: def, self: boon.data, copyOf: null, by: null, kind: 'boon' });
+  }
   const rail = state.rail;
   for (let i = 0; i < rail.length; i++) {
     const inst = rail[i];
-    const def = getTalisman(inst.id);
-    // A fork never acts on its own, only through the talisman to its left.
-    if (!def || def.echoes) continue;
-    let as = def;
-    let self = inst.data;
-    let copyOf = null;
-    if (def.copies === 'right') {
-      const target = copyTargetInst(rail, i);
-      if (!target) continue; // nothing to copy: the mirror stays dark
-      as = getTalisman(target.id);
-      copyOf = target.uid;
-      self = inst.data.copy?.[copyOf] ?? as.init?.() ?? {};
-      if (self.gone) continue; // a copy that was used up stays dark
+    const src = talismanSource(rail, i);
+    if (src) {
+      out.push(src);
+      // Some effects cannot happen twice (a ward, a pity threshold, a Bell's
+      // arming): a fork beside them has nothing to repeat.
+      if (src.as.echoable !== false) {
+        // Each fork to its right triggers it again; forks pass through forks.
+        for (let j = i + 1; j < rail.length && getTalisman(rail[j].id)?.echoes; j++) out.push({ ...src, by: rail[j] });
+      }
     }
-    const src = { index: i, inst, def, as, self, copyOf, by: null };
-    out.push(src);
-    // Some effects cannot happen twice (a ward, a pity threshold, a Bell's
-    // arming): a fork beside them has nothing to repeat.
-    if (as.echoable === false) continue;
-    // Each fork to its right triggers it again; forks pass through forks.
-    for (let j = i + 1; j < rail.length && getTalisman(rail[j].id)?.echoes; j++) out.push({ ...src, by: rail[j] });
+    // Its engraving acts straight after it, on its own data, even when the
+    // talisman itself does nothing (a dark mirror, a fork). A mirror's or a
+    // fork's repeat is of the talisman, never of its engraving.
+    const engraving = inst.engraving ? getEngraving(inst.engraving) : null;
+    if (engraving) out.push({ index: i, inst, def: engraving, as: engraving, self: inst.data, copyOf: null, by: null, kind: 'engraving' });
   }
   return out;
+}
+
+/** The rail talisman at `i` as a source, or null when it does not act on its own. */
+function talismanSource(rail, i) {
+  const inst = rail[i];
+  const def = getTalisman(inst.id);
+  // A fork never acts on its own, only through the talisman to its left.
+  if (!def || def.echoes) return null;
+  let as = def;
+  let self = inst.data;
+  let copyOf = null;
+  if (def.copies === 'right') {
+    const target = copyTargetInst(rail, i);
+    if (!target) return null; // nothing to copy: the mirror stays dark
+    as = getTalisman(target.id);
+    copyOf = target.uid;
+    self = inst.data.copy?.[copyOf] ?? as.init?.() ?? {};
+    if (self.gone) return null; // a copy that was used up stays dark
+  }
+  return { index: i, inst, def, as, self, copyOf, by: null, kind: 'talisman' };
 }
 
 /** What a Tuning Fork at `index` echoes: the definition that would run again, or null. */
@@ -172,7 +202,7 @@ export function lifecycle(draft, hook, emit, extra = {}) {
     const fn = src.as.hooks?.[hook];
     if (!fn) continue;
     // A talisman used up earlier in this pass (and its echoes) is gone.
-    if (!draft.rail.includes(src.inst)) continue;
+    if (src.index >= 0 && !draft.rail.includes(src.inst)) continue;
     // A copy or an echo repeats effects, never the purchase or sale of the original.
     if (OWN_ONLY.has(hook) && (src.as !== src.def || src.by)) continue;
     const more = typeof extra === 'function' ? extra(src) : extra;

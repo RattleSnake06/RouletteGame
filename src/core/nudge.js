@@ -1,4 +1,5 @@
 import { betCovers, getBet } from './bets.js';
+import { getRecord } from './content/index.js';
 import { ECONOMY } from './economy.js';
 import { sources, srcRef } from './effects.js';
 import { evaluate } from './payout.js';
@@ -89,6 +90,9 @@ const debtSpinsOver = (state) => state.phase === 'gameOver' || (state.phase === 
 
 /** The House's Lean on the next spin (0 for none). This is what the LEAN lamp shows. */
 export function upcomingLean(state) {
+  // Lullaby for Zero: the House does not lean while it plays (the Leans are
+  // still rolled, so the run's other draws stay as they were).
+  if (state.playing && getRecord(state.playing)?.noLeans) return 0;
   const spin = nextSpin(state);
   let strength = 0;
   // Debt 1's schedule counts spins of the debt, so a Lean can be announced at

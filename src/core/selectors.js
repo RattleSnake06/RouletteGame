@@ -1,13 +1,14 @@
 import { bellQueue, canAnswer } from './bell.js';
 import { betCovers, getBet } from './bets.js';
-import { getTalisman } from './content/index.js';
+import { RECORDS, getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
 import { RARITY, priceOf, sellValueOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
 import { copyTarget, echoTarget, sources } from './effects.js';
 import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
-import { nextRestockCost } from './run.js';
+import { costOf, freeRestockBy, hooksFor, offerPrice, owed, restockPrice } from './run.js';
+import { canTake, dealOf, rerollCost } from './oracle.js';
 import { restockCost } from './economy.js';
 import { gte } from './num.js';
 import { liveWheel } from './widths.js';
@@ -24,7 +25,8 @@ export function railView(state) {
     const echo = def?.echoes ? echoTarget(state.rail, index) : null;
     // Lit when it really acts: a used-up copy, or a fork beside something it
     // cannot repeat (no hooks, or an effect that cannot happen twice), is dark.
-    const acts = mirror ? srcs.some((x) => x.inst === inst) : def?.echoes ? srcs.some((x) => x.by === inst && Object.keys(x.as.hooks ?? {}).length) : true;
+    const acts = mirror ? srcs.some((x) => x.inst === inst && x.kind === 'talisman') : def?.echoes ? srcs.some((x) => x.by === inst && Object.keys(x.as.hooks ?? {}).length) : true;
+    const engraving = getEngraving(inst.engraving);
     return {
       uid: inst.uid,
       id: inst.id,
@@ -43,6 +45,7 @@ export function railView(state) {
       targetOnly: !!def?.bell?.targetOnly,
       usable: canAnswer(state, inst),
       data: inst.data,
+      engraving: engraving && { id: engraving.id, name: engraving.name, text: engraving.text, cursed: !!engraving.cursed },
     };
   });
 }
@@ -64,13 +67,14 @@ export function rarityOdds(state = null) {
 }
 
 export function cabinetView(state) {
-  const railFree = state.rail.length < state.railHooks;
+  const railFree = state.rail.length < hooksFor(state);
   return {
     slots: state.cabinet.slots.map((offer, slot) => {
       if (offer.kind !== 'talisman') return { slot, kind: offer.kind, shut: !!offer.shut };
       const def = offer.id ? getTalisman(offer.id) : null;
       if (!def) return { slot, kind: 'talisman', sold: true };
-      const price = priceOf(def.rarity);
+      const price = offerPrice(state, def);
+      const engraving = getEngraving(offer.engraving);
       return {
         slot,
         kind: 'talisman',
@@ -85,10 +89,16 @@ export function cabinetView(state) {
         // An instant talisman never takes a hook, so a full rail never stops it.
         hookFree: railFree || def.instant,
         instant: def.instant,
+        // Full price, when a fortune lowered it.
+        listPrice: priceOf(def.rarity),
+        engraving: engraving && { id: engraving.id, name: engraving.name, text: engraving.text, cursed: !!engraving.cursed },
       };
     }),
-    restockCost: nextRestockCost(state),
-    canRestock: gte(state.coins, nextRestockCost(state)),
+    restockCost: restockPrice(state),
+    restockFree: !!freeRestockBy(state),
+    canRestock: gte(state.coins, restockPrice(state)),
+    freeBuys: state.cabinet.freeBuys,
+    discount: state.cabinet.discount,
     nextRestockCost: restockCost(state.debt, state.cabinet.paidRestocks + 1),
     rarityOdds: rarityOdds(state),
   };
@@ -164,4 +174,43 @@ export function previewBet(state, betId, value = 1) {
     worst = { odds: f.odds, stake: f.stake, oddsMult: f.oddsMult, mult: f.mult, amount: line.amount, pays, sources };
   });
   return worst && { ...worst, paysMax: best };
+}
+
+/**
+ * Madame Zero (doc 5.9): whether her lever has been pulled this debt, the
+ * cards on her counter, what a reroll costs, and whether a card can be taken.
+ */
+export function oracleView(state) {
+  const deal = dealOf(state);
+  const hooks = hooksFor(state);
+  return {
+    dealt: !!deal,
+    kind: deal?.kind ?? (state.devil.firedThisDebt ? 'black' : 'white'),
+    taken: deal?.taken ?? null,
+    rerolls: deal?.rerolls ?? 0,
+    rerollCost: deal ? rerollCost(state) : 0,
+    canReroll: !!deal && deal.taken === null && gte(state.coins, rerollCost(state)),
+    cards: (deal?.cards ?? []).map((id, index) => {
+      const def = getFortune(id);
+      return { index, id, kind: def.kind, rarity: def.rarity, text: def.text, effect: def.effect, lore: def.lore, takeable: deal.taken === null && canTake(state, def, hooks), taken: deal.taken === index };
+    }),
+  };
+}
+
+/** The gramophone (doc 5.10): what plays, and the crate. */
+export function gramophoneView(state) {
+  const playing = getRecord(state.playing);
+  return {
+    playing: playing && { id: playing.id, name: playing.name, rule: playing.rule, tune: playing.tune, reverse: !!playing.reverse },
+    crate: state.records.map((id) => {
+      const r = getRecord(id);
+      return { id, name: r.name, rule: r.rule, playing: id === state.playing };
+    }),
+    known: RECORDS.length,
+  };
+}
+
+/** What the Cage collects and a night's prices, with the gramophone's rules (Overture, Waltz). */
+export function pricesView(state) {
+  return { owed: owed(state), doubled: state.overture === state.debt, long: costOf(state, 'long'), short: costOf(state, 'short') };
 }

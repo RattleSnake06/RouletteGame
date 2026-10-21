@@ -570,6 +570,22 @@ costs coins: the debt number + the number of rerolls already made.
 - Card text is written as her voice ("The reds run warm tonight"). Each card back
   carries a line of lore.
 
+*As built (Phase 4):*
+- **The lever.** The debt's first pull is free and deals 3 different cards by
+  the Cabinet's rarity reroll, from the `fortunes` stream (so a visit never
+  changes a spin). It fixes the deal's colour: all 3 black if the Devil fired
+  this debt before that pull, all 3 white otherwise. A reroll deals 3 new cards
+  of the same colour for coins: the debt's number plus the rerolls already made
+  this debt (debt 2: 2, 3, 4...).
+- **Taking one** ends the visit for the debt: the lever gives nothing more until
+  the next debt. A deal left untaken stays on her counter until the debt ends.
+  Her booth works in every phase but game over, like the Cabinet.
+- **A card that could do nothing is never dealt** (no Bell talisman to recharge,
+  no free hook for a cursed talisman, every record already owned), and a dealt
+  card that can no longer act (the rail filled since) cannot be taken.
+- **Lasting cards** (Feed the zero, Ask the figures) stay as boons that act
+  before the rail, after the record, for the rest of the run.
+
 ### 5.10 Records
 
 A gramophone holds **one record** (two after a vault unlock). A record changes
@@ -577,6 +593,15 @@ A gramophone holds **one record** (two after a vault unlock). A record changes
 records freely, but only the one playing has any effect. Records are sold as
 oddities, found in the Vault, and occasionally given by fortunes. This puts the
 soundtrack inside the build. Drafts in 6.3.
+
+*As built (Phase 4):* records come only from the white card "Someone left a
+record." (it plays at once if nothing is playing). Swapping works in every
+phase but game over and costs nothing; the record acts before every other
+source, and keeps its own data between plays (Boogie-Woogie's streak). Two
+rules close the gaps free swapping would open: **Overture of Excess** doubles
+the debt of any debt it plays during, even if it stops before the Cage collects,
+and **Static** cannot stop while a talisman hangs on the hook it adds. Each
+record has its own synthesised loop (8.6); with nothing on, the hall hums.
 
 ### 5.11 Chips, oddities and the room's boards
 
@@ -727,6 +752,20 @@ at least one item at each rarity before content lock (Phase 7).
 
 ### 6.2 Fortunes
 
+*As built (Phase 4, decision 22):* the cards below work as written, with these
+exceptions. Waiting for their phase: "Outside bets are safe bets" and "Fortune
+favours the bold" (bet levels, Phase 5), "Gold finds gold" (gilded pockets,
+Phase 5), "Neighbours talk" (special bets). "A new chip in your pocket" gives a
+plain chip until chip materials (Phase 5). "Feed the zero" makes zero's pocket
+twice as wide (the second zero pocket comes with Phase 5's wheel work). "Ask
+the figures" gives its +1 Nudge; the figure leaving comes with the figures
+(Phase 6). Two black cards were added for decision 11, the cursed talismans'
+only source: **"Roll the bones."** (the Bone Dice hang on your rail, uncommon)
+and **"A candle for the dark."** (the Black Candle, uncommon). One white card
+was added: **"Someone left a record."** (a record for the gramophone,
+uncommon). Pocket widenings are wheel work: they last the run. Lore lines are
+in `src/core/content/fortunes.js`.
+
 **White cards**
 
 | Card | Effect | Rarity | Max picks |
@@ -758,6 +797,11 @@ at least one item at each rarity before content lock (Phase 7).
 
 ### 6.3 Records
 
+*As built (Phase 4):* all but Danse Macabre, which waits for the figures
+(Phase 6). Red Light Tango reads the colour of the number that lands, for every
+bet. Waltz in Green rounds a night's price up. Carousel's "1 pocket further" is
++1 Nudge. Overture of Excess and Static: see 5.10.
+
 | Record | Rule while it plays |
 |---|---|
 | Waltz in Green | +1 Nudge every spin; spin cost ×1.5 |
@@ -775,6 +819,15 @@ at least one item at each rarity before content lock (Phase 7).
 
 Random modifiers on talismans. Possible from the second debt, or once a vault lock
 is open.
+
+*As built (Phase 4):* each Cabinet offer from debt 2 rolls once against the
+table below (10.5% in all, from the cabinet stream; debt 1 draws nothing, so
+its offers are unchanged). The engraving shows in the offer's note, goes onto
+the rail with the talisman, and acts straight after it, even when the
+talisman itself does nothing (a dark mirror, a fork). Twin Mirrors and Tuning
+Forks repeat the talisman, never its engraving. Sharp's "+1 Odds" is the Odds
+mult (5.5). Echo pays the spin's last payout again. Restless makes the first
+restock of each debt free, without raising the next one's price.
 
 | Engraving | Effect | Chance on a Cabinet talisman |
 |---|---|---|
@@ -1106,11 +1159,21 @@ start, debt start, then the first night's start.
 From Phase 3 a run also holds `debtSpins` (spins this debt, for debt 1's
 Leans), `leans` (`debt`: debt 1's schedule by spin of the debt; `night`: the
 night's Lean by spin of the night), `missStreak` (pity) and `devil`
-(`firedThisDebt`, for Madame Zero's black cards in Phase 4). A spin's result
+(`firedThisDebt`, for Madame Zero's black cards). A spin's result
 carries its `luck` (Nudge and what it is made of), `hops` (one per ball that
 moved: from, to, path) and `firstHops` for a re-throw's first throw,
 `devilChance`, and `devil` and `lost` when the Devil fires. The detail events
-add `nudged` (a ball's hops) and `devil`. Saves are version 3.
+add `nudged` (a ball's hops) and `devil`.
+
+From Phase 4: actions `pullLever` (deal, or reroll for coins), `takeFortune`
+(`index`) and `playRecord` (`id`, or null to stop); refusals add `used` (her
+deal already taken this debt) and reuse `notUsable` and `railFull`. A run also
+holds `oracle` (this debt's deal: `debt`, `kind`, `cards`, `rerolls`, `taken`),
+`picks` (cards taken, by id), `boons` (lasting cards, acting like talismans),
+`records` (the crate), `playing`, `recordData` and `overture` (the debt
+Overture of Excess played during), and each rail instance an `engraving`. The
+Cabinet keeps a `discount` and `freeBuys`. Events add `fortunesDealt`,
+`fortuneTaken`, `fortuneEffect` and `recordPlayed`. Saves are version 4.
 
 ### 9.4 Randomness
 
@@ -1184,7 +1247,10 @@ Hook points:
   Omens (the Four-Leaf Clover) are a pure hash of the seed, the spin count and
   the talisman, so they can be shown before the spin and replay exactly.
 - Payout line hooks also read `paidBefore`, the chips already paid this spin
-  (Domino).
+  (Domino); `spinPaid` reads `winners` and `lines` (the Beckoning Cat, Echo).
+- *Prices (pure, Phase 4):* `packageCost` (`mulCost`: Waltz in Green).
+- *Sources, in order:* the playing record, then boons (lasting fortunes), then
+  the rail, each talisman's engraving straight after it.
 - *Commit (they change the run straight away):* `runStart`, `debtStart`,
   `roundStart`, `beforeSpin`, `afterSpin`, `roundEnd` (tokens), `debtPaid`,
   `purchased`, `sold`; `interestRate` adds to the Cage's rate; `bell` is the
@@ -1233,6 +1299,8 @@ play back strictly left to right. Every hook that changes something emits a
   Lean, and `solo:a,b` hangs talismans from the first spin. The report grades
   each target against the best of the Lean-playing bots at that debt, and names
   it.
+- **Phase 4 targets** (the best bot, with Madame Zero, records and engravings;
+  decision 25): debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20%.
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1395,6 +1463,21 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 4. Notes for the board, the 666 counter and the new talismans; cursed talismans
    offer no sale; a smoke test that plays a Lean, a pity spin and the Devil.
 
+### Phase 4 breakdown
+
+1. Core: fortunes, records and engravings as data with hooks; Madame Zero's
+   lever, rerolls and deals on the fortunes stream; the gramophone; records and
+   lasting fortunes as sources ahead of the rail, engravings after their
+   talisman; the Cabinet's engraved offers, discount and free buys; save
+   version 4. One test per card, record and engraving.
+2. Simulator: bots visit her once a debt and take the card that suits them,
+   play the record that suits their build; tuning to the Phase 4 targets.
+3. View: her glass booth and the gramophone left of the Cage (decision 24),
+   the lever and three cards on her counter, the crate, engraving marks on
+   charms and offers; touch-first, checked by `npm run layout` and `npm run
+   touch`.
+4. Audio: a synthesised loop for each record (decision 23).
+
 ---
 
 ## 11. Risks
@@ -1436,3 +1519,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 19 | Phones | **Landscape only.** Every control is reachable by touch, and no control covers another clickable. (9.10) |
 | 20 | Price | **A one-time price**: premium, no ads, no in-app purchases. (9.10) |
 | 21 | When | **Touch and the phone layout (M1) come now, before Phase 4**, so everything after is built touch-first. (10) |
+| 22 | Phase 4 scope | **Build the fortunes and records that work with what exists**; cards that need bet levels, gilded pockets, chip materials or the Neighbours bet, and Danse Macabre (the figures), wait for their phase. Two new black cards hang the cursed talismans (decision 11). (6.2, 6.3) |
+| 23 | Records' music | **A synthesised loop for each record**, no audio files; a quiet hall hum when nothing plays. (5.10, 8.6) |
+| 24 | Madame Zero's place | **One new station left of the Cage**: her glass booth, the gramophone on a stool beside it. Turning order: Madame Zero, Cage, Table, Cabinet. (8.1) |
+| 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. (9.8) |

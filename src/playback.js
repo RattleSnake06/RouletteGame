@@ -1,4 +1,4 @@
-import { getTalisman } from './core/content/index.js';
+import { contentName } from './core/content/index.js';
 import { add, format } from './core/num.js';
 import { baseFactors } from './core/payout.js';
 import { effectText } from './ui/notes.js';
@@ -65,7 +65,7 @@ export async function playPayout(deps, events, { fast, coinsBefore, alive = () =
       if (label) {
         // Coins refunded for a chip pop at the chip; everything else at the talisman.
         const at = e.effect === 'coins' && e.chipId ? table.chipWorldPosition(e.chipId) : rail.talismanWorldPosition(e.src.uid);
-        const name = e.src.as !== e.src.id ? ` (${getTalisman(e.src.as)?.name})` : '';
+        const name = e.src.as !== e.src.id ? ` (${contentName(e.src.as)})` : '';
         popAt(at, `${label}${name}`, e.effect === 'tokens' ? 'tok' : 'trigger');
       }
       audio.trigger(k);

@@ -1,14 +1,15 @@
 import { BET_BY_ID } from './bets.js';
 import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
-import { getTalisman } from './content/index.js';
+import { getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
-import { commitCtx, interestRateFor, lifecycle } from './effects.js';
-import { add, gt, gte, lte, max, mul, sub } from './num.js';
+import { commitCtx, interestRateFor, lifecycle, sources } from './effects.js';
+import { add, ceil, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
+import { canTake, dealCards, dealOf, fortuneCtx, rerollCost } from './oracle.js';
 import { resolveSpin } from './resolve.js';
-import { seedStreams } from './rng.js';
+import { Rng, seedStreams } from './rng.js';
 import { copyTally, emptyRoundTally, emptyTally } from './tally.js';
 import { createEuropeanWheel } from './wheel.js';
 
@@ -21,8 +22,8 @@ import { createEuropeanWheel } from './wheel.js';
 //   nightOver   bank coins at the Cage, then end the night
 //   gameOver    the Cage collected and the deposits fell short
 //
-// Chips, the Cage, the Curio Cabinet, the rail and the Bell can be used in
-// any phase but gameOver.
+// Chips, the Cage, the Curio Cabinet, the rail, the Bell, Madame Zero and the
+// gramophone can be used in any phase but gameOver.
 
 export const PHASE = {
   ROUND_START: 'roundStart',
@@ -31,7 +32,7 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 3;
+export const RUN_VERSION = 4;
 const HISTORY_LENGTH = 40;
 
 const noEvents = () => {};
@@ -66,6 +67,16 @@ export function createRun({ seed }) {
     leans: { debt: [], night: null }, // the House's Leans still to come (doc 5.6)
     missStreak: 0, // spins in a row that paid nothing (pity)
     devil: { firedThisDebt: false },
+    // Phase 4: Madame Zero's deal this debt, fortunes taken (and the ones that
+    // last), the record crate and what is playing.
+    oracle: null,
+    picks: {},
+    boons: [],
+    nextBoonUid: 1,
+    records: [],
+    playing: null,
+    recordData: {},
+    overture: null, // the debt Overture of Excess played during (it owes double)
     tally: emptyTally(),
     history: [],
     lastSpin: null,
@@ -102,9 +113,26 @@ export function newStats() {
 
 // --- Selectors --------------------------------------------------------------
 
-export const owed = (state) => owedFor(state.debt);
+/** What the Cage collects this debt: twice as much if Overture of Excess played during it. */
+export const owed = (state) => (state.overture === state.debt ? mul(owedFor(state.debt), 2) : owedFor(state.debt));
 export const spinCost = (state) => spinCostFor(state.debt);
-export const costOf = (state, packageId) => packageCost(state.debt, packageId);
+/** A night's price, with what plays on the gramophone (`packageCost` hooks). */
+export function costOf(state, packageId) {
+  let cost = packageCost(state.debt, packageId);
+  for (const src of sources(state)) {
+    const fn = src.as.hooks?.packageCost;
+    if (fn) fn({ state, self: src.self, mulCost: (x) => (cost = ceil(mul(cost, x))) });
+  }
+  return cost;
+}
+/** Talisman hooks on the rail, with a record's (Static). */
+export const hooksFor = (state) => state.railHooks + ((state.playing && getRecord(state.playing)?.extraHooks) || 0);
+/** What a Cabinet talisman costs now: nothing on a free buy, less with a discount. */
+export const offerPrice = (state, def) => (state.cabinet.freeBuys > 0 ? 0 : Math.max(0, priceOf(def.rarity) - state.cabinet.discount));
+/** A Restless talisman whose free restock this debt is unused, or null. */
+export const freeRestockBy = (state) => state.rail.find((t) => getEngraving(t.engraving)?.freeRestock && t.data.restlessDebt !== state.debt) ?? null;
+/** What the next restock costs: nothing while a Restless engraving has one to give. */
+export const restockPrice = (state) => (freeRestockBy(state) ? 0 : restockCost(state.debt, state.cabinet.paidRestocks));
 export const canAfford = (state, packageId) => gte(state.coins, costOf(state, packageId));
 export const isFinalNight = (state) => state.round === ECONOMY.roundsPerDebt;
 export const chipsOnTable = (state) => state.chips.filter((c) => state.placements[c.id]);
@@ -124,6 +152,8 @@ function beginDebt(s, emit) {
   s.debtSpins = 0;
   s.leans = { debt: rollDebtLeans(s), night: null };
   s.devil = { ...s.devil, firedThisDebt: false };
+  // A debt that begins to Overture of Excess owes double, as one it starts during would.
+  if (s.playing && getRecord(s.playing)?.doublesDebt) s.overture = s.debt;
   const refilled = [];
   for (const inst of s.rail) {
     const def = getTalisman(inst.id);
@@ -163,6 +193,11 @@ export function copyRun(state) {
     armed: { ...state.armed },
     leans: { debt: state.leans.debt.map((l) => ({ ...l })), night: state.leans.night && { ...state.leans.night } },
     devil: { ...state.devil },
+    oracle: state.oracle && { ...state.oracle, cards: [...state.oracle.cards] },
+    picks: { ...state.picks },
+    boons: state.boons.map((b) => ({ ...b, data: { ...b.data } })),
+    records: [...state.records],
+    recordData: Object.fromEntries(Object.entries(state.recordData).map(([k, v]) => [k, { ...v }])),
     tally: copyTally(state.tally),
     history: [...state.history],
     stats: { ...state.stats },
@@ -194,7 +229,7 @@ export function act(state, action) {
 export function grantTalisman(state, id) {
   const def = getTalisman(id);
   if (!def) throw new Error(`Unknown talisman: ${id}`);
-  if (!def.instant && state.rail.length >= state.railHooks) throw new Error('No free hook on the rail');
+  if (!def.instant && state.rail.length >= hooksFor(state)) throw new Error('No free hook on the rail');
   const s = copyRun(state);
   if (def.instant) openInstant(s, def, priceOf(def.rarity), noEvents);
   else hang(s, def, def.cursed ? 0 : priceOf(def.rarity), noEvents);
@@ -202,13 +237,14 @@ export function grantTalisman(state, id) {
   return s;
 }
 
-function hang(s, def, price, emit) {
+function hang(s, def, price, emit, engraving = null) {
   const inst = {
     uid: `t${s.nextUid}`,
     id: def.id,
     price, // kept so a sale (or a save that outlives the talisman) can refund it
     data: def.init?.() ?? {},
     charges: def.charges?.max ?? null,
+    engraving,
   };
   s.nextUid += 1;
   s.rail = [...s.rail, inst];
@@ -227,6 +263,18 @@ function openInstant(s, def, price, emit) {
   const src = { index: -1, inst, def, as: def, self: inst.data, by: null };
   def.hooks.purchased?.(commitCtx(s, src, emit, 'purchased', { item: inst, isSelf: true }));
   return inst;
+}
+
+/** The gramophone plays `id` (or nothing). A record keeps its own data between plays. */
+function playOn(s, id, emit) {
+  const was = s.playing;
+  s.playing = id;
+  const def = id ? getRecord(id) : null;
+  if (def) {
+    s.recordData = { ...s.recordData, [id]: s.recordData[id] ?? def.init?.() ?? {} };
+    if (def.doublesDebt) s.overture = s.debt;
+  }
+  emit({ type: 'recordPlayed', id, was });
 }
 
 function sellOne(s, uid, emit) {
@@ -350,7 +398,7 @@ const HANDLERS = {
     }
 
     // The Cage collects.
-    const due = owedFor(s.debt);
+    const due = owed(s);
     if (!gte(s.deposited, due)) {
       s.phase = PHASE.GAME_OVER;
       s.outcome = { reason: 'collected', debt: s.debt, owed: due, deposited: s.deposited };
@@ -394,14 +442,14 @@ const HANDLERS = {
     if (!offer) throw new Error(`Unknown compartment: ${slot}`);
     const def = offer.kind === 'talisman' && offer.id ? getTalisman(offer.id) : null;
     if (!def) return reject(state, 'That compartment is empty.', 'soldOut');
-    const price = priceOf(def.rarity);
+    const price = offerPrice(state, def);
     if (def.instant && sellUid) return reject(state, 'It needs no hook.', 'noHookNeeded');
     const selling = sellUid ? state.rail.find((t) => t.uid === sellUid) : null;
     if (sellUid && !selling) throw new Error(`Unknown talisman: ${sellUid}`);
     if (selling && isCursed(selling)) return reject(state, 'It will not come off the hook.', 'cursed');
     const refund = selling ? sellValueOf(selling.price) : 0;
     if (state.tokens + refund < price) return reject(state, 'Not enough tokens.', 'noTokens');
-    if (!def.instant && state.rail.length - (selling ? 1 : 0) >= state.railHooks) {
+    if (!def.instant && state.rail.length - (selling ? 1 : 0) >= hooksFor(state)) {
       return reject(state, 'No free hook. Sell a talisman first.', 'railFull');
     }
 
@@ -412,9 +460,10 @@ const HANDLERS = {
     s.tokens -= price;
     s.stats.tokensSpent += price;
     s.stats.talismansBought += 1;
+    if (s.cabinet.freeBuys > 0) s.cabinet.freeBuys -= 1;
     s.cabinet.slots[slot] = { kind: 'talisman', id: null, sold: true };
     const before = events.length;
-    const inst = def.instant ? openInstant(s, def, price, emit) : hang(s, def, price, emit);
+    const inst = def.instant ? openInstant(s, def, price, emit) : hang(s, def, price, emit, offer.engraving ?? null);
     events.splice(before, 0, { type: 'bought', slot, uid: inst.uid, id: def.id, price, instant: def.instant });
     return { state: s, events };
   },
@@ -443,14 +492,86 @@ const HANDLERS = {
   },
 
   restock(state) {
-    const cost = nextRestockCost(state);
+    const restless = freeRestockBy(state);
+    const cost = restless ? 0 : nextRestockCost(state);
     if (!gte(state.coins, cost)) return reject(state, 'Not enough coins to restock.', 'noCoins');
     const s = copyRun(state);
-    s.coins = sub(s.coins, cost);
-    s.cabinet.paidRestocks += 1;
-    s.stats.restocksPaid += 1;
+    const events = [];
+    if (restless) {
+      // A Restless engraving's restock: free, and the price does not climb.
+      const inst = s.rail.find((t) => t.uid === restless.uid);
+      inst.data.restlessDebt = s.debt;
+      events.push({ type: 'trigger', src: { uid: inst.uid, id: 'restless', as: 'restless' }, hook: 'restock', effect: 'freeRestock' });
+    } else {
+      s.coins = sub(s.coins, cost);
+      s.cabinet.paidRestocks += 1;
+      s.stats.restocksPaid += 1;
+    }
     const slots = restockSlots(s);
-    return { state: s, events: [{ type: 'offersRestocked', paid: true, cost, slots }] };
+    events.unshift({ type: 'offersRestocked', paid: true, cost, slots });
+    return { state: s, events };
+  },
+
+  // --- Madame Zero and the gramophone (doc 5.9, 5.10) -------------------------
+
+  /** Her lever: the debt's first pull deals three cards for free; later pulls reroll them for coins. */
+  pullLever(state) {
+    const deal = dealOf(state);
+    if (deal && deal.taken !== null) return reject(state, 'She has nothing more for you this debt.', 'used');
+    const cost = deal ? rerollCost(state) : 0;
+    if (!gte(state.coins, cost)) return reject(state, 'Not enough coins to deal again.', 'noCoins');
+    const s = copyRun(state);
+    s.coins = sub(s.coins, cost);
+    // The colour is fixed by the first pull: black if the Devil has fired this debt.
+    const kind = deal?.kind ?? (s.devil.firedThisDebt ? 'black' : 'white');
+    const rng = new Rng(s.rng.fortunes);
+    const cards = dealCards(s, kind, rng, hooksFor(s));
+    s.rng.fortunes = rng.state();
+    s.oracle = { debt: s.debt, kind, cards, rerolls: deal ? deal.rerolls + 1 : 0, taken: null };
+    return { state: s, events: [{ type: 'fortunesDealt', kind, cards, cost, rerolls: s.oracle.rerolls }] };
+  },
+
+  /** Takes one of the dealt cards: its effect happens now, and the visit is over for this debt. */
+  takeFortune(state, { index }) {
+    const deal = dealOf(state);
+    if (!deal) return reject(state, 'Pull her lever first.', 'empty');
+    if (deal.taken !== null) return reject(state, 'She has nothing more for you this debt.', 'used');
+    const id = deal.cards[index];
+    const def = getFortune(id);
+    if (!def) throw new Error(`No card ${index} in the deal`);
+    // The run may have changed since the deal (a full rail): a card that could do nothing waits.
+    if (!canTake(state, def, hooksFor(state))) return reject(state, 'That fortune cannot come true now.', 'notUsable');
+    const s = copyRun(state);
+    const events = [{ type: 'fortuneTaken', id, kind: deal.kind, index }];
+    const emit = (e) => events.push(e);
+    const rng = new Rng(s.rng.fortunes);
+    def.take?.(
+      fortuneCtx(s, def, emit, rng, {
+        hang: (talisman) => hang(s, talisman, 0, emit),
+        play: (record) => playOn(s, record, emit),
+      }),
+    );
+    s.rng.fortunes = rng.state();
+    if (Object.keys(def.hooks).length) {
+      s.boons = [...s.boons, { uid: `b${s.nextBoonUid}`, id, data: {} }];
+      s.nextBoonUid += 1;
+    }
+    s.picks[id] = (s.picks[id] ?? 0) + 1;
+    s.oracle.taken = index;
+    return { state: s, events };
+  },
+
+  /** Puts a record from the crate on the gramophone (null lifts the needle). */
+  playRecord(state, { id }) {
+    if (id === state.playing) return { state, events: [] };
+    if (id !== null && !state.records.includes(id)) throw new Error(`No record ${id} in the crate`);
+    // A record's extra hook (Static) cannot go while a talisman hangs on it.
+    const hooks = state.railHooks + ((id && getRecord(id)?.extraHooks) || 0);
+    if (state.rail.length > hooks) return reject(state, 'Every hook is in use: sell a talisman first.', 'railFull');
+    const s = copyRun(state);
+    const events = [];
+    playOn(s, id, (e) => events.push(e));
+    return { state: s, events };
   },
 
   /** Rings the Bell: the head of the queue, or the talisman `uid`. */

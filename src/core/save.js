@@ -1,5 +1,5 @@
 import { emptyCabinet, restockSlots } from './cabinet.js';
-import { getTalisman } from './content/index.js';
+import { getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, sellValueOf } from './economy.js';
 import { decimalText, isBig, num } from './num.js';
 import { newStats } from './run.js';
@@ -9,7 +9,7 @@ import { emptyTally } from './tally.js';
 // Runs save as versioned JSON. Big money values are stored as { $d: "1.2e500" };
 // everything else in the run state is plain data.
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export function serializeRun(state) {
   // JSON.stringify calls Decimal#toJSON before the replacer sees the value,
@@ -111,16 +111,44 @@ const MIGRATIONS = {
     if (s.debt === 1) s.leans.debt = rollDebtLeans(s);
     return s;
   },
+  // Phase 4: Madame Zero, the gramophone and engravings. Nothing taken or
+  // played yet; offers rolled before keep no engraving.
+  3(state) {
+    return {
+      ...state,
+      version: 4,
+      oracle: null,
+      picks: {},
+      boons: [],
+      nextBoonUid: 1,
+      records: [],
+      playing: null,
+      recordData: {},
+      overture: null,
+      cabinet: { ...state.cabinet, discount: 0, freeBuys: 0 },
+      rail: state.rail.map((t) => ({ ...t, engraving: t.engraving ?? null })),
+    };
+  },
 };
 
 /**
  * Every load: talismans the game no longer knows are refunded and dropped, and
  * Cabinet offers of them are marked sold, so a content change never breaks a
- * saved run.
+ * saved run. Records, lasting fortunes and engravings it no longer knows are
+ * dropped too.
  */
 function tidy(state) {
   // Stats added since the save was made start at zero.
   if (Object.keys(newStats()).some((k) => state.stats?.[k] === undefined)) state = { ...state, stats: { ...newStats(), ...state.stats } };
+  if (state.records.some((id) => !getRecord(id)) || state.boons.some((b) => !getFortune(b.id)) || state.rail.some((t) => t.engraving && !getEngraving(t.engraving))) {
+    state = {
+      ...state,
+      records: state.records.filter((id) => getRecord(id)),
+      playing: getRecord(state.playing) ? state.playing : null,
+      boons: state.boons.filter((b) => getFortune(b.id)),
+      rail: state.rail.map((t) => (t.engraving && !getEngraving(t.engraving) ? { ...t, engraving: null } : t)),
+    };
+  }
   const unknown = state.rail.filter((t) => !getTalisman(t.id));
   const staleOffer = (x) => x.kind === 'talisman' && x.id && !getTalisman(x.id);
   const stale = state.cabinet.slots.some(staleOffer);

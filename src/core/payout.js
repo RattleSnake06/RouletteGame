@@ -218,6 +218,7 @@ export function evaluate(state, landings) {
       state,
       self: src.self,
       winners,
+      lines: plan.lines,
       ...bonus(src, 'spinPaid', null),
       setData(key, value) {
         plan.deferred.push({ op: 'data', uid: src.inst.uid, copyOf: src.copyOf, self: src.self, key, value });

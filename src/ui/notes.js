@@ -1,5 +1,5 @@
 import { BET_KINDS, getBet } from '../core/bets.js';
-import { getTalisman } from '../core/content/index.js';
+import { contentName, getTalisman } from '../core/content/index.js';
 import { RARITY } from '../core/economy.js';
 import { gte } from '../core/num.js';
 import { bellView, cabinetView, luckView, previewBet, railView, rarityOdds } from '../core/selectors.js';
@@ -8,7 +8,7 @@ import { bellView, cabinetView, luckView, previewBet, railView, rarityOdds } fro
 // read from the run's state. Nothing here changes the run.
 
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
-const nameOf = (id) => getTalisman(id)?.name ?? id;
+const nameOf = (id) => contentName(id);
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /** A chance as the 666 counter shows it: "1.5%", "0.25%", "0.375%". */
 export const percent = (p) => `${Math.round(p * 1e5) / 1000}%`;
@@ -93,6 +93,7 @@ export function talismanNote(state, uid, { tag = false } = {}) {
     };
   }
   const lines = [view.text];
+  if (view.engraving) lines.push(`Engraved ${view.engraving.name}: ${view.engraving.text}`);
   if (view.copying) lines.push(view.dim ? `Its copy of ${nameOf(view.copying)} is used up.` : `Copying ${nameOf(view.copying)}.`);
   else if (view.id === 'twin_mirrors') lines.push('Nothing to its right to copy.');
   if (view.echoing) lines.push(view.dim ? `${nameOf(view.echoing)} has nothing for it to repeat.` : `Repeating ${nameOf(view.echoing)}.`);
@@ -114,10 +115,12 @@ export function slotNote(state, slot) {
   if (!view) return null;
   if (view.kind !== 'talisman') return { title: 'Not yet', lines: ['This compartment is boarded up. Oddities come later.'] };
   if (view.sold) return { title: 'Sold', lines: ['Restocked at the start of each night, or with the crank.'] };
+  const lines = [view.text];
+  if (view.engraving) lines.push(`Engraved ${view.engraving.name}: ${view.engraving.text}`);
   return {
     title: view.name,
     rarity: view.rarity,
-    lines: [view.text],
+    lines,
     status: view.instant ? 'It needs no hook: it is opened on the spot.' : view.hookFree ? null : 'The rail is full: you will choose one to sell.',
     price: { amount: view.price, unit: 'tokens', ok: view.affordable, short: view.affordable ? '' : `${view.short} short` },
   };
