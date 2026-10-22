@@ -35,27 +35,27 @@ export const MATERIAL_LIST = [
     id: 'bone',
     name: 'Bone',
     count: 3,
-    payout: 1.25,
+    payout: 1.15, // the owner's ×1.25, tuned with the simulator (doc 9.8)
     fixed: true,
-    upside: 'Each pays ×1.25.',
+    upside: 'Each pays ×1.15.',
     downside: 'Once placed, a chip stays put until the night ends.',
   },
   {
     id: 'glass',
     name: 'Glass',
     count: 2,
-    payout: 1.5,
-    upside: 'Each pays ×1.5.',
+    payout: 1.65, // the owner's ×1.5, tuned with the simulator
+    upside: 'Each pays ×1.65.',
     downside: 'Only two chips.',
   },
   {
     id: 'gold',
     name: 'Gold',
     count: 3,
-    payout: 0.75,
+    payout: 0.6, // the owner's ×0.75, tuned with the simulator
     winTokens: 1,
     tokenCap: 3,
     upside: '+1 token when one wins, up to 3 a night.',
-    downside: 'Each pays ×0.75.',
+    downside: 'Each pays ×0.6.',
   },
 ];

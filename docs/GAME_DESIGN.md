@@ -878,23 +878,25 @@ A chip's material is its one rule, wherever the chip came from (decision 26).
 A run starts with a set of chips of one material, chosen on the main menu
 (7.5); chips found later in a run follow the same rules. The owner set these
 rules; they replace the first draft (Clay as the base chip, Bone +1 token per
-win, Glass ×3 that can break, Gold +1 value per loss).
+win, Glass ×3 that can break, Gold +1 value per loss). After the simulator,
+the owner tuned three of them: Bone ×1.25 → ×1.15, Glass ×1.5 → ×1.65,
+Gold ×0.75 → ×0.6 (9.8).
 
 | Material | Starting set | Rule |
 |---|---|---|
 | Normal | 3 chips | The House's own chips: no change. |
 | Clay | 4 chips | Each pays ×0.75. |
-| Bone | 3 chips | Each pays ×1.25. Once placed, a chip stays where it lies until the night ends. |
-| Glass | 2 chips | Each pays ×1.5. |
-| Gold | 3 chips | Each pays ×0.75, and +1 token when one wins, up to 3 a night. |
+| Bone | 3 chips | Each pays ×1.15. Once placed, a chip stays where it lies until the night ends. |
+| Glass | 2 chips | Each pays ×1.65. |
+| Gold | 3 chips | Each pays ×0.6, and +1 token when one wins, up to 3 a night. |
 | Lead | (later) | Inside bets also pay ×0.33 when the ball lands on a wheel neighbour |
 | Wax | (later) | ×2 payout; loses 1 value every spin and melts at 0 |
 
 *As built:* a material's × is the first factor on each line its chip pays,
 shown at the chip during the payout, and the payout is floored once at the
-end as before. So a value-1 chip on an even-money bet pays 1 in Clay or Gold
-and 2 in Bone: the House rounds down, and the multipliers tell more on bigger
-bets and bigger chips. Gold's token comes once per winning chip per spin.
+end as before. So a value-1 chip on an even-money bet pays 1 in Clay or Gold,
+2 in Bone and 3 in Glass: the House rounds down, and the multipliers tell more
+on bigger bets and bigger chips (a straight-up pays 27, 41, 59 and 21). Gold's token comes once per winning chip per spin.
 A Bone chip may still be placed whenever it is in hand; after that it can be
 neither moved nor lifted until the next night begins. Lead and Wax wait for
 Phase 5's oddities.
@@ -1406,18 +1408,21 @@ play back strictly left to right. Every hook that changes something emits a
   *Results (2,000 runs):* the best bot pays debts 1–4 in 97%, 68%, 44% and
   14% of runs (adaptive, inside, inside, outside). Debt 2 sits low in its band
   and debt 3 high: the cards that last carry runs from debt 2 into debt 3.
-- **Chip sets** (decision 26): `--chips <set>` plays a run's starting set.
-  *Results as the owner set them (1,000 runs, the best of the four strongest
-  bots):* debts 1–4 paid in Normal 97/69/44/14%, Clay 98/66/39/16%, Bone
-  97/81/63/18%, Glass 93/63/40/10%, Gold 96/75/63/28%. The last column is the
-  chance to unlock the next set. Bone suits the inside bots (a straight-up at
-  ×1.25), and Gold's tokens buy talismans early. Tried and not yet applied:
-  Gold ×0.6 (44/14% at debts 3–4), Gold capped at 2 tokens a night (54/20%),
-  Bone ×1.15 (56/14%), Glass ×1.65 (48/14%).
   Without Madame Zero the same bots pay 98%, 73%, 30% and 12% at the Phase 3
   debts. As drafted, her cards took the best bot to about 80% at debt 3 and 67%
   at debt 4. The two chip cards were the biggest part of that, then records
   and the tips. Phase 4 also raised debts 2 and 4 (5.2).
+- **Chip sets** (decision 26): `--chips <set>` plays a run's starting set.
+  *As the owner first set them (1,000 runs, the best of the four strongest
+  bots):* debts 1–4 paid in Bone 97/81/63/18%, Glass 93/63/40/10%, Gold
+  96/75/63/28% (Normal and Clay as below). Bone suited the inside
+  bots (a straight-up at ×1.25), and Gold's tokens bought talismans early.
+  *As tuned (Bone ×1.15, Glass ×1.65, Gold ×0.6):* Normal 97/69/44/14%,
+  Clay 98/67/39/16%, Bone 97/77/56/14%, Glass 93/68/48/14%, Gold 91/55/43/14%.
+  The last column, the chance to unlock the next set, is now even, 14–16%.
+  Bone is still the strongest at debts 2–3 for straight-up play (above the
+  Phase 4 ceiling at debt 3), and Gold the slowest start (its tokens pay off
+  later). Also tried: Gold capped at 2 tokens a night (54/20%).
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1640,4 +1645,4 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 23 | Records' music | **A synthesised loop for each record**, no audio files; a quiet hall hum when nothing plays. (5.10, 8.6) |
 | 24 | Madame Zero's place | **One new station left of the Cage**: her glass booth, the gramophone on a stool beside it. Turning order: Madame Zero, Cage, Table, Cabinet. (8.1) |
 | 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. Outcome: debt 2 owes 400 and debt 4 2,664, and the two chip cards wait for Phase 5. (9.8) |
-| 26 | Chip sets and the main menu | **A main menu, and a chip set chosen for each run.** Normal (3 chips), Clay (4, ×0.75), Bone (3, ×1.25, fixed once placed until the night ends), Glass (2, ×1.5), Gold (3, ×0.75, +1 token per win, up to 3 a night). Paying debt 4 with a set unlocks the next. One rule per material, found or starting (6.6 rewritten); built now, ahead of Phase 5, though unlocks are Phase 6's. (6.6, 7.5) |
+| 26 | Chip sets and the main menu | **A main menu, and a chip set chosen for each run.** Normal (3 chips), Clay (4, ×0.75), Bone (3, ×1.15, fixed once placed until the night ends), Glass (2, ×1.65), Gold (3, ×0.6, +1 token per win, up to 3 a night); Bone, Glass and Gold tuned with the simulator from the owner's ×1.25, ×1.5 and ×0.75, at the owner's word. Paying debt 4 with a set unlocks the next. One rule per material, found or starting (6.6 rewritten); built now, ahead of Phase 5, though unlocks are Phase 6's. (6.6, 7.5) |

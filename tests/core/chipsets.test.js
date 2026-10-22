@@ -27,20 +27,21 @@ describe('starting sets', () => {
 });
 
 describe('material rules', () => {
-  it('a straight-up pays 36, ×0.75 for Clay and Gold, ×1.25 for Bone, ×1.5 for Glass', () => {
+  it('a straight-up pays 36: ×0.75 for Clay, ×1.15 for Bone, ×1.65 for Glass, ×0.6 for Gold, rounded down', () => {
     const pays = Object.fromEntries(MATERIALS.map((m) => [m.id, paysOn(run(m.id, { c1: 'straight:17' }), 17).lines[0].amount]));
-    expect(pays).toEqual({ normal: 36, clay: 27, bone: 45, glass: 54, gold: 27 });
+    expect(pays).toEqual({ normal: 36, clay: 27, bone: 41, glass: 59, gold: 21 });
   });
 
-  it('the House rounds down: a 1-value chip on red pays 1 in Clay, 2 in Bone', () => {
+  it('the House rounds down: a 1-value chip on red pays 1 in Clay and Gold, 2 in Bone, 3 in Glass', () => {
     expect(paysOn(run('clay', { c1: 'red' }), 32).lines[0].amount).toBe(1);
+    expect(paysOn(run('gold', { c1: 'red' }), 32).lines[0].amount).toBe(1);
     expect(paysOn(run('bone', { c1: 'red' }), 32).lines[0].amount).toBe(2);
     expect(paysOn(run('glass', { c1: 'red' }), 32).lines[0].amount).toBe(3);
   });
 
   it('the material shows as the first thing that acts on the line', () => {
     const steps = paysOn(run('glass', { c1: 'red' }), 32).steps;
-    expect(steps[0]).toMatchObject({ type: 'trigger', hook: 'chipMult', effect: 'mult', amount: 1.5, chipId: 'c1', src: { uid: 'c1', id: 'glass', chip: true } });
+    expect(steps[0]).toMatchObject({ type: 'trigger', hook: 'chipMult', effect: 'mult', amount: 1.65, chipId: 'c1', src: { uid: 'c1', id: 'glass', chip: true } });
   });
 
   it('Gold: a token for each chip that wins, three a night at most', () => {
