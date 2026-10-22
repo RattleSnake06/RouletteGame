@@ -945,8 +945,14 @@ each with its own small light source:
 *As built (Phase 4, decision 24):* Madame Zero's station stands left of the
 Cage, a little behind the player, at the edge of the light. Her booth is a
 mahogany plinth with a glass case on it and her name lit in green on the
-roof. Inside, the automaton sits under its own lamp: a porcelain face, an
-oxblood turban, green eyes, and her hands over a crystal ball. Her lever
+roof. Inside, under its own lamp, stands the automaton: headless, in a
+crimson blouse and black corset, with a brass socket where her neck ends. She
+holds her own head at her waist. It has a porcelain face, stitched at the
+seams, with brows drawn down and a crescent moon on the brow. It wears an
+oxblood turban with a red jewel, black feathers and a band of green stones.
+Its eyes are blank and glow the House's green; they blaze when she deals,
+and the head jolts in her hands. It slowly turns to follow the player
+(`src/view/zero.js`, after the owner's reference image). Her lever
 (red knob, brass bracket) is on the booth's right, with a tag giving the next
 pull's price. The three cards she deals slide out of a slot onto an easel
 along the plinth's front, tilted up to the eye. White cards are ivory with

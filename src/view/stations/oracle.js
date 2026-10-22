@@ -3,10 +3,11 @@ import { RARITY } from '../../core/economy.js';
 import { format } from '../../core/num.js';
 import { rng } from '../../ui/marks.js';
 import { INK, paintScratch, scrawlFont, scrawlText, typedFont } from '../ink.js';
+import { createZero } from '../zero.js';
 
 // Madame Zero and the gramophone (design doc 5.9, 5.10, 8.1; decision 24):
-// the station left of the Cage. A fortune-teller automaton sits in a glass
-// booth on a mahogany plinth, green-eyed, a crystal ball under her hands.
+// the station left of the Cage. A fortune-teller automaton stands in a glass
+// booth on a mahogany plinth, headless, her own head in her hands (zero.js).
 // Her lever is on the booth's right; the three cards she deals stand on an
 // easel along the plinth's front, tilted up to the eye. On her left the
 // gramophone sits on a stool, its record crate on the floor beneath it.
@@ -34,7 +35,6 @@ const LEVER = { x: PLINTH.w / 2 + 0.07, y: 0.66, z: 0.12, len: 0.34, rest: deg(-
 const GRAMO = { x: -0.74, seat: 0.6 };
 
 const LIGHT = 1.4; // the booth's lamp at full mood
-const EYE_GLOW = 1.4;
 const DEAL_TIME = 0.55;
 const DEAL_STAGGER = 0.12;
 const PULL_TIME = 0.75;
@@ -325,102 +325,10 @@ export function createOracle({ materials, interaction, callbacks = {} }) {
   group.add(box(0.9, 0.29, 0.03, wood, 0, ROOF_Y + 0.15, 0.02), signMesh);
 
   // ---- Madame Zero ------------------------------------------------------------------
-  // A carnival automaton: a porcelain face under an oxblood turban, a shawl of
-  // green velvet, her arms reaching to a crystal ball. Green is the House's.
-  const porcelain = new THREE.MeshStandardMaterial({ color: 0xe6d8bf, roughness: 0.28, metalness: 0.04 });
-  const robe = new THREE.MeshStandardMaterial({ color: 0x123522, roughness: 0.85 });
-  const scarf = new THREE.MeshStandardMaterial({ color: 0x5a1016, roughness: 0.75 });
-  const zero = new THREE.Group();
-  zero.position.set(0, CASE.y0, -0.06);
-  group.add(zero);
-  const V = (x, y) => new THREE.Vector2(x, y);
-  // Shoulders broad and sloping, the shawl gathered at the neck.
-  const torso = new THREE.Mesh(new THREE.LatheGeometry([V(0.17, 0), V(0.2, 0.12), V(0.22, 0.3), V(0.21, 0.4), V(0.14, 0.47), V(0.05, 0.51), V(0.035, 0.56)], 28), robe);
-  torso.scale.z = 0.7;
-  torso.castShadow = true;
-  zero.add(torso);
-  const necklace = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.007, 6, 24), brass);
-  necklace.rotation.x = Math.PI / 2 - 0.35;
-  necklace.position.set(0, 0.47, 0.025);
-  zero.add(necklace);
-  const head = new THREE.Group();
-  head.position.set(0, 0.66, 0.0);
-  zero.add(head);
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.085, 28, 20), porcelain);
-  face.scale.set(0.86, 1.18, 0.9);
-  head.add(face);
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.011, 0.03, 8), porcelain);
-  nose.rotation.x = Math.PI / 2 - 0.25;
-  nose.position.set(0, -0.012, 0.08);
-  head.add(nose);
-  const lips = new THREE.Mesh(new THREE.SphereGeometry(0.014, 12, 8), new THREE.MeshStandardMaterial({ color: 0x7a1820, roughness: 0.4 }));
-  lips.scale.set(1.5, 0.45, 0.6);
-  lips.position.set(0, -0.052, 0.07);
-  head.add(lips);
-  // The turban: a swollen crown of cloth over a wound band, a brooch in front.
-  const turban = new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), scarf);
-  turban.scale.set(1.08, 0.78, 1.04);
-  turban.position.y = 0.075;
-  head.add(turban);
-  for (const [y, r, tilt] of [
-    [0.04, 0.083, 0.12],
-    [0.07, 0.088, -0.1],
-  ]) {
-    const wind = new THREE.Mesh(new THREE.TorusGeometry(r, 0.02, 8, 28), scarf);
-    wind.rotation.set(Math.PI / 2 + tilt, 0, 0);
-    wind.position.y = y;
-    head.add(wind);
-  }
-  const brooch = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.008, 16), brass);
-  brooch.rotation.x = Math.PI / 2;
-  brooch.position.set(0, 0.07, 0.103);
-  head.add(brooch);
-  const jewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.013), new THREE.MeshStandardMaterial({ color: 0x2a8a52, emissive: 0x2a8a52, emissiveIntensity: 0.8, roughness: 0.2 }));
-  jewel.position.set(0, 0.07, 0.11);
-  head.add(jewel);
-  // Her eyes sit in dark sockets, so the green reads.
-  const socket = new THREE.MeshStandardMaterial({ color: 0x1a120c, roughness: 0.9 });
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0a1a10, emissive: 0x45c27a, emissiveIntensity: EYE_GLOW });
-  for (const sx of [-1, 1]) {
-    const hollow = new THREE.Mesh(new THREE.SphereGeometry(0.017, 12, 8), socket);
-    hollow.scale.set(1.3, 0.8, 0.5);
-    hollow.position.set(sx * 0.03, 0.012, 0.066);
-    head.add(hollow);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), eyeMat);
-    eye.position.set(sx * 0.03, 0.012, 0.072);
-    head.add(eye);
-  }
-  for (const sx of [-1, 1]) {
-    const earring = new THREE.Mesh(new THREE.SphereGeometry(0.01, 10, 8), brass);
-    earring.position.set(sx * 0.072, -0.035, 0.0);
-    head.add(earring);
-  }
-  // The crystal ball on its brass stand, her hands over it.
-  const ball = new THREE.Mesh(
-    new THREE.SphereGeometry(0.07, 24, 18),
-    new THREE.MeshPhysicalMaterial({ color: 0xbfe8d2, roughness: 0.05, transparent: true, opacity: 0.3, emissive: 0x1d6b42, emissiveIntensity: 0.35 }),
-  );
-  ball.position.set(0, 0.14, 0.2);
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshBasicMaterial({ color: 0x45c27a, transparent: true, opacity: 0.5 }));
-  core.position.copy(ball.position);
-  const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.07, 16), brass);
-  stand.position.set(0, 0.035, 0.2);
-  zero.add(ball, core, stand);
-  const hands = [];
-  for (const sx of [-1, 1]) {
-    // An arm from the shoulder down to the hand, in the shawl's velvet.
-    const shoulder = new THREE.Vector3(sx * 0.19, 0.38, 0.02);
-    const wrist = new THREE.Vector3(sx * 0.085, 0.22, 0.19);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, shoulder.distanceTo(wrist), 10), robe);
-    arm.position.copy(shoulder).lerp(wrist, 0.5);
-    arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), shoulder.clone().sub(wrist).normalize());
-    zero.add(arm);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 8), porcelain);
-    hand.scale.set(1.3, 0.55, 1.2);
-    hand.position.set(sx * 0.07, 0.215, 0.2);
-    zero.add(hand);
-    hands.push(hand);
-  }
+  // Headless, holding her own head at her waist (zero.js).
+  const zero = createZero({ brass });
+  zero.group.position.set(0, CASE.y0, -0.06);
+  group.add(zero.group);
   // One lamp in the top of the case lights her, her cards and the gramophone
   // beside her: every point light costs every material in the hall on a phone.
   const lamp = new THREE.PointLight(0xffd8a0, LIGHT, 3.4, 2);
@@ -742,15 +650,10 @@ export function createOracle({ materials, interaction, callbacks = {} }) {
     if (target?.kind === 'lever') leverShake = 1;
   }
 
-  function update(dt, t = 0) {
-    // Her idle: a slow sway, breathing, the ball's glow.
+  /** Each frame; `watch` is where the camera is, for her head to follow. */
+  function update(dt, t = 0, watch = null) {
     flare = Math.max(0, flare - dt * 1.4);
-    head.rotation.y = Math.sin(t * 0.37) * 0.12 + Math.sin(t * 1.3) * 0.02;
-    head.rotation.x = -0.08 + Math.sin(t * 0.5) * 0.03 - flare * 0.06;
-    torso.scale.y = 1 + Math.sin(t * 1.1) * 0.006;
-    for (const [k, hand] of hands.entries()) hand.position.y = 0.215 + Math.sin(t * 0.9 + k * 1.7) * 0.006 + flare * 0.015;
-    eyeMat.emissiveIntensity = EYE_GLOW * (0.75 + 0.25 * Math.sin(t * 2.1)) + flare * 2;
-    core.material.opacity = 0.35 + 0.15 * Math.sin(t * 1.7) + flare * 0.3;
+    zero.update(dt, t, { flare, watch });
     lamp.intensity = LIGHT * level * (gramoHover && !locked ? 1.15 : 1);
     bulb.visible = level > 0.05;
 

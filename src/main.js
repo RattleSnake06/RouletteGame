@@ -322,7 +322,7 @@ async function init() {
     bell.update(dt, t);
     cage.update(dt);
     cabinet.update(dt, t);
-    oracle.update(dt, t);
+    oracle.update(dt, t, camera.position);
     sparks.update(dt);
     hud.update(dt);
 
