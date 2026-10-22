@@ -36,7 +36,11 @@ export function createLayout() {
   // A low glass counter on the right: below the wheel's rim in the wide shot.
   const cabinetPos = player.clone().addScaledVector(left, -2.05).addScaledVector(facing, 0.05);
   const cabinetYaw = yawToward(cabinetPos, eye);
-  return { player, facing, left, eye, tablePos, tableYaw, cagePos, cageYaw, cabinetPos, cabinetYaw };
+  // Madame Zero's booth stands left of the Cage, a little behind the player,
+  // at the edge of the light (decision 24); the gramophone on her left.
+  const oraclePos = player.clone().addScaledVector(left, 2.4).addScaledVector(facing, -1.25);
+  const oracleYaw = yawToward(oraclePos, eye);
+  return { player, facing, left, eye, tablePos, tableYaw, cagePos, cageYaw, cabinetPos, cabinetYaw, oraclePos, oracleYaw };
 }
 
 export function createStage(canvas) {
@@ -101,7 +105,7 @@ export function createStage(canvas) {
   }
 
   /** Camera anchors for the current aspect ratio. */
-  function anchorsFor(aspect, { table, cage, cabinet }) {
+  function anchorsFor(aspect, { table, cage, cabinet, oracle }) {
     // Wide: the reference composition, tightened around the wheel on narrow screens.
     const t = THREE.MathUtils.clamp((aspect - 0.75) / (REF_ASPECT - 0.75), 0, 1);
     const refH = hfovOf(deg(WIDE_FOV), REF_ASPECT);
@@ -132,6 +136,12 @@ export function createStage(canvas) {
       cage: { position: eye.clone(), target: cageLook, fov: eyeFov(50, 70), kind: 'eye' },
     };
     if (table.feltFrame) anchors.felt = feltCloseUp(table.feltFrame(), aspect);
+    if (oracle) {
+      // Turned to her: the booth, its sign and the gramophone in view.
+      oracle.group.updateMatrixWorld();
+      const oracleLook = oracle.group.localToWorld(oracle.focus.clone());
+      anchors.oracle = { position: eye.clone(), target: oracleLook, fov: eyeFov(52, 72), kind: 'eye' };
+    }
     if (cabinet) {
       // Lean in over the counter so the price tags read on a small screen.
       cabinet.group.updateMatrixWorld();

@@ -292,7 +292,9 @@ function drawPriceTag(t, info, seed) {
   ctx.font = typedFont(62);
   ctx.textAlign = 'left';
   ctx.fillStyle = short ? INK.blood : INK.bone;
-  ctx.fillText(short ? `${info.short} short` : info.rarity, wordX, h * 0.815, w - 34 - wordX);
+  // An engraved offer names its engraving after the rarity (doc 6.4).
+  const word = short ? `${info.short} short` : info.engraving ? `${info.rarity} · ${info.engraving.toLowerCase()}` : info.rarity;
+  ctx.fillText(word, wordX, h * 0.815, w - 34 - wordX);
   ctx.restore();
 
   if (sold) {
@@ -965,6 +967,7 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     s.tagAt.visible = tagged;
     s.string.visible = tagged;
     setCharm(s, state === 'stock' ? offer.id : null);
+    s.charm?.userData.setEngraving?.(state === 'stock' ? (offer.engraving?.id ?? null) : null);
     if (!tagged) return;
     const info = {
       state,
@@ -973,6 +976,7 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
       marks: 0,
       affordable: state === 'stock' ? offer.affordable !== false : true,
       short: offer.short ?? 0,
+      engraving: state === 'stock' ? (offer.engraving?.name ?? null) : null,
     };
     // A sold tag keeps what it said, struck off.
     if (state === 'stock') {

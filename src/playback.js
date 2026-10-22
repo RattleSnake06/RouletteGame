@@ -1,4 +1,4 @@
-import { contentName } from './core/content/index.js';
+import { contentName, getTalisman } from './core/content/index.js';
 import { add, format } from './core/num.js';
 import { baseFactors } from './core/payout.js';
 import { effectText } from './ui/notes.js';
@@ -63,9 +63,13 @@ export async function playPayout(deps, events, { fast, coinsBefore, alive = () =
         hud.setCoins(running, { animate: true });
       }
       if (label) {
-        // Coins refunded for a chip pop at the chip; everything else at the talisman.
-        const at = e.effect === 'coins' && e.chipId ? table.chipWorldPosition(e.chipId) : rail.talismanWorldPosition(e.src.uid);
-        const name = e.src.as !== e.src.id ? ` (${contentName(e.src.as)})` : '';
+        // Coins refunded for a chip pop at the chip; everything else at the
+        // talisman. A record or a lasting fortune hangs nowhere: it pops over
+        // the board, named, and so is an engraving, at its talisman.
+        const onRail = rail.talismanWorldPosition(e.src.uid);
+        const at = e.effect === 'coins' && e.chipId ? table.chipWorldPosition(e.chipId) : (onRail ?? table.boardWorldPosition());
+        let name = e.src.as !== e.src.id ? ` (${contentName(e.src.as)})` : '';
+        if (!getTalisman(e.src.id)) name = ` ${contentName(e.src.id)}`;
         popAt(at, `${label}${name}`, e.effect === 'tokens' ? 'tok' : 'trigger');
       }
       audio.trigger(k);

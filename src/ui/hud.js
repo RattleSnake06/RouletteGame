@@ -679,6 +679,12 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
     setTimeout(() => backdrop.remove(), 250);
   };
 
+  // A tap that opens a card must not also press the button that appears under
+  // the finger (the click a touch sends after it lifts, doc 9.10): a pointer
+  // click counts only once a press has begun on the card itself.
+  let pressed = false;
+  backdrop.addEventListener('pointerdown', () => (pressed = true));
+
   const primary = actions.find((a) => a.primary);
   const rest = actions.filter((a) => a !== primary);
   const buttons = [];
@@ -701,7 +707,9 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
     };
     paint();
     b.appendChild(markImg(lineMark(120, 12, seedOf(a.label), INK.bone, 2.6, { y0: 8, y1: 5, stretch: true }), 'focus-mark'));
-    b.addEventListener('click', () => {
+    b.addEventListener('click', (ev) => {
+      // Enter and Space click with no detail; a pointer's click has one.
+      if (ev.detail > 0 && !pressed) return;
       if (a.keepOpen) {
         a.onClick?.();
         paint();

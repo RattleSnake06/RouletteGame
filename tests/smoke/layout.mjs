@@ -80,6 +80,15 @@ for (const size of SIZES) {
   await at('felt close-up', 'felt');
   await at('cabinet', 'cabinet');
   await at('cage', 'cage');
+  await at('Madame Zero', 'oracle');
+  await at('Madame Zero, a deal', 'oracle', () => window.__roulette.game.pullLever());
+  await at('a fortune card', 'oracle', () => window.__roulette.game.offerCard(0));
+  await at('the gramophone', 'oracle', () => {
+    document.querySelector('.modal-backdrop.show button')?.click();
+    window.__roulette.game.takeFortune(0);
+    window.__roulette.game.openCrate();
+  });
+  await at('Madame Zero, after a card', 'oracle', () => document.querySelector('.modal-backdrop.show button')?.click());
   await at('table, night over', 'table', () => {
     const g = window.__roulette.game;
     g.state = { ...g.state, spinsLeft: 0, phase: 'nightOver' };

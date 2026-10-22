@@ -1,16 +1,16 @@
 import * as THREE from 'three';
 import { getBet } from './core/bets.js';
-import { getTalisman } from './core/content/index.js';
+import { getFortune, getRecord, getTalisman } from './core/content/index.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
 import { baseFactors } from './core/payout.js';
 import { randomSeed } from './core/rng.js';
-import { PHASE, act, chipsOnTable, costOf, createRun, interestRate, isFinalNight, owed } from './core/run.js';
+import { PHASE, act, chipsOnTable, costOf, createRun, hooksFor, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
-import { bellView, cabinetView, luckView, previewBet, railView, wheelView } from './core/selectors.js';
+import { bellView, cabinetView, gramophoneView, luckView, oracleView, previewBet, railView, wheelView } from './core/selectors.js';
 import { playPayout } from './playback.js';
 import { showModal } from './ui/hud.js';
-import { bellNote, betNote, boardNote, chartNote, crankNote, devilNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
+import { bellNote, betNote, boardNote, cardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
 // Glue between the rules (core/run.js) and the room. Every player action goes
 // through dispatch(), which applies it to the run, saves, and returns the
@@ -18,8 +18,8 @@ import { bellNote, betNote, boardNote, chartNote, crankNote, devilNote, plaqueNo
 
 const PACKAGE_KEYS = ['long', 'short', 'sitout'];
 // The stations, left to right as the player turns. Turning never wraps.
-const VIEWS = ['cage', 'table', 'cabinet'];
-const VIEW_NAMES = { cage: 'Cage', table: 'Table', cabinet: 'Cabinet' };
+const VIEWS = ['oracle', 'cage', 'table', 'cabinet'];
+const VIEW_NAMES = { oracle: 'Madame Zero', cage: 'Cage', table: 'Table', cabinet: 'Cabinet' };
 // Outside bets Tab walks at the table, after the spots that hold chips.
 const FOCUS_BETS = ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'dozen:2', 'dozen:3', 'column:1', 'column:2', 'column:3'];
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
@@ -29,6 +29,9 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const KEY_HINTS = {
   cage: 'Banked coins count toward the debt. They cannot come back out.',
   cabinet: 'Click a compartment to buy, or press [1] [2] [3]. [R] turns the crank.',
+  oracle: 'Pull her lever for three cards, [R]. Take one: click it, or press [1] [2] [3].',
+  oracleDealt: 'Take one card: click it, or press [1] [2] [3]. [R] deals again, for coins.',
+  oracleDone: 'She deals once a debt. Click the gramophone to change the record.',
   lookAtCabinet: 'Your tokens buy talismans at the Cabinet. [D] to look.',
   chooseNight: 'Choose how to spend the night: click a card, or press [1], [2] or [3].',
   placeChip: 'Click the felt to place a chip.',
@@ -40,6 +43,9 @@ const KEY_HINTS = {
 const TOUCH_HINTS = {
   cage: 'Banked coins count toward the debt. They cannot come back out.',
   cabinet: 'Tap a compartment to look, then Buy. The crank restocks.',
+  oracle: 'Tap her lever: she deals three cards. You may take one.',
+  oracleDealt: 'Tap a card to read it, then Take. The lever deals again, for coins.',
+  oracleDone: 'She deals once a debt. Tap the gramophone to change the record.',
   lookAtCabinet: 'Your tokens buy talismans at the Cabinet. Swipe left to look.',
   chooseNight: 'Choose how to spend the night: tap the cards to read them, then tap one.',
   placeChip: 'Tap the felt to place a chip.',
@@ -50,7 +56,7 @@ const TOUCH_HINTS = {
 };
 
 /** A stable name for a focusable object, so focus survives the list changing. */
-const focusKey = (t) => `${t.kind}:${t.uid ?? t.betId ?? t.slot ?? t.plaque ?? ''}`;
+const focusKey = (t) => `${t.kind}:${t.uid ?? t.betId ?? t.slot ?? t.card ?? t.plaque ?? ''}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 export class Game {
@@ -213,9 +219,13 @@ export class Game {
   /** The rail, the Bell, the Cabinet, tokens and the Glass Eye's mark. */
   syncItems() {
     const s = this.state;
-    this.rail.sync(railView(s));
+    this.rail.sync(railView(s), hooksFor(s));
     this.bell.sync(bellView(s));
     this.cabinet.sync(cabinetView(s));
+    const gramophone = gramophoneView(s);
+    this.oracle.sync({ oracle: oracleView(s), gramophone });
+    // The music follows the record on the platter, whatever put it there.
+    this.audio.playRecord(gramophone.playing?.tune ?? null);
     this.table.setMarks({ foreseen: s.foreseen ? s.wheel.pockets[s.foreseen.pocketIndex].number : null });
     this.hud.setTokens(s.tokens);
     // A focused talisman that was sold or smashed takes the focus with it.
@@ -283,6 +293,10 @@ export class Game {
     else if (s.phase === PHASE.GAME_OVER) hint = '';
     else if (this.view === 'cage') hint = hints.cage;
     else if (this.view === 'cabinet') hint = hints.cabinet;
+    else if (this.view === 'oracle') {
+      const deal = oracleView(s);
+      hint = deal.taken !== null ? hints.oracleDone : deal.dealt ? hints.oracleDealt : hints.oracle;
+    }
     else if (s.phase === PHASE.ROUND_START && !this.seen.has('cabinet') && offers.some((x) => x.affordable)) hint = hints.lookAtCabinet;
     else if (s.phase === PHASE.ROUND_START) hint = hints.chooseNight;
     else if (s.phase === PHASE.BETTING && chipsOnTable(s).length === 0) hint = hints.placeChip;
@@ -314,6 +328,7 @@ export class Game {
     this.rail.setLocked(locked);
     this.bell.setLocked(locked);
     this.cabinet.setLocked(locked);
+    this.oracle.setLocked(locked);
     if (locked) this.clearNote();
   }
 
@@ -499,6 +514,12 @@ export class Game {
         return { spec: boardNote(s), world: this.table.boardWorldPosition() };
       case 'devil':
         return { spec: devilNote(s), world: this.cage.devilWorldPosition() };
+      case 'lever':
+        return { spec: leverNote(s), world: this.oracle.leverWorldPosition() };
+      case 'card':
+        return { spec: cardNote(s, target.card), world: this.oracle.cardWorldPosition(target.card) };
+      case 'gramophone':
+        return { spec: gramophoneNote(s), world: this.oracle.gramophoneWorldPosition() };
       default:
         return null;
     }
@@ -560,6 +581,11 @@ export class Game {
       return [...this.state.cabinet.slots.map((_, slot) => ({ kind: 'slot', slot })), { kind: 'crank' }, { kind: 'chart' }];
     }
     if (this.view === 'cage' && luckView(this.state).devil.live) return [{ kind: 'devil' }];
+    if (this.view === 'oracle') {
+      const deal = oracleView(this.state);
+      const cards = deal.taken === null ? deal.cards.map((c) => ({ kind: 'card', card: c.index })) : [];
+      return [{ kind: 'lever' }, ...cards, { kind: 'gramophone' }];
+    }
     return [];
   }
 
@@ -619,6 +645,9 @@ export class Game {
     else if (target.kind === 'slot') this.buy(target.slot);
     else if (target.kind === 'crank') this.restock();
     else if (target.kind === 'bet') this.onClickBet(target.betId);
+    else if (target.kind === 'lever') this.pullLever();
+    else if (target.kind === 'card') this.takeFortune(target.card);
+    else if (target.kind === 'gramophone') this.openCrate();
     return true;
   }
 
@@ -657,6 +686,7 @@ export class Game {
   /** 1–3: a night card at the table, a compartment at the Cabinet. */
   chooseByIndex(i) {
     if (this.view === 'cabinet') this.buy(i);
+    else if (this.view === 'oracle') this.takeFortune(i);
     else this.choosePackage(PACKAGE_KEYS[i]);
   }
 
@@ -797,6 +827,159 @@ export class Game {
     });
   }
 
+  // ---- Madame Zero and the gramophone -----------------------------------------
+
+  /** Her lever: three cards, the first pull of a debt free, each one after for coins. */
+  pullLever() {
+    if (this.busy || this.menuClose) return;
+    if (this.view !== 'oracle') {
+      this.hud.toast('Turn to Madame Zero to pull her lever.');
+      return;
+    }
+    const events = this.dispatch({ type: 'pullLever' });
+    if (!events) {
+      this.oracle.deny({ kind: 'lever' });
+      return;
+    }
+    const dealt = events.find((e) => e.type === 'fortunesDealt');
+    this.audio.crank();
+    this.oracle.pullAnim();
+    if (!isZero(dealt.cost)) {
+      this.hud.strikeCoins();
+      this.hud.setCoins(this.state.coins, { animate: true });
+    }
+    // Her voice is always subtitled (doc 8.6).
+    const line = dealt.rerolls > 0 ? '“Again, then.”' : dealt.kind === 'black' ? '“The Devil came by tonight. My cards are darker.”' : '“Three cards. Take one, only one.”';
+    this.hud.toast(line, 2400);
+    this.clearNote();
+    this.syncAll();
+    const id = this.runId;
+    setTimeout(() => id === this.runId && this.audio.card(), 300);
+  }
+
+  /** Takes card `i` of her deal: it comes true now, and she is done for the debt. */
+  takeFortune(i) {
+    if (this.busy || this.menuClose) return;
+    const deal = oracleView(this.state);
+    if (!deal.dealt || !deal.cards[i]) return;
+    const coinsBefore = this.state.coins;
+    const events = this.dispatch({ type: 'takeFortune', index: i });
+    if (!events) {
+      this.oracle.deny({ kind: 'card', card: i });
+      return;
+    }
+    const taken = events.find((e) => e.type === 'fortuneTaken');
+    const def = getFortune(taken.id);
+    this.audio.card();
+    this.oracle.takeAnim(i);
+    this.clearNote();
+    this.hud.toast(`“${def.text}”`, 2200);
+    const summary = this.fortuneSummary(events);
+    this.syncAll();
+    for (const e of events) {
+      if (e.type !== 'fortuneEffect') continue;
+      if (e.effect === 'setCoins') {
+        // Coins burnt are struck through; coins doubled just count up.
+        if (gt(coinsBefore, this.state.coins)) this.hud.strikeCoins();
+        this.hud.setCoins(this.state.coins, { animate: true });
+      }
+      if (e.uid) this.rail.pulse(e.uid, 0.8);
+      for (const uid of e.uids ?? []) this.rail.pulse(uid, 0.8);
+    }
+    this.playRecordEvents(events, { quiet: true });
+    if (!summary) return;
+    const id = this.runId;
+    setTimeout(() => id === this.runId && this.hud.toast(summary, 2800), 2200);
+  }
+
+  /** What a taken card did, in a line. */
+  fortuneSummary(events) {
+    const parts = [];
+    for (const e of events) {
+      if (e.type !== 'fortuneEffect') continue;
+      if (e.effect === 'tokens') parts.push(`+${plural(e.amount, 'token')}`);
+      else if (e.effect === 'setTokens') parts.push(`tokens: ${e.amount}`);
+      else if (e.effect === 'setCoins') parts.push(`coins in hand: ${format(e.amount)}`);
+      else if (e.effect === 'recharged') parts.push(e.uids.length ? 'the Bell talismans are recharged' : 'nothing needed recharging');
+      else if (e.effect === 'discount') parts.push(`talismans ${plural(e.amount, 'token')} cheaper until the next restock`);
+      else if (e.effect === 'freeBuys') parts.push(`the next ${e.amount} talismans are free`);
+      else if (e.effect === 'widen') parts.push(`${plural(e.count, 'pocket')} wider`);
+      else if (e.effect === 'hook') parts.push('a new hook on the rail');
+      else if (e.effect === 'record') parts.push(`${getRecord(e.record).name} for the gramophone`);
+      else if (e.effect === 'engraved') parts.push(`${getTalisman(this.state.rail.find((t) => t.uid === e.uid)?.id)?.name ?? 'a talisman'} is engraved`);
+      else if (e.effect === 'offersEngraved') parts.push('the Cabinet’s talismans are engraved');
+      else if (e.effect === 'hung') parts.push(`${getTalisman(e.talisman).name} hangs on the rail`);
+    }
+    if (!parts.length) return '';
+    const text = parts.join('; ');
+    return `${text[0].toUpperCase()}${text.slice(1)}.`;
+  }
+
+  /** The gramophone: the crate, with Play for each record and a way to lift the needle. */
+  openCrate() {
+    if (this.busy || this.menuClose) return;
+    if (this.view !== 'oracle') return;
+    this.clearNote();
+    const g = gramophoneView(this.state);
+    const lines = g.playing ? [`<b>${escapeHtml(g.playing.name)}</b> plays. ${escapeHtml(g.playing.rule)}`] : ['Nothing plays. The hall hums.'];
+    if (!g.crate.length) lines.push('<i>The crate is empty. Records come from Madame Zero’s cards.</i>');
+    for (const r of g.crate.filter((x) => !x.playing)) lines.push(`${escapeHtml(r.name)}: ${escapeHtml(r.rule)}`);
+    const actions = [{ label: 'Leave it', primary: true }];
+    for (const r of g.crate.filter((x) => !x.playing)) actions.push({ label: `Play ${r.name}`, onClick: () => this.playRecord(r.id) });
+    if (g.playing) actions.push({ label: 'Lift the needle', onClick: () => this.playRecord(null) });
+    showModal({ kicker: 'The gramophone', title: g.playing ? g.playing.name : 'Nothing plays', lines, actions });
+  }
+
+  playRecord(id) {
+    if (this.busy || this.menuClose) return;
+    const events = this.dispatch({ type: 'playRecord', id });
+    if (!events) return;
+    this.syncAll();
+    this.playRecordEvents(events);
+  }
+
+  /** A record went on or came off: the music follows (doc 5.10). */
+  playRecordEvents(events, { quiet = false } = {}) {
+    const played = events.findLast((e) => e.type === 'recordPlayed');
+    if (!played || quiet) return;
+    this.hud.toast(played.id ? `${getRecord(played.id).name} plays.` : 'The needle lifts. The hall hums.', 2000);
+  }
+
+  // On a touch screen her lever and cards open a card first (doc 9.10).
+
+  offerLever() {
+    if (this.busy || this.menuClose) return;
+    const deal = oracleView(this.state);
+    if (deal.taken !== null) {
+      this.showNote({ kind: 'lever' });
+      return;
+    }
+    this.clearNote();
+    const spec = leverNote(this.state);
+    showModal({
+      kicker: 'Madame Zero',
+      title: deal.dealt ? 'Deal again?' : 'Pull her lever?',
+      lines: spec.lines.map(escapeHtml),
+      actions: [
+        { label: deal.dealt ? `Deal again · ${format(deal.rerollCost)} coins` : 'Pull · free', primary: true, onClick: () => this.pullLever() },
+        { label: 'Not now' },
+      ],
+    });
+  }
+
+  offerCard(i) {
+    if (this.busy || this.menuClose) return;
+    const deal = oracleView(this.state);
+    const card = deal.cards[i];
+    if (!card) return;
+    this.clearNote();
+    const lines = [escapeHtml(card.effect)];
+    if (card.lore) lines.push(`<i>On its back: ${escapeHtml(card.lore)}</i>`);
+    if (!card.takeable) lines.push('<i>That fortune cannot come true now.</i>');
+    const actions = card.takeable ? [{ label: 'Take it', primary: true, onClick: () => this.takeFortune(i) }, { label: 'Not now' }] : [{ label: 'Not now', primary: true }];
+    showModal({ kicker: `Madame Zero · ${card.kind} card · ${card.rarity}`, title: card.text, lines, actions });
+  }
+
   // ---- The Curio Cabinet and the rail ----------------------------------------
 
   /** Buy from compartment `slot`. A full rail asks which talisman to sell. */
@@ -860,6 +1043,11 @@ export class Game {
 
   restock() {
     if (this.busy || this.menuClose) return;
+    // [R] is the handle in front of you: her lever, or the Cabinet's crank.
+    if (this.view === 'oracle') {
+      this.pullLever();
+      return;
+    }
     if (this.view !== 'cabinet') {
       this.hud.toast('Turn to the Cabinet to restock it.');
       return;
@@ -1139,7 +1327,8 @@ export class Game {
       ],
       1300,
     );
-    this.spin.boost(3.4);
+    // Carousel (doc 6.3): the wheel turns backwards while it plays.
+    this.spin.boost(3.4, gramophoneView(this.state).playing?.reverse ? -1 : 0);
     this.hud.setView('table');
     if (!fast) {
       this.view = 'table';

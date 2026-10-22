@@ -2,7 +2,7 @@ import { BET_KINDS, getBet } from '../core/bets.js';
 import { contentName, getTalisman } from '../core/content/index.js';
 import { RARITY } from '../core/economy.js';
 import { gte } from '../core/num.js';
-import { bellView, cabinetView, luckView, previewBet, railView, rarityOdds } from '../core/selectors.js';
+import { bellView, cabinetView, gramophoneView, luckView, oracleView, previewBet, railView, rarityOdds } from '../core/selectors.js';
 
 // What each object's note says (design doc 8.4): plain specs for hud.note,
 // read from the run's state. Nothing here changes the run.
@@ -198,4 +198,41 @@ export function plaqueNote(key) {
   return key === 'stake'
     ? { title: 'Stake', lines: ["Every winning chip's payout is multiplied by this."] }
     : { title: 'Odds', lines: ["The bet's odds are multiplied by this."] };
+}
+
+/** Madame Zero's lever: what a pull does now, and what it costs. */
+export function leverNote(state) {
+  const deal = oracleView(state);
+  if (deal.taken !== null) return { title: 'Madame Zero', lines: ['She has nothing more for you this debt.'], status: 'She deals again when the next debt begins.' };
+  if (!deal.dealt) {
+    const lines = ['Pull her lever: she deals three cards, and you may take one.', 'Once a debt. The first pull is free.'];
+    const status = deal.kind === 'black' ? 'The Devil came this debt: her cards will be black.' : 'If the Devil comes first, her cards turn black.';
+    return { title: 'Madame Zero', lines, status };
+  }
+  return {
+    title: 'Deal again',
+    lines: [`Three new ${deal.kind} cards for the ones on her easel.`],
+    status: 'Each new deal costs a coin more.',
+    price: { label: 'costs', amount: deal.rerollCost, unit: 'coins', ok: deal.canReroll },
+  };
+}
+
+/** One of the cards on her easel. */
+export function cardNote(state, index) {
+  const card = oracleView(state).cards[index];
+  if (!card) return null;
+  const lines = [card.effect];
+  let status = card.lore ? `On its back: ${card.lore}` : null;
+  if (card.taken) status = 'Taken.';
+  else if (!card.takeable && oracleView(state).taken === null) status = 'That fortune cannot come true now.';
+  return { title: card.text, rarity: card.rarity, lines, status };
+}
+
+/** The gramophone: what plays, and what is in the crate. */
+export function gramophoneNote(state) {
+  const g = gramophoneView(state);
+  const lines = g.playing ? [g.playing.rule] : ['Nothing plays. The hall hums.'];
+  const count = g.crate.length;
+  const status = count ? `${plural(count, 'record')} in the crate. Only the one playing acts.` : 'The crate is empty. Records come from Madame Zero.';
+  return { title: g.playing ? g.playing.name : 'The gramophone', lines, status };
 }

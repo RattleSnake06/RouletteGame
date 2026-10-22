@@ -18,6 +18,7 @@ import { createRail } from './view/rail.js';
 import { createStage } from './view/stage.js';
 import { createCabinet } from './view/stations/cabinet.js';
 import { createCage } from './view/stations/cage.js';
+import { createOracle } from './view/stations/oracle.js';
 import { createSparks } from './view/fx/sparks.js';
 import { DEVIL } from './core/devil.js';
 import { createTable } from './view/stations/table.js';
@@ -129,6 +130,22 @@ async function init() {
   cabinet.group.rotation.y = layout.cabinetYaw;
   scene.add(cabinet.group);
 
+  // Madame Zero and the gramophone, left of the Cage. On a touch screen a
+  // tap opens a card's own card, with Take (doc 9.10).
+  const oracle = createOracle({
+    materials: wheel.materials,
+    interaction,
+    callbacks: {
+      onLever: () => (game.touch ? game.offerLever() : game.pullLever()),
+      onCard: (i) => (game.touch ? game.offerCard(i) : game.takeFortune(i)),
+      onGramophone: () => game.openCrate(),
+      onHover: onHoverItem,
+    },
+  });
+  oracle.group.position.copy(layout.oraclePos);
+  oracle.group.rotation.y = layout.oracleYaw;
+  scene.add(oracle.group);
+
   let ball = null;
   const spin = new SpinController({
     camera,
@@ -155,7 +172,7 @@ async function init() {
   lighting.flashes = settings.flashes !== false;
   const sparks = createSparks(scene);
   sparks.flashes = lighting.flashes;
-  game = new Game({ stage, table, cage, rail, bell, cabinet, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch });
+  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -169,7 +186,7 @@ async function init() {
     room.setPixelRatio(pr);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
-    for (const [name, anchor] of Object.entries(stage.anchorsFor(w / h, { table, cage, cabinet }))) {
+    for (const [name, anchor] of Object.entries(stage.anchorsFor(w / h, { table, cage, cabinet, oracle }))) {
       director.setAnchor(name, anchor);
     }
   }
@@ -305,6 +322,7 @@ async function init() {
     bell.update(dt, t);
     cage.update(dt);
     cabinet.update(dt, t);
+    oracle.update(dt, t);
     sparks.update(dt);
     hud.update(dt);
 
@@ -321,6 +339,7 @@ async function init() {
     rail.setLightLevel(light.rail * hall);
     cage.setLightLevel(light.cage * hall);
     cabinet.setLightLevel(light.cabinet * hall);
+    oracle.setLightLevel(light.oracle * hall);
     // The turret's cap keeps a faint glint even when the bulb is low.
     wheel.lensMat.emissiveIntensity = 2.4 * Math.max(level, 0.16 * hall * light.all);
 
@@ -334,7 +353,7 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, director, interaction, lighting, sparks, THREE };
+  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, oracle, director, interaction, lighting, sparks, THREE };
   if (import.meta.env.DEV) {
     const tunedDevil = { ...DEVIL };
     window.__roulette.debug = {

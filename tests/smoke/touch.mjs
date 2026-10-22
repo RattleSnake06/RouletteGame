@@ -187,6 +187,42 @@ try {
     await still();
     check((await state()).view === 'cage', 'a swipe to the right turns to the Cage');
     await layout('cage', 'the Cage');
+
+    // Night 1: another swipe turns to Madame Zero. Her lever, a card and the
+    // gramophone each open a card first; only its button acts.
+    if (night === 1) {
+      await slide({ x: W * 0.1, y: H * 0.86 }, { x: W * 0.4, y: H * 0.84 });
+      await still();
+      check((await state()).view === 'oracle', 'another swipe to the right turns to Madame Zero');
+      await layout('oracle', 'Madame Zero');
+      const oracle = () => game(() => window.__roulette.game.state.oracle);
+      const at = (fn, arg) => game(fn, arg);
+      await tap(await at(() => window.__roulette.game.screenPosition(window.__roulette.oracle.leverWorldPosition())), 'her lever');
+      check(!(await oracle()) && (await game(() => !!document.querySelector('.modal-backdrop.show'))), 'a tap on her lever opens its card, dealing nothing');
+      await cardButton('Pull');
+      await frames(24);
+      check((await oracle())?.cards.length === 3, 'Pull deals three cards onto her easel');
+      await layout('oracle', 'her deal');
+      await tap(await at(() => window.__roulette.game.screenPosition(window.__roulette.oracle.cardWorldPosition(0))), 'her first card');
+      check((await oracle()).taken === null && (await game(() => !!document.querySelector('.modal-backdrop.show'))), 'a tap on a card opens it, taking nothing');
+      const canTake = await game(() => [...document.querySelectorAll('.modal-backdrop.show .modal-btn')].some((b) => b.textContent.includes('Take')));
+      if (canTake) {
+        await cardButton('Take');
+        await frames(24);
+        check((await oracle()).taken === 0, 'Take it: the card comes true');
+      } else {
+        await cardButton('Not now');
+        console.log('       (that card could not be taken)');
+      }
+      await tap(await at(() => window.__roulette.game.screenPosition(window.__roulette.oracle.gramophoneWorldPosition())), 'the gramophone');
+      check(await game(() => !!document.querySelector('.modal-backdrop.show')), 'a tap on the gramophone opens the crate');
+      await layout('oracle', 'the crate');
+      await cardButton('Leave it');
+      await tapElement('.hud-nav-right');
+      await still();
+      check((await state()).view === 'cage', 'the edge tab turns back to the Cage');
+    }
+
     // Keep tomorrow's night in hand; on the last night, bank it all.
     const button = night < 3 ? 'bankKeep' : 'bankAll';
     const usable = await game((b) => window.__roulette.cage.group.children.some((o) => o.userData.button === b) && window.__roulette.game.state.coins > 0, button);

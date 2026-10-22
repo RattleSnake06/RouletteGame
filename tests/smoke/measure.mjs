@@ -9,6 +9,7 @@ export const ROLES = {
   felt: [],
   cage: ['cage-button', 'devil-counter'],
   cabinet: ['compartment', 'crank', 'chart'],
+  oracle: ['lever', 'fortune-card', 'gramophone'],
 };
 
 export const MIN = 44;

@@ -53,9 +53,13 @@ export class SpinController {
     return !!p && p.r <= this.grabRadius;
   }
 
-  /** Make sure the rotor turns at least this fast, keeping its direction. */
-  boost(minSpeed) {
-    if (this.speed < minSpeed) this.velocity = (Math.sign(this.velocity) || 1) * minSpeed;
+  /**
+   * Make sure the rotor turns at least this fast, keeping its direction, or
+   * turning it `dir` (+1 or -1) whichever way the hand flung it (Carousel).
+   */
+  boost(minSpeed, dir = 0) {
+    const sign = dir || Math.sign(this.velocity) || 1;
+    if (this.speed < minSpeed || Math.sign(this.velocity) !== sign) this.velocity = sign * Math.max(minSpeed, this.speed);
   }
 
   /**

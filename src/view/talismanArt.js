@@ -2265,6 +2265,17 @@ const DISC_Y = -0.0432; // disc centre below the hang point
 const REST_GLOW = 0.1; // enough for a face to read at the edge of the lamp's pool
 const FLASH_GLOW = 1.25; // the face at a trigger's peak: past the bloom threshold, still legible
 const HALO_SIZE = 0.12; // the flash's halo, across (the disc is 0.064)
+// An engraving (doc 6.4) shows as a band of its own metal round the bezel,
+// with a slow glint: gold for Gilt, green-black for Cursed.
+const ENGRAVING_METAL = {
+  gilt: 0xe0b44c,
+  keen: 0xa9c8dc,
+  sharp: 0xd4d8de,
+  echo: 0xc07a46,
+  restless: 0x7cc79a,
+  thrifty: 0xa8864f,
+  cursed: 0x2c5a3c,
+};
 
 let shared = null;
 function geometries() {
@@ -2396,6 +2407,7 @@ export function buildTalismanMesh(id, { brass } = {}) {
   let glow = 0;
   let dim = false;
   let faceId = id;
+  let band = null;
   const applyGlow = () => {
     enamel.emissiveIntensity = (dim ? 0 : REST_GLOW) + glow * FLASH_GLOW;
     rim.emissiveIntensity = glow * 0.9;
@@ -2431,11 +2443,32 @@ export function buildTalismanMesh(id, { brass } = {}) {
       applyLook();
       applyGlow();
     },
+    /** The engraving's band round the bezel (null takes it off). */
+    setEngraving(engraving) {
+      if (!engraving) {
+        if (band) band.visible = false;
+        return;
+      }
+      if (!band) {
+        band = new THREE.Mesh(
+          new THREE.TorusGeometry(CHARM.radius + 0.004, 0.0034, 6, 40),
+          new THREE.MeshStandardMaterial({ metalness: 0.7, roughness: 0.3, emissiveIntensity: 0.7 }),
+        );
+        band.position.set(0, DISC_Y, CHARM.depth * 0.6);
+        group.add(band);
+      }
+      const color = ENGRAVING_METAL[engraving] ?? ENGRAVING_METAL.gilt;
+      band.material.color.setHex(color);
+      band.material.emissive.setHex(color);
+      band.visible = true;
+    },
     /** Release this charm's own materials (textures and geometry are shared). */
     dispose() {
       rim.dispose();
       enamel.dispose();
       haloMat.dispose();
+      band?.geometry.dispose();
+      band?.material.dispose();
     },
   };
   return group;

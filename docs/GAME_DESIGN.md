@@ -942,13 +942,36 @@ each with its own small light source:
 | The Vault | iron door at the back, four padlocks, scrawls | meta progression |
 | The figures | silhouettes at the edge of the light | run history |
 
+*As built (Phase 4, decision 24):* Madame Zero's station stands left of the
+Cage, a little behind the player, at the edge of the light. Her booth is a
+mahogany plinth with a glass case on it and her name lit in green on the
+roof. Inside, the automaton sits under its own lamp: a porcelain face, an
+oxblood turban, green eyes, and her hands over a crystal ball. Her lever
+(red knob, brass bracket) is on the booth's right, with a tag giving the next
+pull's price. The three cards she deals slide out of a slot onto an easel
+along the plinth's front, tilted up to the eye. White cards are ivory with
+black ink; black cards are soot with green and bone. A taken card lifts away,
+and the others turn their backs, which carry the lore line. The gramophone
+stands on a stool on her left, its record turning while it plays, and the
+crate on the floor beneath it holds a sleeve for each record owned. One
+lamp, a lighting channel of its own (`oracle`), lights all of it. On a
+touch screen her lever, a card and the gramophone each open a card first,
+and only its button acts. With a mouse, hovering shows each one's note and
+a click acts: pull, take, or open the crate. [R] pulls her lever and [1] [2]
+[3] take a card. An engraved talisman wears a band of its engraving's metal
+round its bezel, on the rail and in the Cabinet, and the Cabinet's tag names
+it after the rarity. The rail shows up to eight hooks, closer together when
+there are more than six. While Carousel plays, the wheel always turns
+backwards when it is spun.
+
 ### 8.2 Camera
 
 - **Betting (first person at the table).** You look down at the felt with the
   giant wheel beyond it. Turn left and right between stations with A/D, the arrow
   keys or screen-edge clicks: fixed anchors with smooth eased moves, like turning
-  your head in Clover Pit. From left to right: the Cage, the table, the Cabinet
-  (where the view leans in over the counter). Turning never wraps.
+  your head in Clover Pit. From left to right: Madame Zero and the gramophone,
+  the Cage, the table, the Cabinet (where the view leans in over the counter).
+  Turning never wraps.
 - **Spinning (third person, cinematic).** When the ball launches, the camera lifts
   out of your body to the current wide shot, and the figure at the table is you.
   It returns to the table for the payout.
@@ -1081,6 +1104,16 @@ bounces, never the result.
   bell, flip-board clacks, the Cage's mechanical counters.
 - Madame Zero's voice: short processed lines, always subtitled.
 - Music comes from records only. With no record playing, there is room tone.
+  *As built (Phase 4, decision 23):* each record has a short synthesised loop
+  (`src/audio/records.js`): Waltz in Green is an accordion waltz in A minor,
+  Red Light Tango a habanera in D minor, Lullaby for Zero a music box,
+  Overture of Excess brass and timpani, Funeral March a slow organ, Boogie-
+  Woogie a shuffle with a walking left hand, Nocturne a rolling piano, and
+  Carousel a calliope waltz. Static has no tune, only the groove's hiss and
+  crackle. All of it plays through the horn: a band-pass, a soft clip, a slow
+  wow in the pitch, and crackle. The needle drops with a thump. With the
+  needle up, the room tone carries a low mains hum. Her lines are subtitled
+  (a toast) for now; her processed voice comes later.
 - Dynamic: the rattle's pitch follows ball speed, and a tension riser plays as the
   ball slows.
 

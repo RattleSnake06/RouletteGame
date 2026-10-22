@@ -204,7 +204,7 @@ export function gramophoneView(state) {
     playing: playing && { id: playing.id, name: playing.name, rule: playing.rule, tune: playing.tune, reverse: !!playing.reverse },
     crate: state.records.map((id) => {
       const r = getRecord(id);
-      return { id, name: r.name, rule: r.rule, playing: id === state.playing };
+      return { id, name: r.name, rule: r.rule, tune: r.tune, playing: id === state.playing };
     }),
     known: RECORDS.length,
   };

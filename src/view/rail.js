@@ -4,7 +4,8 @@ import { SANS } from '../ui/fonts.js';
 import { INK, scrawlText, typedFont } from './ink.js';
 
 // The talisman rail (design doc 5.8, 8.1): a low brass back rail on the
-// table with six hooks. Talismans hang left to right, which is the order they
+// table with six hooks (more with "Another hook on the wall" or Static).
+// Talismans hang left to right, which is the order they
 // act in. Drag one along the rail to reorder it; click it for its card. Bell
 // actives carry a brass tag (charges, or what the pig holds); click the tag to
 // ring the Bell at that talisman. The STAKE and ODDS plaques are riveted to
@@ -20,7 +21,10 @@ const HOOK_Y = BAR_Y - 0.012;
 const HOOK_STEP = 0.16;
 const PAD_Z = 0.03; // a charm's tap pad, this far in front of it
 const HOOKS = 6;
-const hookX = (i) => (i - (HOOKS - 1) / 2) * HOOK_STEP;
+const MAX_HOOKS = 8;
+// More hooks crowd closer, so the outer ones stay clear of the plaques.
+const SPAN = 0.875;
+const stepFor = (hooks) => Math.min(HOOK_STEP, SPAN / Math.max(1, hooks - 1));
 
 function canvasTexture(w, h) {
   const canvas = document.createElement('canvas');
@@ -129,12 +133,25 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
   bar.castShadow = true;
   group.add(bar);
   const hookGeo = new THREE.TorusGeometry(0.008, 0.0018, 6, 12, Math.PI * 1.4);
-  for (let i = 0; i < HOOKS; i++) {
+  let hooks = HOOKS;
+  let step = HOOK_STEP;
+  const hookX = (i) => (i - (hooks - 1) / 2) * step;
+  const hookMeshes = [];
+  for (let i = 0; i < MAX_HOOKS; i++) {
     const hook = new THREE.Mesh(hookGeo, brass);
-    hook.position.set(hookX(i), BAR_Y - 0.006, RAIL_Z + 0.004);
     hook.rotation.set(0, Math.PI / 2, Math.PI * 0.8);
     group.add(hook);
+    hookMeshes.push(hook);
   }
+  function placeHooks(n) {
+    hooks = Math.min(MAX_HOOKS, Math.max(HOOKS, n));
+    step = stepFor(hooks);
+    hookMeshes.forEach((hook, i) => {
+      hook.visible = i < hooks;
+      hook.position.set(hookX(i), BAR_Y - 0.006, RAIL_Z + 0.004);
+    });
+  }
+  placeHooks(HOOKS);
 
   // The table lamp's cone misses the outer hooks: a warm fill just for the rail.
   const LIGHT = 0.9;
@@ -299,8 +316,9 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     }
   }
 
-  /** Hang what the run's rail holds, in order. */
-  function sync(views) {
+  /** Hang what the run's rail holds, in order, on `count` hooks. */
+  function sync(views, count = HOOKS) {
+    placeHooks(count);
     const keep = new Set(views.map((v) => v.uid));
     for (const [uid, item] of items) {
       if (keep.has(uid)) continue;
@@ -316,8 +334,11 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
       const item = items.get(v.uid) ?? makeItem(v);
       item.uid = v.uid;
       item.x = hookX(i);
+      // Crowded hooks: the charms and their pads shrink to their share.
+      item.charm.scale.setScalar(step / HOOK_STEP);
       item.charm.userData.setFace?.(v.copying ?? v.id);
       item.charm.userData.setDim?.(v.dim);
+      item.charm.userData.setEngraving?.(v.engraving?.id ?? null);
       syncTag(item, v);
     });
   }

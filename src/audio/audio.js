@@ -1,11 +1,22 @@
+import { Gramophone } from './records.js';
+
 // All sound is synthesised with WebAudio: a low room tone, the whirr of the
 // rotor, pocket ticks, the ball's rattle and bounces, chips, coins and the
-// Cage. Nothing plays until start() is called from a user gesture.
+// Cage, and the gramophone's records (records.js). Nothing plays until
+// start() is called from a user gesture.
 export class WheelAudio {
   constructor() {
     this.ctx = null;
     this.muted = false;
     this.lastTickTime = 0;
+    this.gramophone = null;
+    this.tune = null; // the record playing, kept until there is sound
+  }
+
+  /** The record on the gramophone (its tune), or null for the hall's hum. */
+  playRecord(tune) {
+    this.tune = tune ?? null;
+    this.gramophone?.play(this.tune);
   }
 
   // Must be called from a user gesture (browsers block audio until then).
@@ -73,6 +84,9 @@ export class WheelAudio {
     rollSrc.connect(rollBP).connect(this.rollGain).connect(this.master);
     rollSrc.start();
     this.rollFilter = rollBP;
+
+    this.gramophone = new Gramophone(ctx, this.master, white);
+    this.gramophone.play(this.tune);
   }
 
   /** Short filtered noise burst with an envelope: the building block of clicks. */

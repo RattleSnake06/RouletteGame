@@ -8,6 +8,7 @@
 //   rail     the warm fill on the talisman rail
 //   cage     the Cage's banker's lamp
 //   cabinet  the light inside the Curio Cabinet
+//   oracle   the lamp in Madame Zero's booth (it lights the gramophone too)
 //
 // Two events act on top of the mood: a Lean announced makes the wheel's bulb
 // hum brighter in the dark (doc 5.6), and the Devil puts every light out for a
@@ -15,13 +16,14 @@
 // instead of stuttering and the blackout is a fade.
 
 export const MOODS = {
-  intro: { wheel: 1, lamp: 1, rail: 1, cage: 1, cabinet: 1 },
-  table: { wheel: 0.015, lamp: 1, rail: 1, cage: 0.3, cabinet: 0.35 },
-  cage: { wheel: 0.015, lamp: 0.55, rail: 0.5, cage: 1, cabinet: 0.2 },
-  cabinet: { wheel: 0.015, lamp: 0.55, rail: 0.5, cage: 0.2, cabinet: 1 },
-  spin: { wheel: 1, lamp: 0.16, rail: 0.25, cage: 0.1, cabinet: 0.1 },
+  intro: { wheel: 1, lamp: 1, rail: 1, cage: 1, cabinet: 1, oracle: 1 },
+  table: { wheel: 0.015, lamp: 1, rail: 1, cage: 0.3, cabinet: 0.35, oracle: 0.25 },
+  cage: { wheel: 0.015, lamp: 0.55, rail: 0.5, cage: 1, cabinet: 0.2, oracle: 0.4 },
+  cabinet: { wheel: 0.015, lamp: 0.55, rail: 0.5, cage: 0.2, cabinet: 1, oracle: 0.15 },
+  oracle: { wheel: 0.015, lamp: 0.35, rail: 0.3, cage: 0.35, cabinet: 0.1, oracle: 1 },
+  spin: { wheel: 1, lamp: 0.16, rail: 0.25, cage: 0.1, cabinet: 0.1, oracle: 0.12 },
 };
-const CHANNELS = ['lamp', 'rail', 'cage', 'cabinet'];
+const CHANNELS = ['lamp', 'rail', 'cage', 'cabinet', 'oracle'];
 
 // The Devil's blackout: the bulb pops and stutters out, the hall stays dark,
 // then the lights creep back. [until (s), level]; the last step ramps.
@@ -111,7 +113,7 @@ export class LightingDirector {
       all = this.blackoutLevel(this.out);
       if (this.out > BLACKOUT.at(-1)[0] + DARK_FOR + RETURN) this.out = -1;
     }
-    return { wheel, lamp: this.lamp * all, rail: this.rail * all, cage: this.cage * all, cabinet: this.cabinet * all, all };
+    return { wheel, lamp: this.lamp * all, rail: this.rail * all, cage: this.cage * all, cabinet: this.cabinet * all, oracle: this.oracle * all, all };
   }
 
   blackoutLevel(t) {

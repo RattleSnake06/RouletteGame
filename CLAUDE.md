@@ -56,13 +56,14 @@ and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done,
 plus twenty more talismans built ahead of Phase 4 at the owner's request
 (43 in all; doc 6.1, decisions 15–17), with pocket widths drawn live.
 M1, touch and the phone layout (doc 9.10, 10), is done: `npm run touch` plays
-debt 1 by touch alone on a landscape phone with nothing covered. Phase 4 is under
-way, built touch-first (decision 21). The core is done: Madame Zero's fortunes
-(white and black cards), records and engravings, with 16 cards and 9 records
-(doc 6.2, 6.3; the two chip cards wait for Phase 5). So is the simulator tuning.
-Next are the view (her booth and the gramophone left of the Cage, decision 24)
-and each record's synthesised loop. The best simulator bot at each debt pays
-debts 1–4 in about 97%, 68%, 44% and 14% of runs. That is inside the Phase 4
+debt 1 by touch alone on a landscape phone with nothing covered. Phase 4 (the
+House) is done, built touch-first (decision 21). Madame Zero deals white and
+black cards from her booth left of the Cage, the gramophone beside her plays
+records, and engravings mark talismans: 16 cards and 9 records, each record
+with its own synthesised loop (doc 5.9, 5.10, 6.2–6.4, 8.1, 8.6; the two chip
+cards wait for Phase 5). Next is Phase 5: building the wheel. The best
+simulator bot at each debt pays debts 1–4 in about 97%, 68%, 44% and 14% of
+runs. That is inside the Phase 4
 targets (decision 25), but debt 2 is near its floor and debt 3 near its
 ceiling. Debts 2 and 4 now owe 400 and 2,664. See `npm run sim`, which grades
 the best Lean-playing bot at each debt; `--no-oracle` keeps the bots away from
@@ -133,12 +134,15 @@ change.
 - **Pipes hide exit codes:** `npm run smoke | tail` exits 0 even when the test
   fails. Read the last lines for "Smoke test passed." or check the exit code first.
 - **Useful page hooks** (dev build): `window.__roulette` has `game`, `rail`,
-  `bell`, `cabinet`, `table`, `stage`, `director`, `lighting` and `debug`.
+  `bell`, `cabinet`, `oracle`, `table`, `stage`, `director`, `lighting` and `debug`.
   `game.screenPosition(rail.talismanWorldPosition(uid))`,
-  `cabinet.slotWorldPosition(i)` and `table.spotWorldPosition(betId)` give click
-  targets; interactive meshes carry `userData.role` (`night-card`, `end-card`,
-  `cage-button`, `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
-  `talisman-mesh`, `board`, `devil-counter`). `table.boardWorldPosition()` and
+  `cabinet.slotWorldPosition(i)`, `table.spotWorldPosition(betId)`,
+  `oracle.leverWorldPosition()`, `oracle.cardWorldPosition(i)` and
+  `oracle.gramophoneWorldPosition()` give click targets; interactive meshes
+  carry `userData.role` (`night-card`, `end-card`, `cage-button`,
+  `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
+  `talisman-mesh`, `board`, `devil-counter`, `lever`, `fortune-card`,
+  `gramophone`). The views are `oracle`, `cage`, `table` and `cabinet`. `table.boardWorldPosition()` and
   `cage.devilWorldPosition()` anchor their notes; `lighting.lean` says whether
   the LEAN lamp is lit.
   `debug.grant(id)` hangs a talisman and marks its Cabinet offer sold.
