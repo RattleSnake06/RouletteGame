@@ -6,7 +6,6 @@ import { add, ceil, floor, mul, mulFloor, num, pow } from './num.js';
 export const ECONOMY = {
   startCoins: 10,
   startTokens: 4,
-  startChips: 3,
   startHooks: 6, // talisman hooks on the rail
   roundsPerDebt: 3,
   interestRate: 0.05,

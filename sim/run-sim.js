@@ -8,12 +8,13 @@
 //   npm run sim -- --skip hamsa,mousetrap  bots never buy, take or play these (talismans,
 //                                       fortunes or records), to measure what they add
 //   npm run sim -- --no-oracle           bots never visit Madame Zero (no fortunes, no records)
+//   npm run sim -- --chips bone          the run's starting chip set (decision 26; default normal)
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
 //   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
 //   npm run sim -- --set debt.2=240       override what a debt owes
 
-import { TALISMANS, contentName, getFortune, getRecord, getTalisman } from '../src/core/content/index.js';
+import { MATERIALS, TALISMANS, contentName, getFortune, getMaterial, getRecord, getTalisman } from '../src/core/content/index.js';
 import { DEVIL, devilLive } from '../src/core/devil.js';
 import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
 import { LUCK, nudgeFor, nudgeLandings } from '../src/core/nudge.js';
@@ -41,6 +42,8 @@ const NO_NEW = !!args['no-new'];
 const SKIP = typeof args.skip === 'string' ? args.skip.split(',') : [];
 for (const id of SKIP) if (!getTalisman(id) && !getFortune(id) && !getRecord(id)) throw new Error(`--skip: no talisman, fortune or record ${id}`);
 const NO_ORACLE = !!args['no-oracle'];
+const CHIPS = typeof args.chips === 'string' ? args.chips : 'normal';
+if (!MATERIALS.some((m) => m.id === CHIPS)) throw new Error(`--chips: no chip set ${CHIPS} (${MATERIALS.map((m) => m.id).join(', ')})`);
 // --set overrides are checked, so a typo fails loudly instead of quietly
 // running the drafted numbers.
 const TABLES = { economy: ECONOMY, luck: LUCK, devil: DEVIL };
@@ -272,6 +275,8 @@ function chooseLayout(s, bot) {
 function placeChips(s, bot) {
   const want = placementsFor(s, chooseLayout(s, bot));
   for (const chip of s.chips) {
+    // A Bone chip already down stays there until the night ends.
+    if (s.fixed.includes(chip.id)) continue;
     if (s.placements[chip.id] !== want[chip.id]) s = step(s, { type: 'placeChip', chipId: chip.id, betId: want[chip.id] });
   }
   return s;
@@ -448,7 +453,7 @@ function newMetrics() {
 }
 
 function playRun(seed, bot, m, picks, firstPicks) {
-  let s = createRun({ seed });
+  let s = createRun({ seed, chipSet: CHIPS });
   for (const id of bot.solo ?? []) s = grantTalisman(s, id);
   m.dry = 0; // a miss streak never carries over from the last run
   let first = true;
@@ -481,7 +486,7 @@ function playRun(seed, bot, m, picks, firstPicks) {
       const seen = s.foreseen;
       if (seen) {
         const n = s.wheel.pockets[seen.pocketIndex].number;
-        for (const chip of s.chips) s = step(s, { type: 'placeChip', chipId: chip.id, betId: `straight:${n}` });
+        for (const chip of s.chips) if (!s.fixed.includes(chip.id)) s = step(s, { type: 'placeChip', chipId: chip.id, betId: `straight:${n}` });
       }
       const r = act(s, { type: 'spin' });
       s = r.state;
@@ -543,7 +548,7 @@ function runBot(name) {
 // --- Report -----------------------------------------------------------------
 
 const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
-console.log(`${RUNS} runs per bot · Phase 4 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings)${TEMPO ? ' · tempo' : ''}\n`);
+console.log(`${RUNS} runs per bot · Phase 4 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings) · ${getMaterial(CHIPS).name} chips${TEMPO ? ' · tempo' : ''}\n`);
 const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
 console.log(header.join(' '));
 const results = names.map(runBot);
@@ -601,4 +606,5 @@ for (const r of results.filter((x) => Object.keys(x.picks).length)) {
     console.log(`  fortunes taken per 100 runs: ${text}`);
   }
 }
-console.log(`\nStart: ${ECONOMY.startCoins} coins, ${ECONOMY.startTokens} tokens, ${ECONOMY.startChips} chips of value 1. (${format(12345)} formatting check)`);
+const set = getMaterial(CHIPS);
+console.log(`\nStart: ${ECONOMY.startCoins} coins, ${ECONOMY.startTokens} tokens, ${set.count} ${set.name} chips of value 1. (${format(12345)} formatting check)`);

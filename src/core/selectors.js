@@ -157,7 +157,8 @@ export function bellView(state) {
  */
 export function previewBet(state, betId, value = 1) {
   const bet = getBet(betId);
-  const chip = { id: '__preview', value, material: 'clay', roundValue: 0 };
+  // The run's own material, so a note says what this run's chips would pay.
+  const chip = { id: '__preview', value, material: state.chipSet ?? 'normal', roundValue: 0 };
   const probe = { ...state, chips: [chip], placements: { [chip.id]: betId } };
   let worst = null;
   let best = null;

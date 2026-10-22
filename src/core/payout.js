@@ -1,4 +1,5 @@
 import { betCovers, betOdds, getBet } from './bets.js';
+import { getMaterial } from './content/index.js';
 import { sources, srcRef, writeData } from './effects.js';
 import { add, mulFloor } from './num.js';
 
@@ -8,8 +9,9 @@ import { add, mulFloor } from './num.js';
 //
 // Payout of one paying line (a chip on a hit pocket):
 //   value × Stake × odds × Odds mult × pocket mult × hit mult × each × talisman
-// floored once at the end. Talismans act left to right along the rail: for
-// each line, each source runs chipStake, chipOdds and chipMult in turn.
+// floored once at the end. The chip's material acts first (its ×, decision
+// 26); then talismans act left to right along the rail: for each line, each
+// source runs chipStake, chipOdds and chipMult in turn.
 
 /** The plaques at rest. Later phases add global Stake and Odds here. */
 export function baseFactors() {
@@ -17,6 +19,9 @@ export function baseFactors() {
 }
 
 export const chipValue = (chip) => chip.value + (chip.roundValue ?? 0);
+
+/** How an event names a chip's material as its source: the chip, and what it is made of. */
+const materialRef = (chip) => ({ uid: chip.id, id: getMaterial(chip.material).id, as: getMaterial(chip.material).id, chip: true });
 
 function lineAmount(f) {
   return mulFloor(f.value, f.stake, f.odds, f.oddsMult, f.pocketMult, f.hitMult, f.mult);
@@ -42,6 +47,7 @@ export function evaluate(state, landings) {
     chipTotal: 0,
     bonusCoins: 0,
     bonusTokens: 0,
+    chipTokens: 0, // tokens from chip materials (Gold), counted against the night's cap
     miss: true,
   };
   const trigger = (src, hook, effect, more = {}) => plan.steps.push({ type: 'trigger', src: srcRef(src), hook, effect, ...more });
@@ -122,6 +128,12 @@ export function evaluate(state, landings) {
         const paidBefore = firstLineSeen.size - (firstLineSeen.has(chip.id) ? 1 : 0);
         const lineCtx = { state, ball, landing, hit, chip, bet, factors, paidBefore };
         const at = { ball, chipId: chip.id };
+        // The chip's material acts first, on its own lines only (decision 26).
+        const material = getMaterial(chip.material);
+        if (material.payout !== 1) {
+          factors.mult *= material.payout;
+          plan.steps.push({ type: 'trigger', src: materialRef(chip), hook: 'chipMult', effect: 'mult', amount: material.payout, ...at });
+        }
         for (const src of srcs) {
           const h = src.as.hooks;
           if (!h) continue;
@@ -176,6 +188,13 @@ export function evaluate(state, landings) {
         paidThisBall.add(chip.id);
         const firstLineOfChip = !firstLineSeen.has(chip.id);
         firstLineSeen.add(chip.id);
+        // Gold: a token for each chip that wins, up to the night's cap.
+        if (firstLineOfChip && material.winTokens && (state.chipTokens ?? 0) + plan.chipTokens < material.tokenCap) {
+          const n = Math.min(material.winTokens, material.tokenCap - (state.chipTokens ?? 0) - plan.chipTokens);
+          plan.bonusTokens += n;
+          plan.chipTokens += n;
+          plan.steps.push({ type: 'trigger', src: materialRef(chip), hook: 'chipPaid', effect: 'tokens', amount: n, ...at });
+        }
 
         for (const src of srcs) {
           const fn = src.as.hooks?.chipPaid;
@@ -237,6 +256,7 @@ export function commitPlan(draft, plan, emit) {
   draft.coins = add(draft.coins, add(plan.chipTotal, plan.bonusCoins));
   draft.tokens += plan.bonusTokens;
   draft.stats.tokensEarned += plan.bonusTokens;
+  draft.chipTokens = (draft.chipTokens ?? 0) + plan.chipTokens;
   // Deferred changes land after the whole spin is paid, so every line in a
   // spin uses the chip values it started with.
   const touched = new Set();

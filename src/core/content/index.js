@@ -1,5 +1,6 @@
 import { ENGRAVING_LIST } from './engravings.js';
 import { FORTUNE_LIST } from './fortunes.js';
+import { MATERIAL_LIST } from './materials.js';
 import { RECORD_LIST } from './records.js';
 import { TALISMAN_LIST } from './talismans.js';
 
@@ -53,9 +54,17 @@ export const getFortune = (id) => FORTUNE_BY_ID.get(id) ?? null;
 export const getRecord = (id) => RECORD_BY_ID.get(id) ?? null;
 export const getEngraving = (id) => ENGRAVING_BY_ID.get(id) ?? null;
 
-/** The name of anything that can act: a talisman, a record, an engraving, or a fortune (her line). */
+// Chip materials (decision 26): a chip's material is the first thing that
+// acts on its lines.
+export const MATERIALS = MATERIAL_LIST.map((d) => Object.freeze({ fixed: false, winTokens: 0, tokenCap: 0, ...d }));
+const MATERIAL_BY_ID = new Map(MATERIALS.map((d) => [d.id, d]));
+/** A chip's material; an unknown one (an old save) is a normal chip. */
+export const getMaterial = (id) => MATERIAL_BY_ID.get(id) ?? MATERIALS[0];
+
+/** The name of anything that can act: a talisman, a record, an engraving, a chip's material, or a fortune (her line). */
 export function contentName(id) {
   const d = getTalisman(id) ?? getRecord(id) ?? getEngraving(id);
   if (d) return d.name;
+  if (MATERIAL_BY_ID.has(id)) return `${MATERIAL_BY_ID.get(id).name} chip`;
   return getFortune(id)?.text ?? id;
 }

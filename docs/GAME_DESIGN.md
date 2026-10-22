@@ -4,8 +4,10 @@
 Decisions made so far are listed under [Decisions](#12-decisions).
 
 Status: Phase 1 (the core loop), Phase 2 (talismans, the Curio Cabinet,
-tokens and the Bell) and Phase 3 (Nudge, the Lean, pity, the Devil, cursed
-talismans) are built, and so are touch and the phone layout (M1); Phase 4 is next.
+tokens and the Bell), Phase 3 (Nudge, the Lean, pity, the Devil, cursed
+talismans) and Phase 4 (Madame Zero, records, engravings) are built, and so
+are touch and the phone layout (M1). The main menu and starting chip sets
+(decision 26) come next, then Phase 5.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -872,14 +874,30 @@ restock of each debt free, without raising the next one's price.
 
 ### 6.6 Chip materials
 
-| Material | Effect |
-|---|---|
-| Clay | Base chip |
-| Bone | +1 token whenever it wins |
-| Glass | ×3 payout; 1 in 6 chance to break when it wins |
-| Gold | +1 value each time it loses |
-| Lead | Inside bets also pay ×0.33 when the ball lands on a wheel neighbour |
-| Wax | ×2 payout; loses 1 value every spin and melts at 0 |
+A chip's material is its one rule, wherever the chip came from (decision 26).
+A run starts with a set of chips of one material, chosen on the main menu
+(7.5); chips found later in a run follow the same rules. The owner set these
+rules; they replace the first draft (Clay as the base chip, Bone +1 token per
+win, Glass ×3 that can break, Gold +1 value per loss).
+
+| Material | Starting set | Rule |
+|---|---|---|
+| Normal | 3 chips | The House's own chips: no change. |
+| Clay | 4 chips | Each pays ×0.75. |
+| Bone | 3 chips | Each pays ×1.25. Once placed, a chip stays where it lies until the night ends. |
+| Glass | 2 chips | Each pays ×1.5. |
+| Gold | 3 chips | Each pays ×0.75, and +1 token when one wins, up to 3 a night. |
+| Lead | (later) | Inside bets also pay ×0.33 when the ball lands on a wheel neighbour |
+| Wax | (later) | ×2 payout; loses 1 value every spin and melts at 0 |
+
+*As built:* a material's × is the first factor on each line its chip pays,
+shown at the chip during the payout, and the payout is floored once at the
+end as before. So a value-1 chip on an even-money bet pays 1 in Clay or Gold
+and 2 in Bone: the House rounds down, and the multipliers tell more on bigger
+bets and bigger chips. Gold's token comes once per winning chip per spin.
+A Bone chip may still be placed whenever it is in hand; after that it can be
+neither moved nor lifted until the next night begins. Lead and Wax wait for
+Phase 5's oddities.
 
 ---
 
@@ -920,6 +938,24 @@ A leather book on the table: discovered talismans, fortunes, records and
 enhancements, plus stats. Undiscovered entries are silhouettes. Achievement
 unlocks go here, for example "Hit the same number three times in one round"
 unlocks Ouroboros.
+
+### 7.5 The main menu and chip sets
+
+*Decision 26, pulled forward from this phase at the owner's request.* The
+game opens on a main menu: the hall in near darkness, the wheel's bulb
+flickering, Madame Zero's green eyes in the dark, the title in blood-red
+brush. It offers Continue (when a run is saved), Play and Settings. Play
+leads to the chip select, where the player chooses the run's chip set (6.6).
+
+- **Normal** is open from the start. Paying debt 4 with a set unlocks the
+  next, in the order Normal, Clay, Bone, Glass, Gold, for later runs. The
+  unlock shows the moment that debt is paid.
+- A locked set shows as a dark silhouette with what opens it ("Pay debt 4
+  with Clay chips."). An open one shows its chips, its upside and its
+  downside, and the furthest debt paid with it.
+- What is unlocked lives in a profile saved apart from the run, through
+  `src/platform/` (`core/meta.js`), so it survives a new run and a lost one.
+- Starting a new run while one is saved asks first: that run is given up.
 
 ---
 
@@ -1594,3 +1630,4 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 23 | Records' music | **A synthesised loop for each record**, no audio files; a quiet hall hum when nothing plays. (5.10, 8.6) |
 | 24 | Madame Zero's place | **One new station left of the Cage**: her glass booth, the gramophone on a stool beside it. Turning order: Madame Zero, Cage, Table, Cabinet. (8.1) |
 | 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. Outcome: debt 2 owes 400 and debt 4 2,664, and the two chip cards wait for Phase 5. (9.8) |
+| 26 | Chip sets and the main menu | **A main menu, and a chip set chosen for each run.** Normal (3 chips), Clay (4, ×0.75), Bone (3, ×1.25, fixed once placed until the night ends), Glass (2, ×1.5), Gold (3, ×0.75, +1 token per win, up to 3 a night). Paying debt 4 with a set unlocks the next. One rule per material, found or starting (6.6 rewritten); built now, ahead of Phase 5, though unlocks are Phase 6's. (6.6, 7.5) |

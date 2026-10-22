@@ -1,7 +1,7 @@
 import { BET_BY_ID } from './bets.js';
 import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
-import { getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
+import { MATERIALS, getEngraving, getFortune, getMaterial, getRecord, getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
 import { commitCtx, interestRateFor, lifecycle, sources } from './effects.js';
@@ -32,17 +32,21 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 4;
+export const RUN_VERSION = 5;
 const HISTORY_LENGTH = 40;
 
 const noEvents = () => {};
+const FIXED = 'Bone chips stay where they lie until the night ends.';
 
-export function createRun({ seed }) {
+/** A new run. `chipSet` is the material of the starting chips (decision 26). */
+export function createRun({ seed, chipSet = MATERIALS[0].id }) {
+  const material = getMaterial(chipSet);
   const chips = [];
-  for (let i = 0; i < ECONOMY.startChips; i++) chips.push({ id: `c${i + 1}`, value: 1, material: 'clay', roundValue: 0 });
+  for (let i = 0; i < material.count; i++) chips.push({ id: `c${i + 1}`, value: 1, material: material.id, roundValue: 0 });
   const s = {
     version: RUN_VERSION,
     seed,
+    chipSet: material.id,
     rng: seedStreams(seed),
     phase: PHASE.ROUND_START,
     debt: 1,
@@ -56,6 +60,8 @@ export function createRun({ seed }) {
     chips,
     nextChipId: chips.length + 1,
     placements: {},
+    fixed: [], // chips placed tonight that may not move until the night ends (Bone)
+    chipTokens: 0, // tokens chips have earned tonight (Gold, capped a night)
     wheel: createEuropeanWheel(),
     railHooks: ECONOMY.startHooks,
     rail: [],
@@ -174,6 +180,9 @@ function beginDebt(s, emit) {
 /** A new night: tonight's tally clears and the Cabinet restocks for free. */
 function beginRound(s, emit) {
   s.tally = { ...s.tally, round: emptyRoundTally() };
+  // A new night: Bone chips may move again, and Gold earns afresh.
+  s.fixed = [];
+  s.chipTokens = 0;
   const slots = restockSlots(s);
   emit({ type: 'offersRestocked', paid: false, slots });
   lifecycle(s, 'roundStart', emit, { debt: s.debt, round: s.round });
@@ -187,6 +196,7 @@ export function copyRun(state) {
     rng: { ...state.rng },
     chips: state.chips.map((c) => ({ ...c })),
     placements: { ...state.placements },
+    fixed: [...(state.fixed ?? [])],
     wheel: { pockets: state.wheel.pockets.map((p) => ({ ...p })) },
     rail: state.rail.map((t) => ({ ...t, data: copyData(t.data) })),
     cabinet: copyCabinet(state.cabinet),
@@ -313,16 +323,20 @@ const HANDLERS = {
   },
 
   placeChip(state, { chipId, betId }) {
-    if (!state.chips.some((c) => c.id === chipId)) throw new Error(`Unknown chip: ${chipId}`);
+    const chip = state.chips.find((c) => c.id === chipId);
+    if (!chip) throw new Error(`Unknown chip: ${chipId}`);
     if (!BET_BY_ID.has(betId)) throw new Error(`Unknown bet: ${betId}`);
     if (state.placements[chipId] === betId) return { state, events: [] };
+    if (state.fixed.includes(chipId)) return reject(state, FIXED, 'fixed');
     const s = copyRun(state);
     s.placements[chipId] = betId;
+    if (getMaterial(chip.material).fixed) s.fixed.push(chipId);
     return { state: s, events: [{ type: 'chipPlaced', chipId, betId }] };
   },
 
   removeChip(state, { chipId }) {
     if (!state.placements[chipId]) return { state, events: [] };
+    if (state.fixed.includes(chipId)) return reject(state, FIXED, 'fixed');
     const s = copyRun(state);
     delete s.placements[chipId];
     return { state: s, events: [{ type: 'chipRemoved', chipId }] };
