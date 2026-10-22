@@ -174,7 +174,7 @@ try {
   await click(charm, 'the talisman on the rail');
   await page.waitForSelector('.modal-card', { timeout: 10000 });
   const before = await items();
-  await page.click('button:has-text("Sell")');
+  await page.click('.modal-backdrop.show button:has-text("Sell")');
   await page.waitForTimeout(400);
   it = await items();
   check(it.rail.length === 0 && it.tokens === before.tokens + Math.max(1, Math.floor(bought.rail[0].price / 2)), `sold it back for ${it.tokens - before.tokens}`);
@@ -197,7 +197,7 @@ try {
   const title = await page.textContent('.modal-title');
   check(/Debt 1 paid/i.test(title), `the debt-paid card appears ("${title}")`);
   await page.screenshot({ path: process.env.SMOKE_SHOTS ? `${process.env.SMOKE_SHOTS}/smoke-paid.png` : '/dev/null' }).catch(() => {});
-  await page.click('button:has-text("CONTINUE")');
+  await page.click('.modal-backdrop.show button:has-text("CONTINUE")');
   s = await state();
   check(s.debt === 2 && s.round === 1, 'debt 2 begins');
 
@@ -310,11 +310,11 @@ try {
   }
   await page.waitForSelector('.modal-card', { timeout: 10000 });
   check(/cannot cover/i.test(await page.textContent('.modal-title')), 'the final-night warning appears');
-  await page.click('button:has-text("END THE NIGHT")');
+  await page.click('.modal-backdrop.show button:has-text("END THE NIGHT")');
   await page.waitForSelector('.collected .modal-card', { timeout: 20000 });
   check(true, 'the Cage collects and the run ends');
   await page.screenshot({ path: process.env.SMOKE_SHOTS ? `${process.env.SMOKE_SHOTS}/smoke-collected.png` : '/dev/null' }).catch(() => {});
-  await page.click('button:has-text("BEGIN AGAIN")');
+  await page.click('.modal-backdrop.show button:has-text("BEGIN AGAIN")');
   await page.waitForSelector('.title-screen.show .ts-chips:not([hidden])', { timeout: 20000 });
   check(true, 'Begin again opens the chip select');
   await page.click('.ts-begin');

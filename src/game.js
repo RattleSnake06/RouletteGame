@@ -1735,21 +1735,11 @@ export class Game {
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
         { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
+        // Giving up a run is Main menu, then Play: it asks first (doc 7.5).
         { label: 'Main menu', onClick: () => ((this.menuClose = null), this.showMainMenu()) },
-        { label: 'Abandon run', danger: true, onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
       ],
     });
     this.menuClose = close;
   }
 
-  confirmAbandon() {
-    showModal({
-      title: 'Abandon this run?',
-      lines: ['The run ends here and a new one begins. There is no undo.'],
-      actions: [
-        { label: 'Keep playing', primary: true },
-        { label: 'Abandon', danger: true, onClick: () => this.newRun() },
-      ],
-    });
-  }
 }

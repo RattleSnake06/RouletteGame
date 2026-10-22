@@ -956,6 +956,8 @@ leads to the chip select, where the player chooses the run's chip set (6.6).
 - What is unlocked lives in a profile saved apart from the run, through
   `src/platform/` (`core/meta.js`), so it survives a new run and a lost one.
 - Starting a new run while one is saved asks first: that run is given up.
+  The pause menu's **Main menu** takes the place of "Abandon run": a run is
+  given up from the menu's Play, which asks.
 
 ---
 
