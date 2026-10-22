@@ -22,7 +22,6 @@ export function chipSets(profile) {
       count: m.count,
       upside: m.upside,
       downside: m.downside,
-      colors: m.colors,
       unlocked: profile.unlocked.includes(m.id),
       best: profile.best[m.id] ?? 0,
       unlocks: prev ? `Pay debt ${UNLOCK_DEBT} with ${prev.name} chips.` : null,

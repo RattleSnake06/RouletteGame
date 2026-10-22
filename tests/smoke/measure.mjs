@@ -36,7 +36,8 @@ export async function measure({ view, roles, min }) {
 
   // HTML controls. A card (the pause menu, a modal) blocks the room on
   // purpose: then only its own controls count.
-  const cards = [...document.querySelectorAll('.modal-backdrop.show')];
+  // The main menu covers the room the same way (doc 7.5).
+  const cards = [...document.querySelectorAll('.title-screen.show, .modal-backdrop.show')];
   const scope = cards.length ? cards[cards.length - 1] : document;
   const controls = [...scope.querySelectorAll('button, [role=button], a[href], input, select')].filter(shown);
   for (const el of controls) {

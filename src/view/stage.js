@@ -141,6 +141,10 @@ export function createStage(canvas) {
       oracle.group.updateMatrixWorld();
       const oracleLook = oracle.group.localToWorld(oracle.focus.clone());
       anchors.oracle = { position: eye.clone(), target: oracleLook, fov: eyeFov(52, 72), kind: 'eye' };
+      // The main menu: her booth from the dark, off to the right of the words.
+      const menuAt = oracle.group.localToWorld(new THREE.Vector3(0.15, 1.36, 2.35));
+      const menuLook = oracle.group.localToWorld(new THREE.Vector3(-0.75, 1.3, 0));
+      anchors.menu = { position: menuAt, target: menuLook, fov: THREE.MathUtils.radToDeg(Math.max(deg(40), vfovOf(deg(64), aspect))), kind: 'eye' };
     }
     if (cabinet) {
       // Lean in over the counter so the price tags read on a small screen.

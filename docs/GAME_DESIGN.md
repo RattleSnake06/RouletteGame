@@ -1404,6 +1404,14 @@ play back strictly left to right. Every hook that changes something emits a
   *Results (2,000 runs):* the best bot pays debts 1–4 in 97%, 68%, 44% and
   14% of runs (adaptive, inside, inside, outside). Debt 2 sits low in its band
   and debt 3 high: the cards that last carry runs from debt 2 into debt 3.
+- **Chip sets** (decision 26): `--chips <set>` plays a run's starting set.
+  *Results as the owner set them (1,000 runs, the best of the four strongest
+  bots):* debts 1–4 paid in Normal 97/69/44/14%, Clay 98/66/39/16%, Bone
+  97/81/63/18%, Glass 93/63/40/10%, Gold 96/75/63/28%. The last column is the
+  chance to unlock the next set. Bone suits the inside bots (a straight-up at
+  ×1.25), and Gold's tokens buy talismans early. Tried and not yet applied:
+  Gold ×0.6 (44/14% at debts 3–4), Gold capped at 2 tokens a night (54/20%),
+  Bone ×1.15 (56/14%), Glass ×1.65 (48/14%).
   Without Madame Zero the same bots pay 98%, 73%, 30% and 12% at the Phase 3
   debts. As drafted, her cards took the best bot to about 80% at debt 3 and 67%
   at debt 4. The two chip cards were the biggest part of that, then records

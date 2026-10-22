@@ -22,6 +22,8 @@ export const MOODS = {
   cabinet: { wheel: 0.015, lamp: 0.55, rail: 0.5, cage: 0.2, cabinet: 1, oracle: 0.15 },
   oracle: { wheel: 0.015, lamp: 0.35, rail: 0.3, cage: 0.35, cabinet: 0.1, oracle: 1 },
   spin: { wheel: 1, lamp: 0.16, rail: 0.25, cage: 0.1, cabinet: 0.1, oracle: 0.12 },
+  // The main menu: the hall all but dark, her lamp guttering.
+  menu: { wheel: 0.02, lamp: 0, rail: 0, cage: 0.04, cabinet: 0, oracle: 0.7, flicker: true },
 };
 const CHANNELS = ['lamp', 'rail', 'cage', 'cabinet', 'oracle'];
 
@@ -113,7 +115,13 @@ export class LightingDirector {
       all = this.blackoutLevel(this.out);
       if (this.out > BLACKOUT.at(-1)[0] + DARK_FOR + RETURN) this.out = -1;
     }
-    return { wheel, lamp: this.lamp * all, rail: this.rail * all, cage: this.cage * all, cabinet: this.cabinet * all, oracle: this.oracle * all, all };
+    // A guttering lamp: steady, then a falter, now and then a near-blackout.
+    let gutter = 1;
+    if (target.flicker) {
+      const n = Math.sin(this.clock * 13.7) * Math.sin(this.clock * 2.3 + 1) * Math.sin(this.clock * 0.61);
+      if (n > 0.42) gutter = 0.25 + 0.5 * Math.abs(Math.sin(this.clock * 47));
+    }
+    return { wheel, lamp: this.lamp * all, rail: this.rail * all, cage: this.cage * all, cabinet: this.cabinet * all, oracle: this.oracle * all * gutter, all };
   }
 
   blackoutLevel(t) {

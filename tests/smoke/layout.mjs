@@ -54,7 +54,7 @@ for (const size of SIZES) {
     await game((view) => {
       const r = window.__roulette;
       if (view === 'felt') r.game.zoomFelt(true);
-      else r.game.turnTo(view);
+      else if (view !== 'menu') r.game.turnTo(view);
       r.director.goTo(view, { cut: true });
     }, view);
     // Notes and toasts fade on drawn frames; give the HUD a few.
@@ -99,6 +99,15 @@ for (const size of SIZES) {
     const r = window.__roulette;
     r.game.toggleMenu();
     r.game.openTalisman(r.game.state.rail[0].uid);
+  });
+  await at('main menu', 'menu', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    window.__roulette.game.showMainMenu({ cut: true });
+  });
+  await at('chip select', 'menu', () => {
+    const g = window.__roulette.game;
+    g.profile = { v: 1, unlocked: ['normal', 'clay', 'bone'], best: { normal: 4 } };
+    g.openChipSelect();
   });
   await ctx.close();
 }

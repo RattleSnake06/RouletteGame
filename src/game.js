@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { getBet } from './core/bets.js';
-import { getFortune, getRecord, getTalisman } from './core/content/index.js';
+import { getFortune, getMaterial, getRecord, getTalisman } from './core/content/index.js';
+import { chipSets, isUnlocked, recordDebtPaid, serializeProfile } from './core/meta.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
 import { baseFactors } from './core/payout.js';
@@ -83,6 +84,7 @@ export class Game {
     this.leanTimer = null; // a Lean's creak, waiting for the payout to finish
     this.feltZoom = false; // the felt close-up (touch betting)
     this.selectedChip = null; // a chip picked up by a tap (touch)
+    this.atMenu = false; // the main menu or the chip select is up
   }
 
   // ---- Lifecycle ------------------------------------------------------------
@@ -104,17 +106,19 @@ export class Game {
       this.power = 0.15;
       this.busy = true;
       const id = this.runId;
-      setTimeout(() => id === this.runId && this.showCollected(), 600);
+      // From the main menu, a lost run is simply over: Play begins the next.
+      setTimeout(() => id === this.runId && !this.atMenu && this.showCollected(), 600);
     }
   }
 
-  newRun() {
+  /** A fresh run with this chip set (decision 26); the current run's set by default. */
+  newRun(chipSet = this.state?.chipSet) {
     this.runId += 1;
     this.leanShown = null;
     clearTimeout(this.leanTimer);
     this.leanTimer = null;
     this.clearFocus();
-    this.state = createRun({ seed: randomSeed() });
+    this.state = createRun({ seed: randomSeed(), chipSet });
     this.save();
     this.power = 1;
     this.busy = false;
@@ -127,6 +131,98 @@ export class Game {
 
   save() {
     this.platform.save('run', serializeRun(this.state));
+  }
+
+  saveProfile() {
+    this.platform.save('profile', serializeProfile(this.profile));
+  }
+
+  // ---- The main menu and the chip select (doc 7.5) ---------------------------
+
+  /** "debt 2 · night 1 · Glass chips" for a run worth continuing, or null. */
+  continueLine() {
+    const s = this.state;
+    if (!s || s.phase === PHASE.GAME_OVER || (s.stats.spins === 0 && s.debt === 1 && s.round === 1)) return null;
+    return `debt ${s.debt} · night ${s.round} · ${getMaterial(s.chipSet).name} chips`;
+  }
+
+  /** The hall goes dark, the camera finds her in it, and the menu comes up. */
+  showMainMenu({ cut = false } = {}) {
+    this.menuClose?.();
+    this.menuClose = null;
+    this.leaveFelt();
+    this.clearFocus();
+    this.clearNote();
+    this.atMenu = true;
+    this.setLocked(true);
+    this.hud.root.classList.remove('show');
+    this.stage.setFigureGhost(false);
+    this.director.goTo('menu', { duration: 1.4, cut });
+    this.lighting.set('menu');
+    this.menu.show({ cont: this.continueLine() });
+  }
+
+  /** Back to the table, from the menu. */
+  leaveMenu() {
+    this.menu.hide();
+    this.atMenu = false;
+    this.setLocked(this.busy);
+    this.hud.root.classList.add('show');
+    this.view = 'table';
+    this.hud.setView('table');
+    this.director.goTo('table', { duration: 1.6, onProgress: (e) => e > 0.75 && this.stage.setFigureGhost(true) });
+    this.lighting.set('table');
+    this.syncAll();
+  }
+
+  continueRun() {
+    if (this.continueLine()) this.leaveMenu();
+  }
+
+  /** Play: the chip select, once a run in progress has been given up. */
+  playFromMenu() {
+    const line = this.continueLine();
+    if (!line) {
+      this.openChipSelect();
+      return;
+    }
+    showModal({
+      title: 'Begin a new run?',
+      lines: [`The run in progress (${escapeHtml(line)}) is given up. There is no undo.`],
+      actions: [
+        { label: 'Keep it', primary: true },
+        { label: 'Give it up', danger: true, onClick: () => this.openChipSelect() },
+      ],
+    });
+  }
+
+  openChipSelect() {
+    this.menu.showChips(chipSets(this.profile), this.state?.chipSet);
+  }
+
+  menuBack() {
+    this.menu.showMain();
+  }
+
+  /** Begin: a new run with these chips, and the camera back to the table. */
+  beginRun(chipSet) {
+    if (!isUnlocked(this.profile, chipSet)) return;
+    this.newRun(chipSet);
+    this.leaveMenu();
+  }
+
+  /** The settings, from the main menu: what the pause menu switches. */
+  openSettings() {
+    showModal({
+      className: 'pause',
+      title: 'Settings',
+      actions: [
+        { label: 'Done', primary: true },
+        { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
+        { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
+        { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
+      ],
+    });
   }
 
   dispatch(action) {
@@ -435,6 +531,11 @@ export class Game {
 
   /** The Android back button: out of the close-up, else the menu. Returns true if it acted. */
   back() {
+    // At the main menu: the chip select steps back to the menu; the menu holds.
+    if (this.atMenu) {
+      this.menuBack();
+      return true;
+    }
     if (!this.feltZoom) return false;
     this.zoomFelt(false);
     return true;
@@ -774,13 +875,18 @@ export class Game {
     if (paid) {
       this.audio.debtPaid();
       this.table.hidePackages();
+      // The profile keeps the furthest debt per chip set; debt 4 opens the next set.
+      const record = recordDebtPaid(this.profile, { chipSet: this.state.chipSet, debtsPaid: this.state.stats.debtsPaid });
+      this.profile = record.profile;
+      this.saveProfile();
+      const unlocked = record.unlocked ? [`<b>${getMaterial(record.unlocked).name} chips</b> are unlocked. Choose them on the main menu for a new run.`] : [];
       showModal({
         className: 'paid',
         kicker: 'The Cage',
         title: `Debt ${paid.debt}`,
         struck: true,
         after: 'paid',
-        lines: [`The Cage takes its <b>${format(paid.owed)}</b>. Debt ${paid.debt + 1} is <b>${format(owed(this.state))}</b>.`],
+        lines: [`The Cage takes its <b>${format(paid.owed)}</b>. Debt ${paid.debt + 1} is <b>${format(owed(this.state))}</b>.`, ...unlocked],
         ledger: [
           ['Left in the Cage', format(paid.surplus)],
           [paid.satOut ? `Tokens (${plural(paid.satOut, 'night')} sat out)` : 'Tokens', `+${paid.rewardTokens}`, 'tok'],
@@ -823,7 +929,17 @@ export class Game {
         ['Rail', s.rail.length ? s.rail.map((t) => getTalisman(t.id)?.name ?? t.id).join(', ') : 'bare'],
         ['Seed', s.seed, 'seed'],
       ],
-      actions: [{ label: 'Begin again', primary: true, onClick: () => this.newRun() }],
+      // A new run begins at the chip select: a set may have opened this run.
+      actions: [
+        {
+          label: 'Begin again',
+          primary: true,
+          onClick: () => {
+            this.showMainMenu();
+            this.openChipSelect();
+          },
+        },
+      ],
     });
   }
 
@@ -1619,6 +1735,7 @@ export class Game {
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
         { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
+        { label: 'Main menu', onClick: () => ((this.menuClose = null), this.showMainMenu()) },
         { label: 'Abandon run', danger: true, onClick: () => ((this.menuClose = null), this.confirmAbandon()) },
       ],
     });

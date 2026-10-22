@@ -486,14 +486,24 @@ export function createTable({ materials, interaction, callbacks }) {
 
   /** Put every chip where the run state says it is. */
   function syncChips(state) {
+    // A chip gone from the run (a new run with fewer chips), or one of another
+    // material under the same id (a new run's set), leaves the felt.
+    for (const [id, c] of chips) {
+      const chip = state.chips.find((x) => x.id === id);
+      if (chip && chip.material === c.material) continue;
+      interaction.remove(c.mesh);
+      group.remove(c.mesh);
+      c.mesh.userData.dispose?.();
+      chips.delete(id);
+    }
     for (const chip of state.chips) {
       if (!chips.has(chip.id)) {
-        const mesh = createChipMesh();
+        const mesh = createChipMesh(chip.material);
         group.add(mesh);
         interaction.add(mesh, chipHandler(chip.id));
         const target = new THREE.Vector3(TRAY.x0, TOP_Y + 0.02, TRAY.z);
         mesh.position.copy(target);
-        chips.set(chip.id, { mesh, target, glow: 0 });
+        chips.set(chip.id, { mesh, target, glow: 0, material: chip.material });
       }
     }
     const stacks = new Map();

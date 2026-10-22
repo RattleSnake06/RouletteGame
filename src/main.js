@@ -7,6 +7,8 @@ import { createSwipe, isTouchScreen } from './input/touch.js';
 import { loadSettings, platform, saveSettings } from './platform/index.js';
 import { loadFonts } from './ui/fonts.js';
 import { createHud } from './ui/hud.js';
+import { createMainMenu } from './ui/menu.js';
+import { deserializeProfile } from './core/meta.js';
 import { add } from './core/num.js';
 import { grantTalisman } from './core/run.js';
 import { BallAnimator } from './view/ball.js';
@@ -152,7 +154,7 @@ async function init() {
     dom: canvas,
     planeY: DIM.numberY,
     grabRadius: DIM.radius + 0.1,
-    canGrab: (ev) => !interaction.consumed.has(ev) && game && !game.busy && !ball.flying,
+    canGrab: (ev) => !interaction.consumed.has(ev) && game && !game.busy && !game.atMenu && !ball.flying,
     onGrab: () => audio.start(),
     onRelease: (v) => Math.abs(v) > 2.2 && game.requestSpin(),
   });
@@ -172,7 +174,16 @@ async function init() {
   lighting.flashes = settings.flashes !== false;
   const sparks = createSparks(scene);
   sparks.flashes = lighting.flashes;
-  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch });
+  // The main menu and chip select (doc 7.5); what is unlocked lives in the profile.
+  const menu = createMainMenu({
+    onContinue: () => game.continueRun(),
+    onPlay: () => game.playFromMenu(),
+    onSettings: () => game.openSettings(),
+    onBegin: (id) => game.beginRun(id),
+    onBack: () => game.menuBack(),
+  });
+  const profile = deserializeProfile(platform.load('profile'));
+  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch, menu, profile });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -204,7 +215,7 @@ async function init() {
   // While a card is up (other than the pause menu), keys must not act on the
   // room behind it.
   const modalOpen = () => !!document.querySelector('.modal-backdrop:not([inert])');
-  const play = (fn) => () => !modalOpen() && fn();
+  const play = (fn) => () => !modalOpen() && !game.atMenu && fn();
   input.on('spin', play(() => game.requestSpin()));
   input.on('turnLeft', play(() => game.turn(-1)));
   input.on('turnRight', play(() => game.turn(1)));
@@ -222,11 +233,11 @@ async function init() {
   input.on('moveRight', play(() => game.moveFocused(1)));
   input.on('sell', play(() => game.sellFocused()));
   input.on('toggleMute', () => game.toggleMute());
-  input.on('menu', () => (game.menuClose || !modalOpen()) && game.toggleMenu());
+  input.on('menu', () => !game.atMenu && (game.menuClose || !modalOpen()) && game.toggleMenu());
   // Touch (doc 9.10): a swipe across empty space turns; the menu button and
   // the Android back button open the menu.
   createSwipe(canvas, {
-    ignore: (ev) => interaction.consumed.has(ev) || interaction.captured || !!game?.busy || spin.grabbableAt(ev),
+    ignore: (ev) => interaction.consumed.has(ev) || interaction.captured || !!game?.busy || !!game?.atMenu || spin.grabbableAt(ev),
     onSwipe: (dir) => input.emit(dir < 0 ? 'turnLeft' : 'turnRight'),
   });
   // The SPIN button acts like Space: a press spins, and holding it spins fast.
@@ -272,9 +283,12 @@ async function init() {
   }
 
   // ---- Start -----------------------------------------------------------------
+  // The game opens on the main menu. A ?seed= link goes straight to the table
+  // (for testing and sharing a seed), as it always has.
   game.boot();
   director.goTo('wide', { cut: true });
   stage.setFigureGhost(false);
+  if (!new URLSearchParams(window.location.search).get('seed')) game.showMainMenu({ cut: true });
   setTimeout(() => {
     if (director.current !== 'wide' || game.busy) return;
     director.goTo(game.view, {
@@ -284,7 +298,7 @@ async function init() {
     // The establishing shot shows the wheel lit; at the table it sinks into the dark.
     lighting.set(game.view);
   }, 1700);
-  setTimeout(() => hud.root.classList.add('show'), 1400);
+  setTimeout(() => !game.atMenu && hud.root.classList.add('show'), 1400);
 
   // ---- Loop ------------------------------------------------------------------
   const timer = new THREE.Timer();
@@ -353,7 +367,7 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, oracle, director, interaction, lighting, sparks, THREE };
+  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, oracle, menu, director, interaction, lighting, sparks, THREE };
   if (import.meta.env.DEV) {
     const tunedDevil = { ...DEVIL };
     window.__roulette.debug = {

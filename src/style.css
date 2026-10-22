@@ -1467,3 +1467,286 @@ img.mark {
     text-align: center;
   }
 }
+
+/* ---- The main menu and the chip select (doc 7.5) ------------------------------- */
+
+/* Over the hall in near darkness: the room shows through at the right, where
+   Madame Zero's eyes are; the words sit in the black on the left. */
+.title-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  --u: clamp(0.72px, min(0.078125vw, 0.125vh), 2.4px);
+  padding: max(16px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  background:
+    radial-gradient(ellipse 60% 80% at 74% 46%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 55%, rgba(0, 0, 0, 0.92) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.7) 38%, rgba(0, 0, 0, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.9s ease;
+  display: flex;
+  align-items: center;
+}
+
+.title-screen.show {
+  opacity: 1;
+}
+
+.title-screen .wall {
+  position: absolute;
+  opacity: 0.05;
+  font-size: calc(1 * var(--u));
+  pointer-events: none;
+}
+
+.title-screen .wall-l {
+  left: 2%;
+  top: 8%;
+}
+
+.title-screen .wall-r {
+  right: 3%;
+  bottom: 6%;
+}
+
+.ts-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(10 * var(--u));
+  max-width: 62%;
+}
+
+.ts-title {
+  margin: 0;
+  font-size: calc(92 * var(--u));
+  line-height: 1.05;
+  white-space: normal;
+  letter-spacing: 0.01em;
+  animation: ts-breathe 7s ease-in-out infinite;
+}
+
+.ts-title .blood,
+.ts-chips h2 .blood {
+  color: var(--blood);
+}
+
+/* The title's light falters now and then, like the bulb. */
+@keyframes ts-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  46% {
+    opacity: 0.92;
+  }
+  48% {
+    opacity: 0.55;
+  }
+  49% {
+    opacity: 0.95;
+  }
+  51% {
+    opacity: 0.7;
+  }
+  53% {
+    opacity: 1;
+  }
+}
+
+.ts-swipe {
+  font-size: calc(46 * var(--u));
+  margin-top: calc(-34 * var(--u)) !important;
+  opacity: 0.85;
+}
+
+/* Her whisper, low in the corner, one line at a time. */
+.ts-whisper {
+  position: absolute;
+  left: max(24px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  margin: 0;
+  font-size: calc(22 * var(--u));
+  color: var(--green);
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.ts-whisper.on {
+  opacity: 0.75;
+}
+
+.ts-menu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(6 * var(--u));
+}
+
+.ts-item {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6em;
+  min-height: 44px;
+  padding: calc(6 * var(--u)) calc(4 * var(--u));
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ts-item .label {
+  font-size: calc(46 * var(--u));
+  transition: color 0.2s ease;
+}
+
+.ts-item .sub {
+  font-size: calc(18 * var(--u));
+}
+
+.ts-item .ts-mark {
+  position: absolute;
+  left: 0;
+  bottom: calc(2 * var(--u));
+  font-size: calc(40 * var(--u));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ts-item:hover .label,
+.ts-item:focus-visible .label {
+  color: var(--blood);
+}
+
+.ts-item:hover .ts-mark,
+.ts-item:focus-visible .ts-mark {
+  opacity: 1;
+}
+
+.ts-item:focus-visible {
+  outline: none;
+}
+
+/* ---- Chip select ---- */
+
+.ts-chips {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(14 * var(--u));
+}
+
+.ts-chips-head h2 {
+  margin: 0;
+  font-size: calc(58 * var(--u));
+}
+
+.ts-chips-head p {
+  margin: calc(8 * var(--u)) 0 0;
+  font-size: calc(19 * var(--u));
+}
+
+.ts-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(14 * var(--u));
+}
+
+.ts-set {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(5 * var(--u));
+  min-height: 44px;
+  padding: calc(10 * var(--u)) calc(8 * var(--u)) calc(14 * var(--u));
+  background: rgba(8, 6, 6, 0.82);
+  border: 1px solid rgba(179, 169, 147, 0.16);
+  color: inherit;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ts-set canvas {
+  max-width: 100%;
+  height: auto !important;
+}
+
+.ts-set .name {
+  font-size: calc(36 * var(--u));
+}
+
+.ts-set .count {
+  font-size: calc(16 * var(--u));
+  color: var(--brass);
+}
+
+.ts-set .up,
+.ts-set .down,
+.ts-set .lock,
+.ts-set .best {
+  font-size: calc(16 * var(--u));
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.ts-set .up {
+  color: var(--bone);
+}
+
+.ts-set .down {
+  color: var(--blood);
+}
+
+.ts-set .best {
+  color: var(--green);
+  opacity: 0.8;
+}
+
+.ts-set.locked {
+  cursor: default;
+}
+
+.ts-set.locked .name,
+.ts-set.locked .count {
+  opacity: 0.35;
+}
+
+.ts-set.on {
+  border-color: var(--blood);
+  box-shadow: 0 0 calc(24 * var(--u)) rgba(220, 42, 51, 0.35);
+  transform: translateY(calc(-4 * var(--u)));
+}
+
+.ts-set:focus-visible {
+  outline: 1px dashed var(--bone-faint);
+  outline-offset: 2px;
+}
+
+.ts-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ts-begin {
+  isolation: isolate;
+}
+
+.ts-begin .label {
+  font-size: calc(54 * var(--u));
+}
+
+.ts-begin .ts-begin-swipe {
+  position: absolute;
+  left: -0.4em;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: calc(40 * var(--u));
+  z-index: -1;
+}
+
+.ts-back .label {
+  font-size: calc(32 * var(--u));
+}

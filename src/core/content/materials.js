@@ -8,7 +8,8 @@
 //   fixed     true: once placed, the chip stays put until the night ends
 //   winTokens tokens when the chip wins, `tokenCap` a night at most
 //   upside / downside  the chip select's two lines
-//   colors    the chip's face and edge, for the view
+//
+// How each looks is the view's business (ui/chipLook.js).
 //
 // The list is also the unlock order: paying debt 4 with one set unlocks the
 // next for later runs (core/meta.js). Lead and Wax wait for Phase 5.
@@ -21,7 +22,6 @@ export const MATERIAL_LIST = [
     payout: 1,
     upside: 'The House’s own chips. Nothing gained, nothing lost.',
     downside: '',
-    colors: { face: '#7d1a1f', edge: '#e9dfc8' },
   },
   {
     id: 'clay',
@@ -30,7 +30,6 @@ export const MATERIAL_LIST = [
     payout: 0.75,
     upside: 'Four chips.',
     downside: 'Each pays ×0.75.',
-    colors: { face: '#8a4a2c', edge: '#c9946a' },
   },
   {
     id: 'bone',
@@ -40,7 +39,6 @@ export const MATERIAL_LIST = [
     fixed: true,
     upside: 'Each pays ×1.25.',
     downside: 'Once placed, a chip stays put until the night ends.',
-    colors: { face: '#d8ccb0', edge: '#5a4a38' },
   },
   {
     id: 'glass',
@@ -49,7 +47,6 @@ export const MATERIAL_LIST = [
     payout: 1.5,
     upside: 'Each pays ×1.5.',
     downside: 'Only two chips.',
-    colors: { face: '#4f7a72', edge: '#cfe8e0' },
   },
   {
     id: 'gold',
@@ -60,6 +57,5 @@ export const MATERIAL_LIST = [
     tokenCap: 3,
     upside: '+1 token when one wins, up to 3 a night.',
     downside: 'Each pays ×0.75.',
-    colors: { face: '#b48a3c', edge: '#f0d68a' },
   },
 ];

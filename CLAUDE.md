@@ -61,7 +61,10 @@ House) is done, built touch-first (decision 21). Madame Zero deals white and
 black cards from her booth left of the Cage, the gramophone beside her plays
 records, and engravings mark talismans: 16 cards and 9 records, each record
 with its own synthesised loop (doc 5.9, 5.10, 6.2–6.4, 8.1, 8.6; the two chip
-cards wait for Phase 5). Next is Phase 5: building the wheel. The best
+cards wait for Phase 5). The game now opens on a main menu, and each run
+starts with a chip set chosen there: Normal, Clay, Bone, Glass and Gold, each
+unlocked by paying debt 4 with the one before (decision 26, doc 6.6, 7.5;
+`core/meta.js` keeps the profile). Next is Phase 5: building the wheel. The best
 simulator bot at each debt pays debts 1–4 in about 97%, 68%, 44% and 14% of
 runs. That is inside the Phase 4
 targets (decision 25), but debt 2 is near its floor and debt 3 near its
@@ -76,11 +79,13 @@ change.
 
 ## Commands
 
-- `npm run dev` starts the dev server (http://localhost:5173). `?seed=XXXX-XXXX`
-  starts a seeded run when none is in progress.
+- `npm run dev` starts the dev server (http://localhost:5173). It opens on the
+  main menu. `?seed=XXXX-XXXX` skips the menu and starts a seeded run when
+  none is in progress (the tests use it).
 - `npm run build` writes a static build to `dist/`.
 - `npm test` runs the core unit tests (vitest). Keep them green.
 - `npm run sim` runs the balance simulator. Re-run it after any economy change.
+  `--chips <set>` plays a starting chip set (normal, clay, bone, glass, gold).
 - `npm run layout` checks the phone layout at three landscape sizes (nothing
   covered, controls at least 44 px); it takes `CHROME_PATH` like the smoke test.
 - `npm run touch` plays debt 1 at 844×390 with real touch input only (sent
@@ -134,7 +139,9 @@ change.
 - **Pipes hide exit codes:** `npm run smoke | tail` exits 0 even when the test
   fails. Read the last lines for "Smoke test passed." or check the exit code first.
 - **Useful page hooks** (dev build): `window.__roulette` has `game`, `rail`,
-  `bell`, `cabinet`, `oracle`, `table`, `stage`, `director`, `lighting` and `debug`.
+  `bell`, `cabinet`, `oracle`, `menu`, `table`, `stage`, `director`, `lighting` and `debug`.
+  `game.showMainMenu()`, `game.openChipSelect()` and `game.beginRun(set)` drive
+  the menu; `game.profile` holds what is unlocked.
   `game.screenPosition(rail.talismanWorldPosition(uid))`,
   `cabinet.slotWorldPosition(i)`, `table.spotWorldPosition(betId)`,
   `oracle.leverWorldPosition()`, `oracle.cardWorldPosition(i)` and

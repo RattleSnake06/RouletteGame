@@ -273,12 +273,36 @@ try {
     }
   }
 
-  // Whatever the Cage decided, its card answers a tap.
+  // Whatever the Cage decided, its card answers a tap. A lost run goes to
+  // the chip select, where Begin starts the next.
   await page.waitForSelector('.modal-backdrop.show', { timeout: 60000 });
   await tapElement('.modal-backdrop.show .modal-btn.primary');
   await frames(3);
+  if (await game(() => window.__roulette.game.atMenu)) {
+    await tapElement('.ts-begin');
+    await frames(3);
+  }
   const end = await state();
   check(end.phase === 'roundStart', `play goes on by touch (debt ${end.debt})`);
+
+  // The main menu by touch (doc 7.5): from the pause menu, then Play, the
+  // chip select and Begin.
+  await tapElement('.hud-menu');
+  await cardButton('Main menu');
+  await frames(6);
+  check(await game(() => window.__roulette.game.atMenu), 'Main menu in the pause menu opens the main menu');
+  await layout('menu', 'the main menu');
+  await tapElement('.ts-item', 'Play');
+  await frames(3);
+  if (await game(() => !!document.querySelector('.modal-backdrop.show'))) await cardButton('Give it up');
+  await frames(3);
+  check(await game(() => !document.querySelector('.ts-chips').hidden), 'Play opens the chip select');
+  await layout('menu', 'the chip select');
+  await tapElement('.ts-set', 'Normal');
+  await tapElement('.ts-begin');
+  await frames(6);
+  const fresh = await state();
+  check(fresh.debt === 1 && fresh.round === 1 && !(await game(() => window.__roulette.game.atMenu)), 'Begin starts a new run, back at the table');
   check(!problems.length, 'no page or console errors');
   console.log('\nTouch playthrough passed.');
 } catch (e) {

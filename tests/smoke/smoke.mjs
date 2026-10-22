@@ -315,9 +315,13 @@ try {
   check(true, 'the Cage collects and the run ends');
   await page.screenshot({ path: process.env.SMOKE_SHOTS ? `${process.env.SMOKE_SHOTS}/smoke-collected.png` : '/dev/null' }).catch(() => {});
   await page.click('button:has-text("BEGIN AGAIN")');
+  await page.waitForSelector('.title-screen.show .ts-chips:not([hidden])', { timeout: 20000 });
+  check(true, 'Begin again opens the chip select');
+  await page.click('.ts-begin');
   await page.waitForTimeout(500);
   s = await state();
   check(s.debt === 1 && s.phase === 'roundStart' && s.coins === 10, 'a new run begins');
+  check(await page.evaluate(() => !window.__roulette.game.atMenu && window.__roulette.game.state.chipSet === 'normal'), 'with Normal chips, back at the table');
 
   check(problems.length === 0, `no page or console errors${problems.length ? `: ${problems.join('; ')}` : ''}`);
   console.log('Smoke test passed.');
