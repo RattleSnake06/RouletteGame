@@ -150,9 +150,13 @@ try {
   await page.keyboard.press('KeyD');
   await cameraStill();
   check((await game(() => window.__roulette.game.view)) === 'cabinet', 'D turns to the Cabinet');
+  // What the seed stocks moves whenever the Cabinet's rolls change, so top
+  // up the tokens rather than hope a talisman costs 5 or less.
+  await game(() => window.__roulette.debug.addTokens(5));
+  it = await items();
   const slot = await game(async () => {
     const { cabinetView } = await import('/src/core/selectors.js');
-    return cabinetView(window.__roulette.game.state).slots.findIndex((x) => x.id && x.affordable);
+    return cabinetView(window.__roulette.game.state).slots.findIndex((x, i) => i < 3 && x.id && x.affordable);
   });
   check(slot >= 0, `an affordable talisman is on offer (compartment ${slot + 1})`);
   const offered = it.offers[slot];
