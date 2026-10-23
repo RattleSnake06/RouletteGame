@@ -6,7 +6,7 @@ import {
   createPocketFloorTexture,
   createRimWoodTexture,
 } from './textures.js';
-import { createEuropeanWheel } from '../core/wheel.js';
+import { createEuropeanWheel, numberLabel } from '../core/wheel.js';
 
 // The pockets come from the rules (selectors' wheelView); this module only
 // turns them into geometry. Each pocket is drawn as wide as its live width
@@ -55,7 +55,7 @@ function boundsFor(widths) {
 }
 
 /** What a drawn pocket's cell on the number ring and the floor shows. */
-const cellFor = (p) => ({ label: p.number === null ? '' : String(p.number), color: p.color ?? 'blank', enh: p.enh ?? null });
+const cellFor = (p) => ({ label: p.number === null ? '' : numberLabel(p.number), color: p.color ?? 'blank', enh: p.enh ?? null });
 
 export const DIM = {
   radius: 4.0,

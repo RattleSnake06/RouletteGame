@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ECONOMY, PACKAGES } from '../../core/economy.js';
 import { format } from '../../core/num.js';
 import { canAfford, costOf } from '../../core/run.js';
+import { numberLabel } from '../../core/wheel.js';
 import { SANS } from '../../ui/fonts.js';
 import { rng } from '../../ui/marks.js';
 import { CHIP, createChipMesh } from '../chips.js';
@@ -189,16 +190,17 @@ function drawMarquee(ctx, history, luck, w, h) {
   recent.forEach((r, i) => {
     const size = i === 0 ? 76 : 50;
     const devil = !!r.devil;
-    // A blank pocket's landing shows as a dash, dim, in the middle.
+    // A blank pocket's landing shows as a dash, dim, in the middle; the
+    // House's own pocket (House Edge) as a green one.
     const blank = !devil && r.number === null;
     const x = devil || blank || r.color === 'green' ? w / 2 : r.color === 'red' ? w * 0.72 : w * 0.28;
-    const color = blank ? '#6d655a' : devil || r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
+    const color = blank && r.color !== 'green' ? '#6d655a' : devil || r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
     ctx.font = `600 ${size}px ${SANS}`;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = i === 0 ? 18 : 8;
     ctx.globalAlpha = i === 0 ? 1 : Math.max(0.35, 0.9 - i * 0.06);
-    ctx.fillText(devil ? '666' : blank ? '—' : String(r.number), x, y);
+    ctx.fillText(devil ? '666' : blank ? '—' : numberLabel(r.number), x, y);
     y += i === 0 ? 86 : 58;
   });
   ctx.globalAlpha = 1;

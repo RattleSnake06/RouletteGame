@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BETS, BET_KINDS, getBet, tableCell } from '../core/bets.js';
-import { RED_NUMBERS } from '../core/wheel.js';
+import { DOUBLE_ZERO, RED_NUMBERS, numberLabel } from '../core/wheel.js';
 
 // The betting layout in "layout units" (one number cell = 1 unit). Zero sits
 // on the player's left and numbers run away to the right in 12 streets; the
@@ -8,6 +8,9 @@ import { RED_NUMBERS } from '../core/wheel.js';
 //
 //   x: 0 zero | 1–13 numbers | 13–14 "2 to 1" columns
 //   y: 0–3 number rows (far → near) | 3–3.8 dozens | 3.8–4.6 even-money bets
+//
+// On the American wheel (doc 7.2) the zero's cell splits: 00 on the far
+// half, beside 3, and 0 on the near half, beside 1, with 2 between them.
 
 export const LAYOUT_W = 14;
 export const LAYOUT_H = 4.6;
@@ -15,24 +18,36 @@ const MARGIN = 0.4;
 const NUMBERS_BOTTOM = 3;
 const DOZEN_BOTTOM = 3.8;
 
+let doubleZero = false;
+
 /** Centre of a number's cell in layout units. */
 export function cellCenter(n) {
-  if (n === 0) return { x: 0.5, y: 1.5 };
+  if (n === 0) return { x: 0.5, y: doubleZero ? 2.25 : 1.5 };
+  if (n === DOUBLE_ZERO) return { x: 0.5, y: 0.75 };
   const { col, row } = tableCell(n);
   return { x: 1.5 + col, y: 2.5 - row };
 }
 
 function cellRect(n) {
-  if (n === 0) return { x0: 0, y0: 0, x1: 1, y1: 3 };
+  if (n === 0) return doubleZero ? { x0: 0, y0: 1.5, x1: 1, y1: 3 } : { x0: 0, y0: 0, x1: 1, y1: 3 };
+  if (n === DOUBLE_ZERO) return { x0: 0, y0: 0, x1: 1, y1: 1.5 };
   const c = cellCenter(n);
   return { x0: c.x - 0.5, y0: c.y - 0.5, x1: c.x + 0.5, y1: c.y + 0.5 };
 }
 
 const EVEN_MONEY_ORDER = ['low', 'even', 'red', 'black', 'odd', 'high'];
 
+// The zero's splits sit on the line between its cell and the number's. With
+// a 00, 0 touches 1 and 2, 00 touches 2 and 3, and 0–00 sits between them.
+const ZERO_SPLITS = {
+  single: { 'split:0-1': 2.5, 'split:0-2': 1.5, 'split:0-3': 0.5 },
+  double: { 'split:0-1': 2.5, 'split:0-2': 1.75, 'split:2-37': 1.25, 'split:3-37': 0.5 },
+};
+
 /**
  * Where each bet's chip sits. Inside bets between cells are points (with a
- * small hit radius); straight-ups and outside bets are boxes.
+ * small hit radius); straight-ups and outside bets are boxes. Bets with 00
+ * have spots only on the American wheel; the zero's splits follow it.
  */
 function buildSpots() {
   const spots = new Map();
@@ -40,8 +55,10 @@ function buildSpots() {
     const cs = ns.map(cellCenter);
     return { x: cs.reduce((a, c) => a + c.x, 0) / cs.length, y: cs.reduce((a, c) => a + c.y, 0) / cs.length };
   };
+  const zeroSplits = ZERO_SPLITS[doubleZero ? 'double' : 'single'];
   for (const bet of BETS) {
     const ns = bet.numbers;
+    if (!doubleZero && ns.includes(DOUBLE_ZERO)) continue;
     switch (bet.kind) {
       case 'straight': {
         const r = cellRect(ns[0]);
@@ -49,8 +66,10 @@ function buildSpots() {
         break;
       }
       case 'split':
-        if (ns[0] === 0) spots.set(bet.id, { type: 'point', x: 1, y: cellCenter(ns[1]).y });
-        else spots.set(bet.id, { type: 'point', ...avg(ns) });
+        if (bet.id === 'split:0-37') spots.set(bet.id, { type: 'point', x: 0.5, y: 1.5 });
+        else if (bet.id in ZERO_SPLITS.single || bet.id in ZERO_SPLITS.double) {
+          if (bet.id in zeroSplits) spots.set(bet.id, { type: 'point', x: 1, y: zeroSplits[bet.id] });
+        } else spots.set(bet.id, { type: 'point', ...avg(ns) });
         break;
       case 'corner':
         spots.set(bet.id, { type: 'point', ...avg(ns) });
@@ -86,9 +105,19 @@ function buildSpots() {
   return spots;
 }
 
-export const SPOTS = buildSpots();
-const POINT_SPOTS = [...SPOTS].filter(([, s]) => s.type === 'point');
-const BOX_SPOTS = [...SPOTS].filter(([, s]) => s.type === 'box');
+export let SPOTS = buildSpots();
+let POINT_SPOTS = [...SPOTS].filter(([, s]) => s.type === 'point');
+let BOX_SPOTS = [...SPOTS].filter(([, s]) => s.type === 'box');
+
+/** The felt for a wheel with a 00 (the American) or without: its spots are rebuilt. */
+function layoutFor(withDoubleZero) {
+  if (withDoubleZero === doubleZero) return false;
+  doubleZero = withDoubleZero;
+  SPOTS = buildSpots();
+  POINT_SPOTS = [...SPOTS].filter(([, s]) => s.type === 'point');
+  BOX_SPOTS = [...SPOTS].filter(([, s]) => s.type === 'box');
+  return true;
+}
 const POINT_RADIUS = 0.2;
 
 /** The bet under a point on the layout, or null. */
@@ -229,7 +258,7 @@ export class FeltCanvas {
     ctx.lineWidth = lw;
     ctx.lineJoin = 'round';
 
-    // Zero: a pointed cell, as on a real table.
+    // Zero: a pointed cell, as on a real table; split at its point for a 00.
     ctx.beginPath();
     ctx.moveTo(u(1), u(0));
     ctx.lineTo(u(0.35), u(0));
@@ -237,6 +266,7 @@ export class FeltCanvas {
     ctx.lineTo(u(0.35), u(3));
     ctx.lineTo(u(1), u(3));
     ctx.stroke();
+    if (doubleZero) this._line(ctx, u(0), u(1.5), u(1), u(1.5));
 
     // Number grid, columns and outside boxes.
     for (let c = 0; c <= 13; c++) this._line(ctx, u(1 + c), u(0), u(1 + c), u(3));
@@ -288,6 +318,11 @@ export class FeltCanvas {
    */
   setNumbers(numbers) {
     const list = numbers ?? Array.from({ length: 37 }, (_, n) => ({ number: n, pockets: [{ color: n === 0 ? 'green' : RED_NUMBERS.has(n) ? 'red' : 'black', enh: null }] }));
+    // A 00 among the numbers (the American wheel) splits the zero's cell.
+    if (layoutFor(list.length > DOUBLE_ZERO)) {
+      this._drawBase(this.ground.getContext('2d'));
+      this.numbersKey = null;
+    }
     const key = JSON.stringify(list.map((x) => x.pockets.map((p) => [p.color, p.enh])));
     if (key === this.numbersKey) return false;
     this.numbersKey = key;
@@ -299,8 +334,9 @@ export class FeltCanvas {
     ctx.textBaseline = 'middle';
     for (const { number: n, pockets } of list) {
       const c = cellCenter(n);
-      const bw = (n === 0 ? 0.62 : 0.66) * px;
-      const bh = (n === 0 ? 1.0 : 0.62) * px;
+      const zero = n === 0 || n === DOUBLE_ZERO;
+      const bw = (zero ? 0.62 : 0.66) * px;
+      const bh = (zero ? (doubleZero ? 0.9 : 1.0) : 0.62) * px;
       const x = u(c.x);
       const y = u(c.y);
       ctx.font = `600 ${Math.round(px * 0.4)}px Oswald, "Arial Narrow", sans-serif`;
@@ -315,7 +351,7 @@ export class FeltCanvas {
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = 'rgba(243, 236, 220, 0.3)';
-        ctx.fillText(String(n), x, y + px * 0.02);
+        ctx.fillText(numberLabel(n), x, y + px * 0.02);
         ctx.strokeStyle = 'rgba(224, 204, 152, 0.6)';
         ctx.beginPath();
         ctx.moveTo(x - bw * 0.42, y + bh * 0.3);
@@ -328,17 +364,17 @@ export class FeltCanvas {
       const colors = [...new Set(pockets.map((p) => p.color))];
       this._badge(ctx, x, y, bw, bh, COLORS[colors[0]] ?? COLORS.black, COLORS[colors[1]] ?? null);
       ctx.fillStyle = COLORS.ink;
-      ctx.fillText(String(n), x, y + px * 0.02);
+      ctx.fillText(numberLabel(n), x, y + px * 0.02);
       if (pockets.length > 1) {
         ctx.font = `600 ${Math.round(px * 0.2)}px Oswald, "Arial Narrow", sans-serif`;
         ctx.fillStyle = COLORS.line;
-        ctx.fillText(`×${pockets.length}`, x + px * 0.32, y - (n === 0 ? px * 0.62 : px * 0.36));
+        ctx.fillText(`×${pockets.length}`, x + px * 0.32, y - (zero ? bh * 0.6 : px * 0.36));
       }
       // A dot for each enhanced pocket, along the cell's foot.
       const marks = pockets.map((p) => p.enh).filter((e) => ENH_DOT[e]);
       marks.forEach((e, i) => {
         const dx = (i - (marks.length - 1) / 2) * px * 0.15;
-        const dy = n === 0 ? px * 0.62 : px * 0.39;
+        const dy = zero ? bh * 0.6 : px * 0.39;
         ctx.save();
         ctx.fillStyle = ENH_DOT[e];
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';

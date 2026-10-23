@@ -4,7 +4,7 @@ import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabin
 import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman, playingRecords } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
-import { debtMultiplier, nightTokensFor, startingWheel } from './house.js';
+import { debtMultiplier, debtTokensFor, nightTokensFor, startingWheel } from './house.js';
 import { commitCtx, interestRateFor, lifecycle, sources } from './effects.js';
 import { add, ceil, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
@@ -488,7 +488,7 @@ const HANDLERS = {
     }
 
     s.deposited = sub(s.deposited, due);
-    const rewardTokens = ECONOMY.debtRewardTokens + ECONOMY.sitOutTokens * s.satOut;
+    const rewardTokens = ECONOMY.debtRewardTokens + debtTokensFor(s) + ECONOMY.sitOutTokens * s.satOut;
     const rewardCoins = mul(spinCostFor(s.debt + 1), ECONOMY.rewardSpins);
     s.tokens += rewardTokens;
     s.stats.tokensEarned += rewardTokens;

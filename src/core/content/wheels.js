@@ -7,8 +7,9 @@ import { AMERICAN_ORDER, EUROPEAN_ORDER, MIRROR_ORDER } from '../wheel.js';
 //   order        the numbers round the rim, from the zero, clockwise
 //   lock         the Vault lock that opens it (0: open from the start)
 //   nightTokens  tokens added to the night's token at the Cage
+//   debtTokens   tokens added to a paid debt's reward
 //   gilded       this many pockets start gilded, drawn on the pockets stream
-//   boneBlacks   every black pocket starts Bone
+//   bone         this many black pockets start Bone, spread evenly round the rim
 //   debtMult     every debt owes this much more
 //   devilFrom    the debt the Devil is live from (doc 5.7: debt 3)
 //
@@ -28,8 +29,8 @@ export const WHEEL_LIST = [
     name: 'American',
     lock: 1,
     order: AMERICAN_ORDER,
-    nightTokens: 2,
-    upside: '+2 tokens at the end of every night.',
+    debtTokens: 2,
+    upside: '+2 tokens each time a debt is paid.',
     downside: 'A 00 pocket across from the zero: 38 pockets, and 00 is in no outside bet.',
   },
   {
@@ -38,18 +39,18 @@ export const WHEEL_LIST = [
     lock: 2,
     order: EUROPEAN_ORDER,
     gilded: 6,
-    debtMult: 1.5,
+    debtMult: 1.25,
     upside: '6 pockets start gilded: chips that win there pay ×2.',
-    downside: 'Every debt owes half again as much.',
+    downside: 'Every debt owes a quarter more.',
   },
   {
     id: 'bone',
     name: 'Bone',
     lock: 3,
     order: EUROPEAN_ORDER,
-    boneBlacks: true,
+    bone: 6,
     devilFrom: 1,
-    upside: 'Every black pocket is Bone: +1 token whenever the ball lands there.',
+    upside: 'Every third black pocket is Bone: +1 token whenever the ball lands there.',
     downside: 'The Devil is live from debt 1.',
   },
   {

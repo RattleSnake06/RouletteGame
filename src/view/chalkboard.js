@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { tableCell } from '../core/bets.js';
+import { numberLabel } from '../core/wheel.js';
 import { SANS } from '../ui/fonts.js';
 import { mulberry32 } from './textures.js';
 
@@ -78,8 +79,11 @@ function paint(ctx, stats) {
   const y0 = 112;
   const cw = (W - 40 - x0) / 12;
   const ch = 118;
+  // With a 00 (the American wheel) the zero's cell splits, 00 above, as on the felt.
+  const doubleZero = stats.numbers.length > 37;
   const cell = (n) => {
-    if (n === 0) return { x: 40, y: y0, w: x0 - 52, h: ch * 3 };
+    if (n === 0) return doubleZero ? { x: 40, y: y0 + ch * 1.5, w: x0 - 52, h: ch * 1.5 } : { x: 40, y: y0, w: x0 - 52, h: ch * 3 };
+    if (n === 37) return { x: 40, y: y0, w: x0 - 52, h: ch * 1.5 };
     const { col, row } = tableCell(n);
     return { x: x0 + col * cw, y: y0 + (2 - row) * ch, w: cw, h: ch };
   };
@@ -89,7 +93,7 @@ function paint(ctx, stats) {
     const cy = c.y + c.h / 2;
     ctx.strokeRect(c.x + 4, c.y + 4, c.w - 8, c.h - 8);
     if (!v.count) {
-      chalk(ctx, String(v.number), cx, cy - 18, 40, CHALK.dim, 100 + v.number);
+      chalk(ctx, numberLabel(v.number), cx, cy - 18, 40, CHALK.dim, 100 + v.number);
       ctx.save();
       ctx.strokeStyle = CHALK.dim;
       ctx.beginPath();
@@ -100,7 +104,7 @@ function paint(ctx, stats) {
       continue;
     }
     const color = v.colors.length > 1 ? CHALK.yellow : v.colors[0] === 'red' ? CHALK.red : v.colors[0] === 'green' ? CHALK.green : CHALK.white;
-    chalk(ctx, String(v.number), cx, cy - 20, 44, color, 100 + v.number, { weight: 600 });
+    chalk(ctx, numberLabel(v.number), cx, cy - 20, 44, color, 100 + v.number, { weight: 600 });
     // Above its fair chance it is chalked bright and underlined; below, dim.
     const ratio = v.chance / stats.fair;
     const shade = ratio > 1.02 ? CHALK.yellow : ratio < 0.98 ? CHALK.dim : CHALK.white;
@@ -132,7 +136,7 @@ function paint(ctx, stats) {
     y += 58;
   };
   const c = stats.colors;
-  line(`RED ${pct(c.red)}%   BLACK ${pct(c.black)}%   ZERO ${pct(c.green)}%${stats.blanks ? `   BLANK ${pct(c.blank)}%` : ''}`, 401);
+  line(`RED ${pct(c.red)}%   BLACK ${pct(c.black)}%   ${stats.house ? 'GREEN' : 'ZERO'} ${pct(c.green)}%${stats.blanks ? `   BLANK ${pct(c.blank)}%` : ''}`, 401);
   line(`DOZENS ${stats.dozens.map(pct).join('% · ')}%   COLUMNS ${stats.columns.map(pct).join('% · ')}%`, 402);
   line(`1–18 ${pct(stats.halves.low)}%   19–36 ${pct(stats.halves.high)}%   ODD ${pct(stats.halves.odd)}%   EVEN ${pct(stats.halves.even)}%`, 403);
   // The pockets wheel work has changed, by what was done to them.

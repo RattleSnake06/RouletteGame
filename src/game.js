@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { getBet } from './core/bets.js';
-import { getEnhancement, getFortune, getMaterial, getOddity, getRecord, getTalisman } from './core/content/index.js';
-import { chipSets, isUnlocked, recordDebtPaid, serializeProfile } from './core/meta.js';
+import { ACHIEVEMENTS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from './core/content/index.js';
+import { almanacView, applyRun, chipSets, edgeChoices, endRun, goalFor, isUnlocked, runOptions, serializeProfile, standingFigures, wheelChoices } from './core/meta.js';
+import { nightTokensFor } from './core/house.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
 import { baseFactors } from './core/payout.js';
@@ -9,8 +10,10 @@ import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, hooksFor, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
 import { bellView, cabinetView, gramophoneView, levelsView, luckView, numbersView, oracleView, pickView, previewBet, railView, statsView, wheelView } from './core/selectors.js';
+import { numberLabel } from './core/wheel.js';
 import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
+import { showAlmanac } from './ui/almanac.js';
 import { showModal } from './ui/hud.js';
 import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, placardNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
@@ -80,7 +83,7 @@ const BET_NAME = { straight: 'Straight-ups', split: 'Splits', street: 'Streets',
 const describePocket = (o) => `${o.color ?? 'blank'} · ${enhName(o.enh)}${o.width !== 1 ? ` · ${o.width} wide` : ''}`;
 function workLine(works) {
   const said = works.map((e) => {
-    const n = e.number === null ? 'a blank' : e.number;
+    const n = e.number === null ? 'a blank' : numberLabel(e.number);
     switch (e.op) {
       case 'gild':
         return `${n} ${e.enh === 'platinum' ? 'platinum' : 'gilded'}`;
@@ -141,8 +144,8 @@ export class Game {
     const saved = this.platform.load('run');
     let state = saved ? deserializeRun(saved) : null;
     const seed = new URLSearchParams(window.location.search).get('seed');
-    if (seed && (!state || state.phase === PHASE.GAME_OVER)) state = createRun({ seed: seed.toUpperCase() });
-    this.state = state ?? createRun({ seed: randomSeed() });
+    if (seed && (!state || state.phase === PHASE.GAME_OVER)) state = createRun({ seed: seed.toUpperCase(), ...runOptions(this.profile) });
+    this.state = state ?? createRun({ seed: randomSeed(), ...runOptions(this.profile) });
     this.save();
     this.syncAll();
     this.ball.restAt(this.state.lastSpin?.pocketIndex ?? 0);
@@ -151,18 +154,24 @@ export class Game {
       this.busy = true;
       const id = this.runId;
       // From the main menu, a lost run is simply over: Play begins the next.
-      setTimeout(() => id === this.runId && !this.atMenu && this.showCollected(), 600);
+      setTimeout(() => id === this.runId && !this.atMenu && (this.state.outcome?.reason === 'left' ? this.showLeft() : this.showCollected()), 600);
     }
   }
 
-  /** A fresh run with this chip set (decision 26); the current run's set by default. */
+  /**
+   * A fresh run with this chip set (decision 26), the current run's set by
+   * default, on the wheel and at the House Edge chosen (doc 7.2).
+   */
   newRun(chipSet = this.state?.chipSet) {
+    // A run in progress that a new one replaces was given up: it leaves its figure (doc 7.3).
+    if (this.continueLine()) this.recordEnd('gaveUp');
     this.runId += 1;
     this.leanShown = null;
     clearTimeout(this.leanTimer);
     this.leanTimer = null;
     this.clearFocus();
-    this.state = createRun({ seed: randomSeed(), chipSet });
+    const { wheel, edge } = this.chosenSetup();
+    this.state = createRun({ seed: randomSeed(), chipSet, wheel, edge, ...runOptions(this.profile) });
     this.save();
     this.power = 1;
     this.busy = false;
@@ -179,6 +188,95 @@ export class Game {
 
   saveProfile() {
     this.platform.save('profile', serializeProfile(this.profile));
+  }
+
+  /** The Vault's padlocks and the figures in the dark follow the profile (doc 7.1, 7.3). */
+  syncRoom() {
+    this.vault?.sync({ locks: this.profile.locks, open: this.profile.vault });
+    this.syncFigures();
+  }
+
+  syncFigures() {
+    this.figures?.sync(standingFigures(this.profile));
+  }
+
+  /** The run ended: the profile keeps its figure (unless it stepped out) and its numbers. */
+  recordEnd(cause) {
+    this.profile = endRun(this.profile, this.state, cause);
+    this.saveProfile();
+    this.syncFigures();
+  }
+
+  // ---- The run's setup: its wheel and House Edge (doc 7.2) -------------------
+
+  /** The wheel and edge last chosen, kept to those still open. */
+  chosenSetup() {
+    let saved = null;
+    try {
+      saved = JSON.parse(this.platform.load('setup') ?? 'null');
+    } catch {
+      saved = null;
+    }
+    const wheels = wheelChoices(this.profile).filter((w) => w.unlocked);
+    const wheel = wheels.find((w) => w.id === saved?.wheel)?.id ?? 'european';
+    const edge = Number.isInteger(saved?.edge) ? Math.max(0, Math.min(saved.edge, this.profile.edge)) : 0;
+    return { wheel, edge };
+  }
+
+  setupView() {
+    const { wheel, edge } = this.chosenSetup();
+    return {
+      goal: goalFor(this.profile),
+      wheel: wheelChoices(this.profile).find((w) => w.id === wheel),
+      edge: edgeChoices(this.profile)[edge],
+      wheels: wheelChoices(this.profile).filter((w) => w.unlocked).length,
+      edges: edgeChoices(this.profile).filter((e) => e.unlocked).length,
+    };
+  }
+
+  saveSetup(change) {
+    this.platform.save('setup', JSON.stringify({ ...this.chosenSetup(), ...change }));
+    this.menu.setSetup(this.setupView());
+  }
+
+  /** The starting wheels: the open ones to choose, the locked ones and what opens them. */
+  chooseWheel() {
+    const list = wheelChoices(this.profile);
+    const now = this.chosenSetup().wheel;
+    showModal({
+      kicker: 'The wheel',
+      title: 'Choose the wheel',
+      lines: list.map((w) => (w.unlocked ? `<b>${escapeHtml(w.name)}</b>: ${escapeHtml(w.upside)} <i>${escapeHtml(w.downside)}</i>` : `<b>${escapeHtml(w.name)}</b>: locked. ${escapeHtml(w.unlocks)}`)),
+      actions: [
+        { label: 'Keep it', primary: true },
+        ...list.filter((w) => w.unlocked && w.id !== now).map((w) => ({ label: `${w.name} wheel`, onClick: () => this.saveSetup({ wheel: w.id }) })),
+      ],
+    });
+  }
+
+  /** House Edge 0 to 5: each level stacks the ones before it. */
+  chooseEdge() {
+    const list = edgeChoices(this.profile);
+    const now = this.chosenSetup().edge;
+    showModal({
+      kicker: 'House Edge',
+      title: 'How hard is the House?',
+      lines: [
+        'Each level keeps the rules of the levels before it.',
+        ...list.slice(1).map((e) => (e.unlocked ? `<b>${e.level}. ${escapeHtml(e.name)}</b>: ${escapeHtml(e.text)}` : `<b>${e.level}.</b> Locked. ${escapeHtml(e.unlocks)}`)),
+      ],
+      actions: [
+        { label: 'Keep it', primary: true },
+        ...list.filter((e) => e.unlocked && e.level !== now).map((e) => ({ label: e.level ? `House Edge ${e.level}` : 'No House Edge', onClick: () => this.saveSetup({ edge: e.level }) })),
+      ],
+    });
+  }
+
+  /** The Almanac (doc 7.4), from the main menu, the pause menu or the book on the table. */
+  openAlmanac() {
+    if (this.almanac) return;
+    const names = (id) => getMaterial(id)?.id === id ? getMaterial(id).name : (contentName(id) ?? id);
+    this.almanac = showAlmanac(almanacView(this.profile), { names, onClose: () => (this.almanac = null) });
   }
 
   // ---- The main menu and the chip select (doc 7.5) ---------------------------
@@ -241,7 +339,7 @@ export class Game {
   }
 
   openChipSelect() {
-    this.menu.showChips(chipSets(this.profile), this.state?.chipSet);
+    this.menu.showChips(chipSets(this.profile), this.state?.chipSet, this.setupView());
   }
 
   menuBack() {
@@ -279,6 +377,15 @@ export class Game {
     }
     this.state = state;
     this.save();
+    // The profile follows the run (doc 7): locks, edges, the Vault, what was seen, feats.
+    const { profile, news } = applyRun(this.profile, state, events);
+    if (profile !== this.profile) {
+      this.profile = profile;
+      this.saveProfile();
+    }
+    this.news = news;
+    const feats = news.filter((n) => n.kind === 'achievement').map((n) => ACHIEVEMENTS.find((a) => a.id === n.id)?.name);
+    if (feats.length) setTimeout(() => this.hud.toast(`In the Almanac: ${feats.join(', ')}`, 2600), 900);
     return events;
   }
 
@@ -290,6 +397,7 @@ export class Game {
     if (this.feltZoom && !this.picking && ((s.phase !== PHASE.BETTING && s.phase !== PHASE.ROUND_START) || this.view !== 'table')) this.zoomFelt(false);
     this.table.syncChips(s);
     this.table.updateMarquee(s.history);
+    this.syncRoom();
     this.hud.setCoins(s.coins);
     this.syncItems();
     this.syncSpins();
@@ -404,7 +512,7 @@ export class Game {
   /** HUD debt, the Cage's counters, hints and navigation. */
   syncStatus() {
     const s = this.state;
-    this.hud.setDebt({ debt: s.debt, banked: s.deposited, owed: owed(s), round: s.round, rounds: ECONOMY.roundsPerDebt });
+    this.hud.setDebt({ debt: s.debt, goal: s.won ? null : s.goal, banked: s.deposited, owed: owed(s), round: s.round, rounds: ECONOMY.roundsPerDebt });
     const keep = this.keepAmount();
     this.cage.sync({
       owed: owed(s),
@@ -414,7 +522,7 @@ export class Game {
       round: s.round,
       keep,
       canEnd: s.phase === PHASE.NIGHT_OVER,
-      endLabel: s.phase === PHASE.NIGHT_OVER ? (isFinalNight(s) ? 'the Cage collects' : `interest + ${plural(ECONOMY.nightTokens, 'token')}`) : 'spin first',
+      endLabel: s.phase === PHASE.NIGHT_OVER ? (isFinalNight(s) ? 'the Cage collects' : nightTokensFor(s) ? `interest + ${plural(nightTokensFor(s), 'token')}` : 'interest') : 'spin first',
       rate: interestRate(s),
     });
     this.updateHint();
@@ -950,18 +1058,19 @@ export class Game {
     if (paid) {
       this.audio.debtPaid();
       this.table.hidePackages();
-      // The profile keeps the furthest debt per chip set; debt 4 opens the next set.
-      const record = recordDebtPaid(this.profile, { chipSet: this.state.chipSet, debtsPaid: this.state.stats.debtsPaid });
-      this.profile = record.profile;
-      this.saveProfile();
-      const unlocked = record.unlocked ? [`<b>${getMaterial(record.unlocked).name} chips</b> are unlocked. Choose them on the main menu for a new run.`] : [];
-      showModal({
+      // What the payment opened (dispatch kept it in the profile): a chip set,
+      // a lock of the Vault, a House Edge level. At the goal the Cage would
+      // let the player go (doc 7.1).
+      const opened = this.newsLines(this.news ?? []);
+      const goal = events.find((e) => e.type === 'goalReached');
+      const goalLines = goal ? ['This was your goal. The Cage would let you go: <b>step out of the light</b> and the run is won. Or play on, as far as the debts let you.'] : [];
+      const card = () => showModal({
         className: 'paid',
         kicker: 'The Cage',
         title: `Debt ${paid.debt}`,
         struck: true,
         after: 'paid',
-        lines: [`The Cage takes its <b>${format(paid.owed)}</b>. Debt ${paid.debt + 1} is <b>${format(owed(this.state))}</b>.`, ...unlocked],
+        lines: [`The Cage takes its <b>${format(paid.owed)}</b>. Debt ${paid.debt + 1} is <b>${format(owed(this.state))}</b>.`, ...opened, ...goalLines],
         ledger: [
           ['Left in the Cage', format(paid.surplus)],
           [paid.satOut ? `Tokens (${plural(paid.satOut, 'night')} sat out)` : 'Tokens', `+${paid.rewardTokens}`, 'tok'],
@@ -970,15 +1079,93 @@ export class Game {
           // The toast for a talisman used up at dawn is hidden under this modal.
           ...events.filter((e) => e.type === 'talismanDestroyed').map((e) => [getTalisman(e.id)?.name ?? e.id, e.reason]),
         ],
-        actions: [{ label: 'Continue', primary: true, onClick: () => this.syncAll() }],
+        actions: goal
+          ? [
+              { label: 'Step out of the light', primary: true, onClick: () => this.stepOut() },
+              { label: 'Keep playing', onClick: () => this.syncAll() },
+            ]
+          : [{ label: 'Continue', primary: true, onClick: () => this.syncAll() }],
       });
+      if (events.some((e) => e.type === 'vaultOpened')) this.showVault(card);
+      else card();
+      this.syncRoom();
       this.hud.setCoins(this.state.coins, { animate: true });
     } else {
       this.audio.card();
     }
   }
 
+  /** What the profile's news says, as lines for the debt-paid card. */
+  newsLines(news) {
+    const lines = [];
+    for (const n of news) {
+      if (n.kind === 'chips') lines.push(`<b>${escapeHtml(getMaterial(n.id).name)} chips</b> are unlocked. Choose them on the main menu for a new run.`);
+      else if (n.kind === 'lock') {
+        const wheels = n.wheels.map((id) => `the ${getStartingWheel(id).name} wheel`).join(' and ');
+        lines.push(`<b>Lock ${n.lock} of the Vault</b> falls open: ${wheels} can be chosen for a new run${n.slot ? ', and the gramophone takes a second record' : ''}. A new run’s goal is debt ${4 + n.lock}.`);
+      } else if (n.kind === 'edge') lines.push(`<b>House Edge ${n.level}</b> is open for a new run: ${escapeHtml(edgeChoices(this.profile)[n.level].name.toLowerCase())}.`);
+    }
+    return lines;
+  }
+
+  /** The Vault opens (doc 7.1): the ending, for now a card, and the House lets you play on. */
+  showVault(then) {
+    this.audio.debtPaid();
+    showModal({
+      className: 'paid',
+      kicker: 'The Vault',
+      title: 'The Vault opens',
+      lines: [
+        'The fourth padlock drops. Behind the iron door there is no gold: a small room, one chair, and a wheel no bigger than a plate, still turning.',
+        'On the wall, in her hand: <b>ZERO IS NOT EMPTY. SHE WAS A PLAYER ONCE.</b>',
+        'The House will let you play on now, for as long as the debts let you.',
+      ],
+      actions: [{ label: 'Continue', primary: true, onClick: () => then?.() }],
+    });
+  }
+
+  /** Past the goal: the run is won and ends, and no figure is left in the dark (doc 7.1). */
+  stepOut() {
+    if (this.busy || this.menuClose) return;
+    const events = this.dispatch({ type: 'leave' });
+    if (!events) return;
+    this.recordEnd('left');
+    this.busy = true;
+    this.setLocked(true);
+    this.syncAll();
+    this.showLeft();
+  }
+
+  showLeft() {
+    const s = this.state;
+    showModal({
+      className: 'paid',
+      kicker: 'The Cage',
+      title: 'You step out of the light',
+      lines: [`Debt ${s.outcome.debtsPaid} paid, and the Cage lets you go. No figure of yours joins the others in the dark.`],
+      ledger: [
+        ['Debts paid', String(s.stats.debtsPaid)],
+        ['Wheel', `${getStartingWheel(s.wheelId).name}${s.edge ? `, House Edge ${s.edge}` : ''}`],
+        ['Best spin', format(s.stats.bestSpin)],
+        ['Rail', s.rail.length ? s.rail.map((t) => getTalisman(t.id)?.name ?? t.id).join(', ') : 'bare'],
+        ['Seed', s.seed, 'seed'],
+      ],
+      actions: [
+        {
+          label: 'Begin again',
+          primary: true,
+          onClick: () => {
+            this.showMainMenu();
+            this.openChipSelect();
+          },
+        },
+      ],
+    });
+  }
+
   gameOver() {
+    // The run leaves its figure in the dark (doc 7.3).
+    this.recordEnd('collected');
     this.busy = true;
     this.setLocked(true);
     this.syncAll();
@@ -996,7 +1183,7 @@ export class Game {
       className: 'collected',
       kicker: 'The House',
       title: 'Collected',
-      lines: [`You owed <b>${format(o.owed)}</b> and had <b>${format(o.deposited)}</b> in the Cage. The House took the rest.`],
+      lines: [`You owed <b>${format(o.owed)}</b> and had <b>${format(o.deposited)}</b> in the Cage. The House took the rest.`, 'You join the figures in the dark.'],
       ledger: [
         ['Debts paid', String(s.stats.debtsPaid)],
         ['Spins', String(s.stats.spins)],
@@ -1118,18 +1305,24 @@ export class Game {
     if (this.view !== 'oracle') return;
     this.clearNote();
     const g = gramophoneView(this.state);
-    const lines = g.playing ? [`<b>${escapeHtml(g.playing.name)}</b> plays. ${escapeHtml(g.playing.rule)}`] : ['Nothing plays. The hall hums.'];
-    if (!g.crate.length) lines.push('<i>The crate is empty. Records come from Madame Zero’s cards.</i>');
+    // Two slots once the Vault's second lock is open: a record goes on the
+    // first free one, or in place of the first.
+    const on = [g.playing, g.second].filter(Boolean);
+    const lines = on.length ? on.map((r) => `<b>${escapeHtml(r.name)}</b> plays. ${escapeHtml(r.rule)}`) : ['Nothing plays. The hall hums.'];
+    if (g.slots > 1) lines.push(`<i>The gramophone plays two records at once.</i>`);
+    if (!g.crate.length) lines.push('<i>The crate is empty. Records come from Madame Zero’s cards and the Cabinet.</i>');
     for (const r of g.crate.filter((x) => !x.playing)) lines.push(`${escapeHtml(r.name)}: ${escapeHtml(r.rule)}`);
+    const free = !g.playing ? 0 : g.slots > 1 && !g.second ? 1 : 0;
     const actions = [{ label: 'Leave it', primary: true }];
-    for (const r of g.crate.filter((x) => !x.playing)) actions.push({ label: `Play ${r.name}`, onClick: () => this.playRecord(r.id) });
-    if (g.playing) actions.push({ label: 'Lift the needle', onClick: () => this.playRecord(null) });
-    showModal({ kicker: 'The gramophone', title: g.playing ? g.playing.name : 'Nothing plays', lines, actions });
+    for (const r of g.crate.filter((x) => !x.playing)) actions.push({ label: `Play ${r.name}`, onClick: () => this.playRecord(r.id, free) });
+    if (g.playing) actions.push({ label: g.second ? `Lift ${g.playing.name}` : 'Lift the needle', onClick: () => this.playRecord(null, 0) });
+    if (g.second) actions.push({ label: `Lift ${g.second.name}`, onClick: () => this.playRecord(null, 1) });
+    showModal({ kicker: 'The gramophone', title: on.length ? on.map((r) => r.name).join(' & ') : 'Nothing plays', lines, actions });
   }
 
-  playRecord(id) {
+  playRecord(id, slot = 0) {
     if (this.busy || this.menuClose) return;
-    const events = this.dispatch({ type: 'playRecord', id });
+    const events = this.dispatch({ type: 'playRecord', id, slot });
     if (!events) return;
     this.syncAll();
     this.playRecordEvents(events);
@@ -1735,7 +1928,7 @@ export class Game {
             ...(e.number === null
               ? [['a blank pocket', 'bone']]
               : [
-                  [`${e.number} `, e.color === 'red' ? 'blood' : e.color === 'green' ? 'green' : 'bone'],
+                  [`${numberLabel(e.number)} `, e.color === 'red' ? 'blood' : e.color === 'green' ? 'green' : 'bone'],
                   [e.color, 'dim'],
                 ]),
           ],
@@ -1882,7 +2075,7 @@ export class Game {
       this.table.flashResult(first.number);
       this.hud.flavor(
         [
-          [first.number === null ? 'A blank ' : `${first.number} `, colorTone(first.color)],
+          [first.number === null ? (first.color === 'green' ? 'The House’s pocket ' : 'A blank ') : `${numberLabel(first.number)} `, colorTone(first.color)],
           // Nudge can move the ball off the foreseen pocket.
           [result.foreseen && !result.firstHops.length ? 'as foreseen, pays nothing...' : 'pays nothing...', 'dim'],
         ],
@@ -1920,7 +2113,7 @@ export class Game {
       this.hud.flavor(
         [
           // A blank pocket has no number and no colour: nothing wins there.
-          [result.number === null ? 'Blank. ' : `${result.number} `, colorTone(result.color)],
+          [result.number === null ? (result.color === 'green' ? 'The House’s pocket. ' : 'Blank. ') : `${numberLabel(result.number)} `, colorTone(result.color)],
           // After a re-throw the Eye's landing was thrown away: this one was not foreseen.
           [result.number === null ? 'Nothing wins there.' : result.foreseen && !first && !result.hops.length ? `${result.color}, as foreseen` : result.color, 'dim'],
         ],
@@ -2125,6 +2318,9 @@ export class Game {
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
         { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
+        { label: 'Almanac', onClick: () => ((this.menuClose = null), this.openAlmanac()) },
+        // Past the goal the run can be won and ended here too (doc 7.1).
+        ...(s.won ? [{ label: 'Step out of the light', onClick: () => ((this.menuClose = null), this.stepOut()) }] : []),
         // Giving up a run is Main menu, then Play: it asks first (doc 7.5).
         { label: 'Main menu', onClick: () => ((this.menuClose = null), this.showMainMenu()) },
       ],

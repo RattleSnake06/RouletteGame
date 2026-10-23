@@ -41,10 +41,10 @@ describe('starting wheels', () => {
     expect(getBet('straight:37').label).toBe('Straight up 00');
   });
 
-  it('the American wheel pays +2 tokens a night more', () => {
-    const s = { ...run({ wheel: 'american' }), phase: 'nightOver' };
-    const r = play(s, { type: 'endNight' });
-    expect(r.events.find((e) => e.type === 'tokens')).toMatchObject({ amount: 3, reason: 'night' });
+  it('the American wheel pays 2 tokens more for a paid debt', () => {
+    const r = play(atCage(run({ wheel: 'american' }), 1, 1000), { type: 'endNight' });
+    expect(r.events.find((e) => e.type === 'debtPaid').rewardTokens).toBe(4);
+    expect(play(atCage(run(), 1, 1000), { type: 'endNight' }).events.find((e) => e.type === 'debtPaid').rewardTokens).toBe(2);
   });
 
   it('00 is worked like any number on the American wheel, and on no other', () => {
@@ -64,23 +64,24 @@ describe('starting wheels', () => {
     expect(s.wheel.pockets[at(s, 18)].color).toBe('red');
   });
 
-  it('the Gilded wheel starts with 6 gilded pockets and owes half again', () => {
+  it('the Gilded wheel starts with 6 gilded pockets and owes a quarter more', () => {
     const s = run({ wheel: 'gilded' });
     const gilded = s.wheel.pockets.filter((p) => p.enh === 'gilded');
     expect(gilded).toHaveLength(6);
     expect(gilded.every((p) => p.number > 0)).toBe(true);
-    expect(owed(s)).toBe(90);
-    expect(owed(s, 2)).toBe(600);
+    expect(owed(s)).toBe(75);
+    expect(owed(s, 2)).toBe(500);
     // The draw is the run's own: the same seed gilds the same pockets.
     expect(run({ wheel: 'gilded' }).wheel.pockets.filter((p) => p.enh === 'gilded').map((p) => p.id)).toEqual(gilded.map((p) => p.id));
     // The other wheels draw nothing, so a European run is the run it always was.
     expect(run().rng).toEqual(createRun({ seed: 'PHASE-SIX' }).rng);
   });
 
-  it('the Bone wheel makes every black pocket Bone and wakes the Devil at debt 1', () => {
+  it('the Bone wheel makes every third black pocket Bone and wakes the Devil at debt 1', () => {
     const s = run({ wheel: 'bone' });
-    expect(s.wheel.pockets.filter((p) => p.color === 'black').every((p) => p.enh === 'bone')).toBe(true);
-    expect(s.wheel.pockets.filter((p) => p.enh === 'bone')).toHaveLength(18);
+    const blacks = s.wheel.pockets.filter((p) => p.color === 'black');
+    expect(blacks.map((p) => p.enh)).toEqual(blacks.map((_, i) => (i % 3 ? null : 'bone')));
+    expect(s.wheel.pockets.filter((p) => p.enh === 'bone')).toHaveLength(6);
     expect(devilLive(s)).toBe(true);
     expect(devilLive(run())).toBe(false);
   });
@@ -102,19 +103,17 @@ describe('House Edge', () => {
     expect(statsView(s).colors.green).toBeCloseTo(2 / 38, 12);
   });
 
-  it('level 2 wakes the Devil at debt 2; level 3 pays no token at night', () => {
+  it('level 2 wakes the Devil at debt 2; at level 3 a paid debt gives a token less', () => {
     expect(devilLive({ ...run({ edge: 1 }), debt: 2 })).toBe(false);
     expect(devilLive({ ...run({ edge: 2 }), debt: 2 })).toBe(true);
-    const r = play({ ...run({ edge: 3 }), phase: 'nightOver' }, { type: 'endNight' });
-    expect(r.events.find((e) => e.type === 'tokens')).toMatchObject({ amount: 0 });
-    // The American wheel's tokens still come, less the one.
-    const am = play({ ...run({ edge: 3, wheel: 'american' }), phase: 'nightOver' }, { type: 'endNight' });
-    expect(am.events.find((e) => e.type === 'tokens').amount).toBe(2);
+    const r = play(atCage(run({ edge: 3 }), 1, 1000), { type: 'endNight' });
+    expect(r.events.find((e) => e.type === 'debtPaid').rewardTokens).toBe(1);
+    expect(r.events.find((e) => e.type === 'tokens')).toMatchObject({ amount: 1 });
   });
 
   it('level 4 makes debts owe a quarter more; level 5 weakens every Lean by 1', () => {
     expect(owed(run({ edge: 4 }))).toBe(75);
-    expect(owed(run({ edge: 4, wheel: 'gilded' }))).toBe(113);
+    expect(owed(run({ edge: 4, wheel: 'gilded' }))).toBe(94);
     const plain = run();
     const spin = plain.leans.debt[0].at;
     const s = { ...plain, phase: 'betting', debtSpins: spin - 1, spinsLeft: 3, spinsTonight: 7 };

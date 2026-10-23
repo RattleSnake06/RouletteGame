@@ -293,8 +293,9 @@ export function createHud(root = document.body) {
     }
   }
 
-  function setDebt({ debt, banked, owed, round, rounds }) {
-    refs.debtNo.textContent = `debt ${debt}`;
+  /** `goal` is the run's goal debt (doc 7.1), or null once it is reached. */
+  function setDebt({ debt, goal = null, banked, owed, round, rounds }) {
+    refs.debtNo.textContent = goal ? `debt ${debt} of ${goal}` : `debt ${debt}`;
     setNights(round, rounds);
     refs.banked.textContent = format(banked);
     refs.owed.textContent = format(owed);
@@ -303,7 +304,7 @@ export function createHud(root = document.body) {
     const fill = covered ? 1 : Math.max(0, Math.min(1, ratio(banked, owed)));
     refs.meterFill.style.clipPath = `inset(0 ${((1 - fill) * 100).toFixed(1)}% 0 0)`;
     owedStrike.style.width = `${(scrawlEm(format(owed)) * 1.15 + 0.2).toFixed(2)}em`;
-    refs.debtSr.textContent = `Debt ${debt}, night ${round} of ${rounds}: ${format(banked)} banked of ${format(owed)} owed.${covered ? ' Covered.' : ''}`;
+    refs.debtSr.textContent = `Debt ${debt}${goal ? ` of ${goal}` : ''}, night ${round} of ${rounds}: ${format(banked)} banked of ${format(owed)} owed.${covered ? ' Covered.' : ''}`;
     const key = `${debt}/${format(banked)}/${format(owed)}/${round}`;
     if (debtKey && key !== debtKey) flare(refs.debtCluster);
     debtKey = key;

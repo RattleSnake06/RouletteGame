@@ -1751,6 +1751,28 @@ img.mark {
   font-size: calc(32 * var(--u));
 }
 
+/* The wheel and the House Edge (doc 7.2), between Back and Begin. */
+.ts-picks {
+  display: flex;
+  gap: calc(18 * var(--u));
+  align-items: center;
+}
+
+.ts-picks[hidden],
+.ts-pick[hidden] {
+  display: none;
+}
+
+.ts-pick .label {
+  font-size: calc(30 * var(--u));
+  line-height: 1.1;
+}
+
+.ts-pick .sub {
+  font-size: calc(15 * var(--u));
+  line-height: 1.3;
+}
+
 /* Choosing where wheel work goes (doc 5.4): the felt close-up, the numbers
    it can act on lit, and this bar over the felt's foot (the outside bets,
    which take no wheel work). */
@@ -1863,4 +1885,194 @@ img.mark {
 .hud-pick .pick-btn.primary {
   border-color: rgba(196, 154, 82, 0.9);
   color: #f3dfb0;
+}
+
+/* ---- The Almanac (doc 7.4) ---- */
+
+.almanac {
+  place-items: stretch;
+  background: rgba(3, 2, 2, 0.96);
+  padding: calc(10px + var(--safe-t, 0px)) calc(16px + var(--safe-r, 0px)) calc(10px + var(--safe-b, 0px)) calc(16px + var(--safe-l, 0px));
+}
+
+.almanac-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 100%);
+  max-height: 100%;
+  margin: 0 auto;
+  min-height: 0;
+  color: var(--bone);
+}
+
+.alm-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.alm-head h2 {
+  margin: 0;
+  font-size: clamp(26px, 3.6vw, 46px);
+  font-weight: 400;
+}
+
+.alm-count {
+  flex: 1;
+  font-size: 14px;
+  color: var(--bone-dim);
+}
+
+.alm-close,
+.alm-tab {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 4px 10px;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.alm-close .label {
+  font-size: 24px;
+}
+
+.alm-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+}
+
+.alm-tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  opacity: 0.6;
+  border-bottom: 2px solid transparent;
+}
+
+.alm-tab .label {
+  font-size: 20px;
+}
+
+.alm-tab .n {
+  font-size: 12px;
+  color: var(--bone-dim);
+}
+
+.alm-tab.on {
+  opacity: 1;
+  border-bottom-color: var(--blood);
+}
+
+.alm-tab:focus-visible,
+.alm-close:focus-visible {
+  outline: 1px dashed var(--bone-faint);
+}
+
+.alm-rule {
+  width: 100%;
+  font-size: 1px;
+}
+
+.alm-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 2px 12px;
+  outline: none;
+}
+
+.alm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px 14px;
+}
+
+.alm-entry {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 8px;
+  background: rgba(16, 11, 9, 0.7);
+  border: 1px solid rgba(179, 169, 147, 0.14);
+}
+
+.alm-entry b {
+  font-size: 19px;
+  font-weight: 400;
+}
+
+.alm-entry span {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--bone-dim);
+}
+
+.alm-entry.unseen b {
+  color: rgba(179, 169, 147, 0.35);
+}
+
+.alm-entry.unseen span {
+  color: rgba(179, 169, 147, 0.25);
+}
+
+.alm-entry.feat:not(.done) {
+  opacity: 0.45;
+}
+
+.alm-entry .feat-mark {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 0.4px;
+}
+
+.alm-note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--bone-dim);
+}
+
+.alm-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alm-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding-bottom: 4px;
+  border-bottom: 1px dotted rgba(179, 169, 147, 0.18);
+}
+
+.alm-row b {
+  font-weight: 400;
+  font-size: 19px;
+  white-space: nowrap;
+}
+
+.alm-row span {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--bone-dim);
+}
+
+.alm-row.faded {
+  opacity: 0.45;
+}
+
+.alm-ledger.stats .alm-row {
+  justify-content: space-between;
+}
+
+.ts-pick {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
 }

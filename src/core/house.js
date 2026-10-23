@@ -6,7 +6,7 @@ import { DOUBLE_ZERO, createWheel, isBlank } from './wheel.js';
 // decision 29). A run keeps both from its start; these read them.
 //
 // House Edge levels stack: 1 the House's pocket, 2 the Devil from debt 2,
-// 3 no token at the end of a night, 4 debts ×1.25, 5 every Lean 1 weaker.
+// 3 a paid debt gives a token less, 4 debts ×1.25, 5 every Lean 1 weaker.
 
 export const EDGE_RULES = { devilFrom: 2, debtMult: 1.25, leanCut: 1 };
 
@@ -20,7 +20,11 @@ const edgeAt = (state, level) => (state.edge ?? 0) >= level;
 export function startingWheel(wheelId, edge, rng) {
   const def = getStartingWheel(wheelId);
   const wheel = createWheel(def.order);
-  if (def.boneBlacks) for (const p of wheel.pockets) if (p.color === 'black') p.enh = 'bone';
+  if (def.bone) {
+    const blacks = wheel.pockets.filter((p) => p.color === 'black');
+    const step = Math.max(1, Math.floor(blacks.length / def.bone));
+    blacks.forEach((p, i) => i % step === 0 && i / step < def.bone && (p.enh = 'bone'));
+  }
   if (def.gilded) {
     const free = wheel.pockets.filter((p) => p.color === 'red' || p.color === 'black');
     for (let i = 0; i < def.gilded && free.length; i++) free.splice(rng.int(free.length), 1)[0].enh = 'gilded';
@@ -37,7 +41,10 @@ export function startingWheel(wheelId, edge, rng) {
 export const debtMultiplier = (state) => getStartingWheel(state.wheelId).debtMult * (edgeAt(state, 4) ? EDGE_RULES.debtMult : 1);
 
 /** The tokens the Cage pays at the end of a night. */
-export const nightTokensFor = (state) => Math.max(0, ECONOMY.nightTokens + getStartingWheel(state.wheelId).nightTokens - (edgeAt(state, 3) ? 1 : 0));
+export const nightTokensFor = (state) => ECONOMY.nightTokens + getStartingWheel(state.wheelId).nightTokens;
+
+/** Tokens a paid debt adds to the usual reward: the American wheel's, less House Edge 3's. */
+export const debtTokensFor = (state) => getStartingWheel(state.wheelId).debtTokens - (edgeAt(state, 3) ? 1 : 0);
 
 /** The debt the Devil wakes at: the doc's debt 3, sooner on the Bone wheel or at House Edge 2. */
 export function devilFrom(state, base) {

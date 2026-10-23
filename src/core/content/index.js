@@ -75,7 +75,7 @@ const ENHANCEMENT_BY_ID = new Map(ENHANCEMENTS.map((d) => [d.id, d]));
 export const getEnhancement = (id) => (id ? (ENHANCEMENT_BY_ID.get(id) ?? null) : null);
 
 // Phase 6: starting wheels and House Edge levels (doc 7.2).
-export const STARTING_WHEELS = WHEEL_LIST.map((d) => Object.freeze({ nightTokens: 0, gilded: 0, boneBlacks: false, debtMult: 1, devilFrom: null, ...d }));
+export const STARTING_WHEELS = WHEEL_LIST.map((d) => Object.freeze({ nightTokens: 0, debtTokens: 0, gilded: 0, bone: 0, debtMult: 1, devilFrom: null, ...d }));
 const WHEEL_BY_ID = new Map(STARTING_WHEELS.map((d) => [d.id, d]));
 /** A starting wheel; an unknown one (an old save) is the European. */
 export const getStartingWheel = (id) => WHEEL_BY_ID.get(id) ?? STARTING_WHEELS[0];

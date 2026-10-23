@@ -443,6 +443,19 @@ export function createNumberStripTexture(cells, { cellW = 192, h = 150 } = {}) {
       ctx.fillRect(x0, 8, cellW, h * 0.13);
       ctx.fillStyle = 'rgba(80, 60, 30, 0.35)';
       for (let t = 1; t < 8; t++) ctx.fillRect(x0 + (cellW * t) / 8, 8, 2, h * 0.13);
+    } else if (enh === 'house') {
+      // The House's own pocket (House Edge, doc 7.2): no number, her green eye.
+      const cx = x0 + cellW / 2;
+      const cy = h * 0.5;
+      ctx.strokeStyle = '#9ff0b8';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, Math.min(cellW * 0.32, 40), h * 0.17, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#9ff0b8';
+      ctx.beginPath();
+      ctx.arc(cx, cy, h * 0.085, 0, Math.PI * 2);
+      ctx.fill();
     } else if (cells[i].color === 'blank' || cells[i].color === null) {
       // A blank: scored where its number was.
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
@@ -557,6 +570,7 @@ export function createPocketFloorTexture(cells, { cellW = 64, h = 32 } = {}) {
     lucky: ['#5fbf6a', '#245d2c'],
     cursed: ['#3f5f26', '#141f0b'],
     blank: ['#0e0d0c', '#050505'],
+    house: ['#2a9a58', '#0d4424'],
   };
   for (let i = 0; i < n; i++) {
     const look = FLOOR[cells[i].enh] ?? (cells[i].color === 'blank' ? FLOOR.blank : null);

@@ -61,7 +61,10 @@ function chipStack(set, w = 168, h = 96) {
 }
 
 /**
- * handlers: { onContinue, onPlay, onSettings, onBegin(setId), onBack }
+ * handlers: { onContinue, onPlay, onAlmanac, onSettings, onBegin(setId),
+ * onBack, onWheel, onEdge }. The chip select also chooses the starting wheel
+ * and the House Edge (doc 7.2): each a button that opens its list, shown once
+ * the Vault or a win has opened more than one.
  */
 export function createMainMenu(handlers) {
   const root = el('div', 'title-screen');
@@ -90,6 +93,7 @@ export function createMainMenu(handlers) {
   };
   const cont = item('Continue', () => handlers.onContinue?.());
   const playBtn = item('Play', () => handlers.onPlay?.());
+  item('Almanac', () => handlers.onAlmanac?.());
   item('Settings', () => handlers.onSettings?.());
   main.append(title, swipe, whisper, nav);
 
@@ -97,7 +101,8 @@ export function createMainMenu(handlers) {
   const chips = el('div', 'ts-chips');
   chips.hidden = true;
   const head = el('div', 'ts-chips-head');
-  head.append(el('h2', 'scrawl fat', 'Choose your chips'), el('p', 'typed', 'Pay debt 4 with a set, and the next one opens.'));
+  const goalLine = el('p', 'typed', 'Pay debt 4 with a set, and the next one opens.');
+  head.append(el('h2', 'scrawl fat', 'Choose your chips'), goalLine);
   const row = el('div', 'ts-row');
   const foot = el('div', 'ts-foot');
   const back = el('button', 'ts-item ts-back');
@@ -108,18 +113,45 @@ export function createMainMenu(handlers) {
   begin.type = 'button';
   begin.append(el('span', 'label scrawl fat', 'Begin'), el('span', 'sub typed'));
   begin.append(markImg(swipeMark(420, 110, 71, INK.bloodDeep, { slope: -0.03 }), 'ts-begin-swipe', 0.0125));
-  foot.append(back, begin);
+  const chooser = (onClick) => {
+    const b = el('button', 'ts-item ts-pick');
+    b.type = 'button';
+    b.append(el('span', 'label scrawl fat'), el('span', 'sub typed'));
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const wheelBtn = chooser(() => handlers.onWheel?.());
+  const edgeBtn = chooser(() => handlers.onEdge?.());
+  const picks = el('div', 'ts-picks');
+  picks.append(wheelBtn, edgeBtn);
+  foot.append(back, picks, begin);
   chips.append(head, row, foot);
   let selected = null;
   let sets = [];
   begin.addEventListener('click', () => selected && handlers.onBegin?.(selected));
 
+  let setup = null;
   function select(id) {
     const set = sets.find((s) => s.id === id);
     if (!set?.unlocked) return;
     selected = id;
     for (const card of row.children) card.classList.toggle('on', card.dataset.set === id);
     begin.querySelector('.sub').textContent = `with ${set.name} chips`;
+  }
+
+  /** The wheel and House Edge chosen, and how many of each are open. */
+  function drawSetup() {
+    if (!setup) return;
+    goalLine.textContent = `Your goal: pay debt ${setup.goal}. Pay debt 4 with a set, and the next one opens.`;
+    wheelBtn.hidden = setup.wheels < 2;
+    edgeBtn.hidden = setup.edges < 2;
+    picks.hidden = wheelBtn.hidden && edgeBtn.hidden;
+    wheelBtn.querySelector('.label').textContent = `${setup.wheel.name} wheel`;
+    wheelBtn.querySelector('.sub').textContent = 'change the wheel';
+    edgeBtn.querySelector('.label').textContent = setup.edge.level ? `House Edge ${setup.edge.level}` : 'No House Edge';
+    edgeBtn.querySelector('.sub').textContent = 'change the edge';
+    wheelBtn.setAttribute('aria-label', `${setup.wheel.name} wheel. ${setup.wheel.upside} ${setup.wheel.downside} Change the wheel.`);
+    edgeBtn.setAttribute('aria-label', `House Edge ${setup.edge.level}: ${setup.edge.text} Change the edge.`);
   }
 
   function drawSets() {
@@ -195,14 +227,25 @@ export function createMainMenu(handlers) {
       startWhispers();
       (line ? cont : playBtn).focus({ focusVisible: true });
     },
-    /** The chip select: every set, `last` chosen to begin with. */
-    showChips(list, last = null) {
+    /**
+     * The chip select: every set, `last` chosen to begin with. `run` is the
+     * rest of the run's setup: { goal, wheel, edge, wheels, edges } (the
+     * chosen wheel and edge, and how many of each are open).
+     */
+    showChips(list, last = null, run = null) {
       sets = list;
+      setup = run;
       drawSets();
+      drawSetup();
       main.hidden = true;
       chips.hidden = false;
       select(sets.find((s) => s.id === last && s.unlocked)?.id ?? sets.find((s) => s.unlocked).id);
       begin.focus({ focusVisible: true });
+    },
+    /** The wheel or the edge changed. */
+    setSetup(run) {
+      setup = run;
+      drawSetup();
     },
     showMain() {
       main.hidden = false;

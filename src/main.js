@@ -14,6 +14,8 @@ import { copyRun, grantTalisman } from './core/run.js';
 import { doWork, workRefusal } from './core/wheelwork.js';
 import { BallAnimator } from './view/ball.js';
 import { createBell } from './view/bell.js';
+import { createFigures } from './view/figures.js';
+import { createVault } from './view/vault.js';
 import { CameraDirector } from './view/camera.js';
 import { Interaction } from './view/interaction.js';
 import { LightingDirector } from './view/lighting.js';
@@ -178,6 +180,15 @@ async function init() {
     onRoll: (level) => audio.roll(level),
   });
 
+  // The meta in the room (doc 7.1, 7.3): the Vault at the back of the hall,
+  // behind the wheel, and the figures at the edge of the light.
+  const vault = createVault();
+  vault.group.position.set(1.2, 0, -7.6);
+  vault.group.rotation.y = Math.atan2(-1.2, 7.6);
+  scene.add(vault.group);
+  const figures = createFigures();
+  scene.add(figures.group);
+
   const lighting = new LightingDirector('intro');
   lighting.flashes = settings.flashes !== false;
   const sparks = createSparks(scene);
@@ -186,12 +197,15 @@ async function init() {
   const menu = createMainMenu({
     onContinue: () => game.continueRun(),
     onPlay: () => game.playFromMenu(),
+    onAlmanac: () => game.openAlmanac(),
     onSettings: () => game.openSettings(),
+    onWheel: () => game.chooseWheel(),
+    onEdge: () => game.chooseEdge(),
     onBegin: (id) => game.beginRun(id),
     onBack: () => game.menuBack(),
   });
   const profile = deserializeProfile(platform.load('profile'));
-  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch, menu, profile });
+  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch, menu, profile, vault, figures });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -339,6 +353,7 @@ async function init() {
     audio.update(spin.speed);
 
     stage.figure.update(t);
+    figures.update(t);
     table.update(dt, t);
     rail.update(dt, t);
     bell.update(dt, t);
@@ -375,7 +390,7 @@ async function init() {
   requestAnimationFrame(tick);
 
   // Handy for debugging and for the smoke test.
-  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, oracle, menu, director, interaction, lighting, sparks, THREE };
+  window.__roulette = { game, stage, spin, ball, table, cage, rail, bell, cabinet, oracle, menu, director, interaction, lighting, sparks, vault, figures, THREE };
   if (import.meta.env.DEV) {
     const tunedDevil = { ...DEVIL };
     window.__roulette.debug = {

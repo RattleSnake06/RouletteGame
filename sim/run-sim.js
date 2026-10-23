@@ -10,21 +10,26 @@
 //   npm run sim -- --no-oracle           bots never visit Madame Zero (no fortunes, no records)
 //   npm run sim -- --no-wheel            bots never buy oddities (wheel work) nor stamp pockets
 //   npm run sim -- --chips bone          the run's starting chip set (decision 26; default normal)
+//   npm run sim -- --wheel american      the starting wheel (doc 7.2; default european)
+//   npm run sim -- --edge 3              the House Edge level, 0–5 (doc 7.2)
+//   npm run sim -- --locks 2             the Vault's open locks (the goal, the gramophone's second slot)
+//   npm run sim -- --figures 6           figures standing in the dark (Danse Macabre)
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
 //   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
 //   npm run sim -- --set debt.2=240       override what a debt owes
 
-import { MATERIALS, TALISMANS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getTalisman } from '../src/core/content/index.js';
+import { MATERIALS, MAX_EDGE, STARTING_WHEELS, TALISMANS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from '../src/core/content/index.js';
 import { getBet } from '../src/core/bets.js';
 import { DEVIL, devilLive } from '../src/core/devil.js';
+import { untouchable } from '../src/core/house.js';
 import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
 import { LUCK, nudgeFor, nudgeLandings } from '../src/core/nudge.js';
 import { add, format, gt, gte, lt, sub, toNumber } from '../src/core/num.js';
 import { evaluate } from '../src/core/payout.js';
 import { PHASE, act, canAfford, copyRun, costOf, createRun, grantTalisman, hooksFor, isFinalNight, nextRestockCost, owed, spinCost } from '../src/core/run.js';
 import { bellView, cabinetView, oracleView } from '../src/core/selectors.js';
-import { EUROPEAN_ORDER, defaultColor } from '../src/core/wheel.js';
+import { defaultColor } from '../src/core/wheel.js';
 import { doWork, workTargets } from '../src/core/wheelwork.js';
 import { liveChances, liveWheel } from '../src/core/widths.js';
 
@@ -53,6 +58,12 @@ const TOKEN_SPINS = Number(args['token-spins'] ?? 2);
 const WHEEL_MARGIN = Number(args['wheel-margin'] ?? 1.5);
 const CHIPS = typeof args.chips === 'string' ? args.chips : 'normal';
 if (!MATERIALS.some((m) => m.id === CHIPS)) throw new Error(`--chips: no chip set ${CHIPS} (${MATERIALS.map((m) => m.id).join(', ')})`);
+const WHEEL = typeof args.wheel === 'string' ? args.wheel : 'european';
+if (!STARTING_WHEELS.some((w) => w.id === WHEEL)) throw new Error(`--wheel: no starting wheel ${WHEEL} (${STARTING_WHEELS.map((w) => w.id).join(', ')})`);
+const EDGE = Number(args.edge ?? 0);
+if (!Number.isInteger(EDGE) || EDGE < 0 || EDGE > MAX_EDGE) throw new Error(`--edge: 0 to ${MAX_EDGE}`);
+const LOCKS = Number(args.locks ?? 0);
+const FIGURES = Number(args.figures ?? 0);
 // --set overrides are checked, so a typo fails loudly instead of quietly
 // running the drafted numbers.
 const TABLES = { economy: ECONOMY, luck: LUCK, devil: DEVIL };
@@ -99,7 +110,10 @@ const TARGETS = [
 
 // --- Where chips go ---------------------------------------------------------
 
-const STRAIGHTS = [32, 11, 9, 26, 5, 18]; // spread around the wheel, not the table
+// Spread around the wheel, not the table: the run's own wheel (the Mirror's
+// order is the felt's). The European six were chosen by hand.
+const ORDER = getStartingWheel(WHEEL).order.filter((n) => n <= 36);
+const STRAIGHTS = WHEEL === 'european' ? [32, 11, 9, 26, 5, 18] : Array.from({ length: 6 }, (_, i) => ORDER[(1 + 6 * i) % ORDER.length]);
 const CORNERS = ['corner:1-2-4-5', 'corner:17-18-20-21', 'corner:29-30-32-33'];
 /** The last spin's number, unless the Devil burned it. */
 const lastNumber = (s) => {
@@ -115,7 +129,7 @@ const LAYOUT = {
   corner: (i) => CORNERS[i % CORNERS.length],
   zero: (i) => `straight:${STRAIGHTS[i % STRAIGHTS.length]}`,
   // Straight-ups evenly around the wheel, so any Nudge has something to reach.
-  spread: (i, k) => `straight:${EUROPEAN_ORDER[Math.floor((i * 37) / k + 4) % 37]}`,
+  spread: (i, k) => `straight:${ORDER[Math.floor((i * ORDER.length) / k + 4) % ORDER.length]}`,
   // Seesaw: the half the last spin did not land in.
   seesaw: (i, k, s) => {
     const n = lastNumber(s);
@@ -548,6 +562,7 @@ function punch(s, bot, log, inst) {
     const { pay, w } = payVector(probe, tokenCoins);
     let best = null;
     probe.wheel.pockets.forEach((p, i) => {
+      if (untouchable(p)) return;
       for (let n = 0; n <= 36; n++) {
         if (n === p.number) continue;
         const t = { pocket: p.id, number: n };
@@ -573,10 +588,11 @@ const WHITE_RANK = ['record_left', 'carved_in_brass', 'gold_finds_gold', 'strang
 const BLACK_RANK = ['feed_zero', 'borrowed_gold', 'ask_figures', 'shiny_things', 'burn_ledger', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
 // Which record a bot plays, by the bets it makes. None plays Waltz in Green:
 // nights at half again the price cost every bot more than its Nudge won back.
+// Danse Macabre pays only with figures in the dark, so it comes last.
 const RECORD_RANK = {
-  red: ['red_light_tango', 'overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero'],
-  outside: ['overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango'],
-  inside: ['carousel', 'overture_of_excess', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango'],
+  red: ['red_light_tango', 'overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'danse_macabre'],
+  outside: ['overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
+  inside: ['carousel', 'overture_of_excess', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
 };
 const recordFamily = (s, bot) => {
   const layout = layoutFor(s, bot.layout);
@@ -616,13 +632,22 @@ function visitOracle(s, bot, log) {
   return chooseRecord(s, bot);
 }
 
-/** The best record in the crate for the bot's bets. */
+/** The best records in the crate for the bot's bets: one, or two once the gramophone has a second slot. */
 function chooseRecord(s, bot) {
   if (!s.records.length) return s;
-  const best = RECORD_RANK[recordFamily(s, bot)].filter(notSkipped).find((id) => s.records.includes(id)) ?? null;
-  if (best === s.playing) return s;
-  const r = act(s, { type: 'playRecord', id: best });
-  return r.events.some((e) => e.type === 'rejected') ? s : r.state;
+  const [best = null, next = null] = RECORD_RANK[recordFamily(s, bot)].filter(notSkipped).filter((id) => s.records.includes(id));
+  const want = s.gramophoneSlots > 1 ? [best, next] : [best];
+  if (want.every((id, slot) => id === [s.playing, s.playing2][slot])) return s;
+  // Lift both needles first, so no record is asked to play in two slots at once.
+  for (const slot of want.map((_, i) => i).reverse()) {
+    const r = act(s, { type: 'playRecord', id: null, slot });
+    if (!r.events.some((e) => e.type === 'rejected')) s = r.state;
+  }
+  want.forEach((id, slot) => {
+    const r = act(s, { type: 'playRecord', id, slot });
+    if (!r.events.some((e) => e.type === 'rejected')) s = r.state;
+  });
+  return s;
 }
 
 function newMetrics() {
@@ -630,7 +655,7 @@ function newMetrics() {
 }
 
 function playRun(seed, bot, m, picks, firstPicks) {
-  let s = createRun({ seed, chipSet: CHIPS });
+  let s = createRun({ seed, chipSet: CHIPS, wheel: WHEEL, edge: EDGE, locks: LOCKS, figures: FIGURES });
   for (const id of bot.solo ?? []) s = grantTalisman(s, id);
   m.dry = 0; // a miss streak never carries over from the last run
   let first = true;
@@ -729,7 +754,8 @@ function runBot(name) {
 // --- Report -----------------------------------------------------------------
 
 const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
-console.log(`${RUNS} runs per bot · Phase 5 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings, wheel work) · ${getMaterial(CHIPS).name} chips${TEMPO ? ' · tempo' : ''}${NO_WHEEL ? ' · no wheel work' : ''}\n`);
+const setup = [`${getMaterial(CHIPS).name} chips`, `${getStartingWheel(WHEEL).name} wheel`, EDGE ? `House Edge ${EDGE}` : null, LOCKS ? `${LOCKS} locks` : null, FIGURES ? `${FIGURES} figures` : null].filter(Boolean).join(' · ');
+console.log(`${RUNS} runs per bot · Phase 6 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings, wheel work) · ${setup}${TEMPO ? ' · tempo' : ''}${NO_WHEEL ? ' · no wheel work' : ''}\n`);
 const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
 console.log(header.join(' '));
 const results = names.map(runBot);
