@@ -25,6 +25,12 @@ const round6 = (x) => Math.round(x * 1e6) / 1e6;
 export function devilChanceFor(state, emit = null) {
   if (!devilLive(state)) return 0;
   let chance = DEVIL.base + DEVIL.perDebt * (state.debt - DEVIL.liveFrom);
+  // Cursed pockets the ball landed in tonight (doc 6.5).
+  const curse = state.devil.nightCurse ?? 0;
+  if (curse > 0) {
+    chance = round6(chance + curse);
+    emit?.({ type: 'trigger', src: { uid: 'cursed', id: 'cursed', as: 'cursed', pocket: true }, hook: 'devilChance', effect: 'devil', amount: curse });
+  }
   for (const src of sources(state)) {
     const fn = src.as.hooks?.devilChance;
     if (!fn) continue;

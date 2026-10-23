@@ -1,7 +1,8 @@
 import { betCovers, betOdds, getBet } from './bets.js';
-import { getMaterial } from './content/index.js';
+import { getEnhancement, getMaterial } from './content/index.js';
 import { sources, srcRef, writeData } from './effects.js';
 import { add, mulFloor } from './num.js';
+import { isBlank } from './wheel.js';
 
 // One spin's payout, worked out before anything changes (doc 5.5). evaluate()
 // is pure: the spin uses it, Wheel of Fortune uses it to tell a miss, the bet
@@ -10,8 +11,10 @@ import { add, mulFloor } from './num.js';
 // Payout of one paying line (a chip on a hit pocket):
 //   value × Stake × odds × Odds mult × pocket mult × hit mult × each × talisman
 // floored once at the end. The chip's material acts first (its ×, decision
-// 26); then talismans act left to right along the rail: for each line, each
-// source runs chipStake, chipOdds and chipMult in turn.
+// 26), then the pocket's enhancement (gilded ×2, platinum ×3, glass ×4; doc
+// 6.5); then talismans act left to right along the rail: for each line, each
+// source runs chipStake, chipOdds and chipMult in turn. A blank pocket pays
+// nothing, whatever covers it.
 
 /** The plaques at rest. Later phases add global Stake and Odds here. */
 export function baseFactors() {
@@ -22,6 +25,8 @@ export const chipValue = (chip) => chip.value + (chip.roundValue ?? 0);
 
 /** How an event names a chip's material as its source: the chip, and what it is made of. */
 const materialRef = (chip) => ({ uid: chip.id, id: getMaterial(chip.material).id, as: getMaterial(chip.material).id, chip: true });
+/** How an event names a pocket's enhancement as its source. */
+export const pocketRef = (pocket) => ({ uid: pocket.id, id: pocket.enh, as: pocket.enh, pocket: true });
 
 function lineAmount(f) {
   return mulFloor(f.value, f.stake, f.odds, f.oddsMult, f.pocketMult, f.hitMult, f.mult);
@@ -48,6 +53,7 @@ export function evaluate(state, landings) {
     bonusCoins: 0,
     bonusTokens: 0,
     chipTokens: 0, // tokens from chip materials (Gold), counted against the night's cap
+    pocketTokens: 0, // tokens from Bone pockets
     miss: true,
   };
   const trigger = (src, hook, effect, more = {}) => plan.steps.push({ type: 'trigger', src: srcRef(src), hook, effect, ...more });
@@ -86,9 +92,18 @@ export function evaluate(state, landings) {
       const fn = src.as.hooks?.ballLanded;
       if (fn) fn({ state, self: src.self, ball, landing, hits, ...bonus(src, 'ballLanded', ball) });
     }
+    // A Bone pocket pays its token whatever was bet (doc 6.5).
+    const landedOn = getEnhancement(pocket.enh);
+    if (landedOn?.tokens) {
+      plan.bonusTokens += landedOn.tokens;
+      plan.pocketTokens += landedOn.tokens;
+      plan.steps.push({ type: 'trigger', src: pocketRef(pocket), hook: 'ballLanded', effect: 'tokens', amount: landedOn.tokens, ball, pocketIndex });
+    }
 
     const paidThisBall = new Set();
     for (const hit of hits) {
+      if (isBlank(hit.pocket)) continue;
+      const enh = getEnhancement(hit.pocket.enh);
       for (const chip of placed) {
         const bet = getBet(state.placements[chip.id]);
         if (hit.betKinds && !hit.betKinds.includes(bet.kind)) continue;
@@ -133,6 +148,11 @@ export function evaluate(state, landings) {
         if (material.payout !== 1) {
           factors.mult *= material.payout;
           plan.steps.push({ type: 'trigger', src: materialRef(chip), hook: 'chipMult', effect: 'mult', amount: material.payout, ...at });
+        }
+        // Then the pocket that pays: gilded, platinum or glass.
+        if (enh && enh.mult !== 1) {
+          factors.pocketMult *= enh.mult;
+          plan.steps.push({ type: 'trigger', src: pocketRef(hit.pocket), hook: 'pocketMult', effect: 'mult', amount: enh.mult, ...at });
         }
         for (const src of srcs) {
           const h = src.as.hooks;
@@ -194,6 +214,11 @@ export function evaluate(state, landings) {
           plan.bonusTokens += n;
           plan.chipTokens += n;
           plan.steps.push({ type: 'trigger', src: materialRef(chip), hook: 'chipPaid', effect: 'tokens', amount: n, ...at });
+        }
+        // An Ember pocket: a chip that wins there grows, for good, once a spin.
+        if (enh?.chipValue && !plan.deferred.some((d) => d.op === 'chipBase' && d.chipId === chip.id)) {
+          plan.deferred.push({ op: 'chipBase', chipId: chip.id, amount: enh.chipValue });
+          plan.steps.push({ type: 'trigger', src: pocketRef(hit.pocket), hook: 'chipPaid', effect: 'chipBase', amount: enh.chipValue, ...at });
         }
 
         for (const src of srcs) {
@@ -268,8 +293,9 @@ export function commitPlan(draft, plan, emit) {
     }
     const chip = draft.chips.find((c) => c.id === d.chipId);
     if (!chip) continue;
-    chip.roundValue = (chip.roundValue ?? 0) + d.amount;
+    if (d.op === 'chipBase') chip.value += d.amount;
+    else chip.roundValue = (chip.roundValue ?? 0) + d.amount;
     touched.add(chip);
   }
-  for (const chip of touched) emit({ type: 'chipValue', chipId: chip.id, roundValue: chip.roundValue });
+  for (const chip of touched) emit({ type: 'chipValue', chipId: chip.id, roundValue: chip.roundValue, value: chip.value });
 }

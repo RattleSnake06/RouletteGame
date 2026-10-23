@@ -1,23 +1,23 @@
-import { ENGRAVINGS, TALISMANS } from './content/index.js';
+import { ENGRAVINGS, ODDITIES, TALISMANS } from './content/index.js';
 import { RARITY } from './economy.js';
 import { Rng } from './rng.js';
 
 // The Curio Cabinet's offers (doc 5.8). Three talisman compartments and a
-// fourth for oddities, shuttered until Phase 5. Offers come from the cabinet
-// stream only, so restocking can never change a spin. From the second debt an
-// offer may come engraved (doc 6.4).
+// fourth for an oddity (doc 5.11). Offers come from the cabinet stream only,
+// so restocking can never change a spin. From the second debt a talisman may
+// come engraved (doc 6.4).
 
 /** The debt from which the Cabinet's offers can come engraved. */
 export const ENGRAVED_FROM = 2;
 
 export const TALISMAN_SLOTS = 3;
-const SHUT_ODDITY = { kind: 'oddity', id: null, shut: true };
 const EMPTY = { kind: 'talisman', id: null, sold: true };
+const NO_ODDITY = { kind: 'oddity', id: null, sold: true };
 
 // discount: tokens off every talisman until the next restock; freeBuys:
 // purchases still to come for nothing (Madame Zero's fortunes).
 export const emptyCabinet = () => ({
-  slots: [...Array.from({ length: TALISMAN_SLOTS }, () => ({ ...EMPTY })), { ...SHUT_ODDITY }],
+  slots: [...Array.from({ length: TALISMAN_SLOTS }, () => ({ ...EMPTY })), { ...NO_ODDITY }],
   paidRestocks: 0,
   discount: 0,
   freeBuys: 0,
@@ -64,13 +64,24 @@ export function rollTalismanSlots(rail, rng, debt = 1) {
   });
 }
 
-/** Restocks the draft's talisman compartments from its cabinet stream. */
+/** The oddity compartment, by the same rarity reroll (oddities can come again and again). */
+export function rollOdditySlot(rng) {
+  let pick = null;
+  for (let tries = 0; tries < 64; tries++) {
+    pick = ODDITIES[rng.int(ODDITIES.length)];
+    if (rng.next() < RARITY[pick.rarity].weight) break;
+  }
+  return { kind: 'oddity', id: pick.id, sold: false };
+}
+
+/** Restocks the draft's compartments from its cabinet stream: talismans first, then the oddity. */
 export function restockSlots(draft) {
   const rng = new Rng(draft.rng.cabinet);
   const talismans = rollTalismanSlots(draft.rail, rng, draft.debt);
+  const oddity = rollOdditySlot(rng);
   // "Until the next restock" (The cabinet owes you): this is the next restock.
   draft.cabinet.discount = 0;
   draft.rng.cabinet = rng.state();
-  draft.cabinet.slots = [...talismans, ...draft.cabinet.slots.slice(TALISMAN_SLOTS)];
+  draft.cabinet.slots = [...talismans, oddity];
   return draft.cabinet.slots;
 }

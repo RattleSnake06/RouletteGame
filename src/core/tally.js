@@ -14,7 +14,7 @@ export function copyTally(t) {
   };
 }
 
-/** Records one landing. Zero belongs to no dozen or column. */
+/** Records one landing (a blank pocket's is never recorded). Zero belongs to no dozen or column. */
 export function recordLanding(tally, number) {
   tally.debt.numbers[number] = (tally.debt.numbers[number] ?? 0) + 1;
   if (number < 1 || number > 36) return;

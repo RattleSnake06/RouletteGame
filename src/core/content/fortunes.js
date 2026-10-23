@@ -13,21 +13,26 @@
 //   hooks     effects that last the rest of the run, as for talismans; a taken
 //             card with hooks stays as a boon and acts before the rail
 //
-// Cards that need later systems (bet levels, gilded pockets, chip materials,
-// the Neighbours bet, the figures in the dark) wait for their phase (decision 22).
-// So do the two chip cards ("Your stack grows heavy", "A new chip in your
-// pocket"): a run starts with three chips of value 1, so each was a third
-// more stake for the rest of the run, by far the strongest card in the sim.
-// They come back with Phase 5's chip axis (materials, Ember pockets).
+// Cards that need later systems (bet levels, the Neighbours bet, the figures
+// in the dark) wait for their phase (decision 22). So do the two chip cards
+// ("Your stack grows heavy", "A new chip in your pocket"): a run starts with
+// three chips of value 1, so each was a third more stake for the rest of the
+// run, by far the strongest card in the sim. They come back with the second
+// half of Phase 5 (chips as oddities). Wheel work at random goes through
+// ctx.workRandom (wheelwork.js), on the fortunes stream.
 
 import { getTalisman } from './index.js';
+import { WHEEL, workTargets } from '../wheelwork.js';
 
 const red = (p) => p.color === 'red';
 const black = (p) => p.color === 'black';
-const zero = (p) => p.color === 'green';
 const hasBellTalisman = (state) => state.rail.some((t) => getTalisman(t.id)?.bell);
 const freeHook = (state, hooks) => state.rail.length < hooks;
 const owns = (state, id) => state.rail.some((t) => t.id === id);
+const GILD = { op: 'gild', on: 'pocket' };
+const CURSE = { op: 'enhance', on: 'pocket', enh: 'cursed' };
+const canWork = (state, work) => workTargets(state, work).length > 0;
+const zeroPocket = (state) => state.wheel.pockets.find((p) => p.number === 0);
 
 // Tuned with the simulator (doc 9.8): a card a debt is worth a lot, because
 // most of them last the run.
@@ -35,6 +40,9 @@ const FORTUNE = {
   tips: 2, // drafted 5
   discount: 1, // drafted 2
   widen: 0.15, // drafted 0.25
+  gilds: 3,
+  borrowedGilds: 4,
+  borrowedCurses: 2,
 };
 
 export const FORTUNE_LIST = [
@@ -133,6 +141,19 @@ export const FORTUNE_LIST = [
     },
   },
 
+  {
+    id: 'gold_finds_gold',
+    kind: 'white',
+    rarity: 'rare',
+    text: 'Gold finds gold.',
+    effect: `Gild ${FORTUNE.gilds} pockets at random: chips that win there pay ×2 (a gilded one turns platinum, ×3).`,
+    lore: 'THE WHEEL WAS GOLD ONCE',
+    requires: (state) => canWork(state, GILD),
+    take(ctx) {
+      ctx.workRandom(GILD, FORTUNE.gilds);
+    },
+  },
+
   // --- Black cards ---------------------------------------------------------
   {
     id: 'burn_ledger',
@@ -175,11 +196,12 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'uncommon',
     text: 'Feed the zero.',
-    effect: "Zero's pocket twice as wide. Chips pay ×2 for the rest of the run.",
+    effect: 'A second zero pocket beside the first. Chips pay ×2 for the rest of the run.',
     lore: 'ZERO IS HUNGRY',
     maxPicks: 1,
+    requires: (state) => !!zeroPocket(state) && state.wheel.pockets.length < WHEEL.maxPockets,
     take(ctx) {
-      ctx.widen(zero, 1);
+      ctx.work({ op: 'duplicate', on: 'pocket' }, zeroPocket(ctx.state).id);
     },
     hooks: {
       chipMult(ctx) {
@@ -234,6 +256,19 @@ export const FORTUNE_LIST = [
       nudge(ctx) {
         ctx.addNudge(1);
       },
+    },
+  },
+  {
+    id: 'borrowed_gold',
+    kind: 'black',
+    rarity: 'uncommon',
+    text: 'Borrowed gold.',
+    effect: `Gild ${FORTUNE.borrowedGilds} pockets at random. ${FORTUNE.borrowedCurses} others are cursed: a landing there raises the Devil's chance by 1% for the night.`,
+    lore: 'IT WILL BE COLLECTED',
+    requires: (state) => canWork(state, GILD),
+    take(ctx) {
+      ctx.workRandom(GILD, FORTUNE.borrowedGilds);
+      ctx.workRandom(CURSE, FORTUNE.borrowedCurses, { plain: true });
     },
   },
 ];

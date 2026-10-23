@@ -1,6 +1,13 @@
 // The wheel as data. Pockets are listed in wheel order (clockwise seen from
 // above, starting at zero). Each pocket's chance is its width over the total
-// width; later phases widen, repaint, duplicate and enhance pockets.
+// width. Wheel work (wheelwork.js) widens, repaints, duplicates, removes and
+// enhances pockets, so a pocket also has an id that stays with it while
+// pockets come and go around it:
+//
+//   { id, number, color, width, enh }
+//
+// A blank pocket (a shattered Glass one) has no number and no colour: no bet
+// covers it.
 
 /** European single-zero order, clockwise seen from above. */
 export const EUROPEAN_ORDER = [
@@ -19,9 +26,15 @@ export function defaultColor(n) {
 
 export function createEuropeanWheel() {
   return {
-    pockets: EUROPEAN_ORDER.map((number) => ({ number, color: defaultColor(number), width: 1 })),
+    pockets: EUROPEAN_ORDER.map((number) => ({ id: `p${number}`, number, color: defaultColor(number), width: 1, enh: null })),
+    nextId: EUROPEAN_ORDER.length,
   };
 }
+
+export const isBlank = (pocket) => pocket.number === null;
+
+/** Where the pocket with this id sits now, or -1. */
+export const indexOfPocket = (wheel, id) => wheel.pockets.findIndex((p) => p.id === id);
 
 export function totalWidth(wheel) {
   let t = 0;

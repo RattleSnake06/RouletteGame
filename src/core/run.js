@@ -1,7 +1,7 @@
 import { BET_BY_ID } from './bets.js';
 import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
-import { MATERIALS, getEngraving, getFortune, getMaterial, getRecord, getTalisman } from './content/index.js';
+import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
 import { commitCtx, interestRateFor, lifecycle, sources } from './effects.js';
@@ -12,6 +12,7 @@ import { resolveSpin } from './resolve.js';
 import { Rng, seedStreams } from './rng.js';
 import { copyTally, emptyRoundTally, emptyTally } from './tally.js';
 import { createEuropeanWheel } from './wheel.js';
+import { doWork, workRefusal } from './wheelwork.js';
 
 // The run as a state machine (design doc 9.3). `act(state, action)` returns
 // a new state plus an ordered list of events for the view to play back; it
@@ -23,7 +24,7 @@ import { createEuropeanWheel } from './wheel.js';
 //   gameOver    the Cage collected and the deposits fell short
 //
 // Chips, the Cage, the Curio Cabinet, the rail, the Bell, Madame Zero and the
-// gramophone can be used in any phase but gameOver.
+// gramophone can be used in any phase but gameOver; so can wheel work.
 
 export const PHASE = {
   ROUND_START: 'roundStart',
@@ -32,7 +33,7 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 5;
+export const RUN_VERSION = 6;
 const HISTORY_LENGTH = 40;
 
 const noEvents = () => {};
@@ -72,7 +73,8 @@ export function createRun({ seed, chipSet = MATERIALS[0].id }) {
     debtSpins: 0, // spins so far this debt (debt 1's Leans count them)
     leans: { debt: [], night: null }, // the House's Leans still to come (doc 5.6)
     missStreak: 0, // spins in a row that paid nothing (pity)
-    devil: { firedThisDebt: false },
+    luckyNudge: 0, // Nudge a Lucky pocket left for the next spin (doc 6.5)
+    devil: { firedThisDebt: false, nightCurse: 0 }, // nightCurse: Cursed pockets landed in tonight
     // Phase 4: Madame Zero's deal this debt, fortunes taken (and the ones that
     // last), the record crate and what is playing.
     oracle: null,
@@ -110,6 +112,8 @@ export function newStats() {
     restocksPaid: 0,
     tokensEarned: 0,
     tokensSpent: 0,
+    odditiesBought: 0,
+    shattered: 0,
     leans: 0,
     hops: 0,
     devils: 0,
@@ -180,9 +184,11 @@ function beginDebt(s, emit) {
 /** A new night: tonight's tally clears and the Cabinet restocks for free. */
 function beginRound(s, emit) {
   s.tally = { ...s.tally, round: emptyRoundTally() };
-  // A new night: Bone chips may move again, and Gold earns afresh.
+  // A new night: Bone chips may move again, Gold earns afresh, and the
+  // night's curses lift.
   s.fixed = [];
   s.chipTokens = 0;
+  s.devil = { ...s.devil, nightCurse: 0 };
   const slots = restockSlots(s);
   emit({ type: 'offersRestocked', paid: false, slots });
   lifecycle(s, 'roundStart', emit, { debt: s.debt, round: s.round });
@@ -197,7 +203,7 @@ export function copyRun(state) {
     chips: state.chips.map((c) => ({ ...c })),
     placements: { ...state.placements },
     fixed: [...(state.fixed ?? [])],
-    wheel: { pockets: state.wheel.pockets.map((p) => ({ ...p })) },
+    wheel: { ...state.wheel, pockets: state.wheel.pockets.map((p) => ({ ...p })) },
     rail: state.rail.map((t) => ({ ...t, data: copyData(t.data) })),
     cabinet: copyCabinet(state.cabinet),
     armed: { ...state.armed },
@@ -482,6 +488,33 @@ const HANDLERS = {
     return { state: s, events };
   },
 
+  /**
+   * Buys the oddity and does its work at once (doc 5.11): `targets` holds one
+   * target for each of its picks (wheelwork.js), each checked on the wheel as
+   * the picks before it left it. Nothing changes unless every pick can act.
+   */
+  buyOddity(state, { slot, targets = [] }) {
+    const offer = state.cabinet.slots[slot];
+    if (!offer) throw new Error(`Unknown compartment: ${slot}`);
+    const def = offer.kind === 'oddity' && !offer.sold ? getOddity(offer.id) : null;
+    if (!def) return reject(state, 'That compartment is empty.', 'soldOut');
+    if (state.tokens < def.price) return reject(state, 'Not enough tokens.', 'noTokens');
+    if (targets.length !== def.picks.length) return reject(state, def.picks.length === 1 ? 'Choose where it goes.' : `Choose ${def.picks.length} places for it.`, 'targets');
+    const s = copyRun(state);
+    const events = [{ type: 'oddityBought', slot, id: def.id, price: def.price, targets }];
+    const by = { kind: 'oddity', id: def.id };
+    for (let i = 0; i < def.picks.length; i++) {
+      const why = workRefusal(s, def.picks[i], targets[i]);
+      if (why) return reject(state, why, 'badTarget');
+      doWork(s, def.picks[i], targets[i], (e) => events.push(e), by);
+    }
+    s.tokens -= def.price;
+    s.stats.tokensSpent += def.price;
+    s.stats.odditiesBought += 1;
+    s.cabinet.slots[slot] = { kind: 'oddity', id: null, sold: true };
+    return { state: s, events };
+  },
+
   sell(state, { uid }) {
     const inst = state.rail.find((t) => t.uid === uid);
     if (!inst) throw new Error(`Unknown talisman: ${uid}`);
@@ -588,16 +621,30 @@ const HANDLERS = {
     return { state: s, events };
   },
 
-  /** Rings the Bell: the head of the queue, or the talisman `uid`. */
-  ringBell(state, { uid } = {}) {
+  /**
+   * Rings the Bell: the head of the queue, or the talisman `uid`. A talisman
+   * that works on the wheel (the Number Punches) rings only at its tag, with
+   * its `targets`, each checked on the wheel as the ones before it left it.
+   */
+  ringBell(state, { uid, targets } = {}) {
     if (uid) {
       const inst = state.rail.find((t) => t.uid === uid);
       if (!inst) throw new Error(`Unknown talisman: ${uid}`);
       if (!canAnswer(state, inst)) return reject(state, 'It does not answer.', 'notUsable');
+      const work = getTalisman(inst.id).bell.work;
+      if (work) {
+        if (!targets?.length || targets.length > work.picks) return reject(state, `Choose up to ${work.picks} pockets.`, 'targets');
+        const probe = copyRun(state);
+        for (const t of targets) {
+          const why = workRefusal(probe, work, t);
+          if (why) return reject(state, why, 'badTarget');
+          doWork(probe, work, t, noEvents, null);
+        }
+      }
     }
     const s = copyRun(state);
     const events = [];
-    const answered = ringBell(s, uid, (e) => events.push(e));
+    const answered = ringBell(s, uid, (e) => events.push(e), { targets });
     // Nothing answering is not a mistake: the bell just rings dull.
     return { state: answered ? s : state, events };
   },

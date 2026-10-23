@@ -1,10 +1,11 @@
 import { devilChanceFor, rollDevil } from './devil.js';
+import { getEnhancement } from './content/index.js';
 import { commitCtx, lifecycle, sources, srcRef } from './effects.js';
 import { nudgeFor, nudgeLandings } from './nudge.js';
-import { commitPlan, evaluate } from './payout.js';
+import { commitPlan, evaluate, pocketRef } from './payout.js';
 import { Rng } from './rng.js';
 import { recordLanding } from './tally.js';
-import { drawPocket } from './wheel.js';
+import { drawPocket, isBlank } from './wheel.js';
 import { liveWheel } from './widths.js';
 
 // Settles one spin on a draft (doc 5.5). The outcome is decided here, before
@@ -19,7 +20,10 @@ import { liveWheel } from './widths.js';
 //                                and every coin in hand is lost)
 //   5. evaluate the payout      (pure)
 //   6. Wheel of Fortune         (an armed miss is thrown again: steps 2–5 anew)
-//   7. commit the payout, tally the final landings, then afterSpin hooks
+//   7. commit the payout, tally the final landings, then afterSpin hooks;
+//      the pockets the balls came to rest in act (doc 6.5): a Lucky pocket's
+//      Nudge waits for the next spin, a Cursed one raises the Devil's chance
+//      for the night, and a Glass one may shatter (pockets stream)
 //   8. a ward that turned the Devil away is used up (the vial shatters): only
 //      now, so the whole spin paid with the rail it was thrown with
 
@@ -29,8 +33,41 @@ export const ballCount = () => 1;
 const describe = (state, landings) =>
   landings.map(({ ball, pocketIndex }) => {
     const p = state.wheel.pockets[pocketIndex];
-    return { ball, pocketIndex, number: p.number, color: p.color };
+    return { ball, pocketIndex, pocketId: p.id, number: p.number, color: p.color, enh: p.enh };
   });
+
+/**
+ * What the pockets the balls came to rest in do once the spin is paid. A
+ * pocket two balls share acts for each, but shatters at most once.
+ */
+function pocketsAct(s, landings, emit) {
+  const rolled = new Set();
+  for (const { ball, pocketIndex } of landings) {
+    const pocket = s.wheel.pockets[pocketIndex];
+    const enh = getEnhancement(pocket.enh);
+    if (!enh) continue;
+    const trigger = (effect, amount) => emit({ type: 'trigger', src: pocketRef(pocket), hook: 'pocket', effect, amount, ball, pocketIndex });
+    if (enh.nudge) {
+      s.luckyNudge = (s.luckyNudge ?? 0) + enh.nudge;
+      trigger('nudge', enh.nudge);
+    }
+    if (enh.devil) {
+      s.devil = { ...s.devil, nightCurse: Math.round(((s.devil.nightCurse ?? 0) + enh.devil) * 1e6) / 1e6 };
+      trigger('devil', enh.devil);
+    }
+    if (enh.shatter && !rolled.has(pocket.id)) {
+      rolled.add(pocket.id);
+      const rng = new Rng(s.rng.pockets);
+      const breaks = rng.chance(enh.shatter);
+      s.rng.pockets = rng.state();
+      if (breaks) {
+        emit({ type: 'pocketShattered', pocketId: pocket.id, pocketIndex, number: pocket.number, color: pocket.color });
+        Object.assign(pocket, { number: null, color: null, enh: 'blank' });
+        s.stats.shattered = (s.stats.shattered ?? 0) + 1;
+      }
+    }
+  }
+}
 
 /** Returns the spin's result summary; detail events go through `emit`. */
 export function resolveSpin(s, emit) {
@@ -38,6 +75,8 @@ export function resolveSpin(s, emit) {
   const wheel = liveWheel(s, emit);
   const luck = nudgeFor(s, emit);
   const devilChance = devilChanceFor(s, emit);
+  // A Lucky pocket's Nudge was for this spin only.
+  s.luckyNudge = 0;
 
   const rng = new Rng(s.rng.wheel);
   const balls = Array.from({ length: ballCount(s) }, (_, i) => i);
@@ -106,7 +145,8 @@ export function resolveSpin(s, emit) {
     emit({ type: 'devil', ball: 0, pocketIndex: final[0].pocketIndex, number: final[0].number, lost, chance: devilChance });
   } else {
     commitPlan(s, t.plan, emit);
-    for (const { pocketIndex } of t.landings) recordLanding(s.tally, s.wheel.pockets[pocketIndex].number);
+    for (const { pocketIndex } of t.landings) if (!isBlank(s.wheel.pockets[pocketIndex])) recordLanding(s.tally, s.wheel.pockets[pocketIndex].number);
+    pocketsAct(s, t.landings, emit);
   }
 
   const plan = t.plan;

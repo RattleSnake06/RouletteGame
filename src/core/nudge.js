@@ -14,7 +14,8 @@ import { neighbourIndex } from './wheel.js';
 //   the Lean    spontaneous Nudge from the House, announced one spin early
 //   pity        after 5 misses in a row, +1, then +1 for each further miss
 //               (a Wind-Up Key starts it sooner)
-//   talismans   their `nudge` hooks (Rabbit's Foot, Compass...)
+//   talismans   their `nudge` hooks (Rabbit's Foot, Compass...), and a Lucky
+//               pocket the last spin landed in (doc 6.5)
 
 // Tuned with the simulator (doc 9.8). One point of Nudge is worth a lot: it
 // lets each straight-up reach two more pockets, so a straight-up's expected
@@ -173,6 +174,11 @@ export function nudgeFor(state, emit = null) {
         anchorSrcs.push({ number, src: srcRef(src) });
       },
     });
+  }
+  // A Lucky pocket the last ball came to rest in: brass luck, like a charm's.
+  if (state.luckyNudge > 0) {
+    charms += state.luckyNudge;
+    emit?.({ type: 'trigger', src: { uid: 'lucky', id: 'lucky', as: 'lucky', pocket: true }, hook: 'nudge', effect: 'nudge', amount: state.luckyNudge });
   }
   const rawPity = pityFor(state.missStreak, { after: pityAfter });
   if (pityBlocker && rawPity > 0) pityBlocker('noPity', { amount: rawPity });

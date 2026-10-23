@@ -2,6 +2,7 @@ import { FORTUNES, RECORDS, getTalisman } from './content/index.js';
 import { rollEngraving } from './cabinet.js';
 import { RARITY } from './economy.js';
 import { mul, num } from './num.js';
+import { doWork, workRefusal } from './wheelwork.js';
 
 // Madame Zero (design doc 5.9). Once a debt, a pull of her lever deals three
 // fortune cards and you take one. The first pull is free and fixes the deal's
@@ -107,6 +108,21 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
         }),
       };
       effect('widen', { amount, count });
+    },
+    /** Wheel work on one target (it must be able to act there). */
+    work(work, target) {
+      if (!workRefusal(s, work, target)) doWork(s, work, target, emit, { kind: 'fortune', id: def.id });
+    },
+    /**
+     * The work on up to `n` different pockets at random, from the fortunes
+     * stream; `plain` keeps to pockets with no enhancement yet.
+     */
+    workRandom(work, n, { plain = false } = {}) {
+      const free = s.wheel.pockets.filter((p) => (!plain || !p.enh) && !workRefusal(s, work, p.id));
+      for (let i = 0; i < n && free.length; i++) {
+        const [pocket] = free.splice(rng.int(free.length), 1);
+        doWork(s, work, pocket.id, emit, { kind: 'fortune', id: def.id });
+      }
     },
     addHook() {
       s.railHooks += 1;

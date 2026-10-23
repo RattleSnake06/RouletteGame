@@ -1,6 +1,8 @@
 import { ENGRAVING_LIST } from './engravings.js';
 import { FORTUNE_LIST } from './fortunes.js';
 import { MATERIAL_LIST } from './materials.js';
+import { ODDITY_LIST } from './oddities.js';
+import { ENHANCEMENT_LIST } from './pockets.js';
 import { RECORD_LIST } from './records.js';
 import { TALISMAN_LIST } from './talismans.js';
 
@@ -61,9 +63,21 @@ const MATERIAL_BY_ID = new Map(MATERIALS.map((d) => [d.id, d]));
 /** A chip's material; an unknown one (an old save) is a normal chip. */
 export const getMaterial = (id) => MATERIAL_BY_ID.get(id) ?? MATERIALS[0];
 
+// Phase 5: pocket enhancements (a pocket's one rule) and the Cabinet's
+// oddities. Enhancements are not sources: an event names one as
+// { uid: pocket id, id: enhancement, pocket: true }.
+export const ENHANCEMENTS = ENHANCEMENT_LIST.map((d) => Object.freeze({ mult: 1, nudge: 0, shatter: 0, tokens: 0, chipValue: 0, devil: 0, carves: true, ...d }));
+const ENHANCEMENT_BY_ID = new Map(ENHANCEMENTS.map((d) => [d.id, d]));
+/** A pocket's enhancement, or null for a plain pocket (or one the game no longer knows). */
+export const getEnhancement = (id) => (id ? (ENHANCEMENT_BY_ID.get(id) ?? null) : null);
+
+export const ODDITIES = ODDITY_LIST.map((d) => Object.freeze({ ...d, picks: d.picks.map((p) => Object.freeze({ on: 'pocket', ...p })) }));
+const ODDITY_BY_ID = new Map(ODDITIES.map((d) => [d.id, d]));
+export const getOddity = (id) => ODDITY_BY_ID.get(id) ?? null;
+
 /** The name of anything that can act: a talisman, a record, an engraving, a chip's material, or a fortune (her line). */
 export function contentName(id) {
-  const d = getTalisman(id) ?? getRecord(id) ?? getEngraving(id);
+  const d = getTalisman(id) ?? getRecord(id) ?? getEngraving(id) ?? getOddity(id);
   if (d) return d.name;
   if (MATERIAL_BY_ID.has(id)) return `${MATERIAL_BY_ID.get(id).name} chip`;
   return getFortune(id)?.text ?? id;

@@ -11,10 +11,11 @@ const offered = (s) => s.cabinet.slots.filter((x) => x.kind === 'talisman' && x.
 const firstAffordable = (s) => s.cabinet.slots.findIndex((x) => x.id && getTalisman(x.id).rarity === 'common');
 
 describe('Curio Cabinet', () => {
-  it('stocks three talismans and a shuttered oddity compartment from the start', () => {
+  it('stocks three talismans and an oddity from the start', () => {
     const s = createRun({ seed: 'CAB-1' });
     expect(offered(s)).toHaveLength(3);
-    expect(s.cabinet.slots[3]).toEqual({ kind: 'oddity', id: null, shut: true });
+    expect(s.cabinet.slots[3]).toMatchObject({ kind: 'oddity', sold: false });
+    expect(typeof s.cabinet.slots[3].id).toBe('string');
     expect(createRun({ seed: 'CAB-1' }).cabinet).toEqual(s.cabinet);
   });
 
@@ -33,10 +34,10 @@ describe('Curio Cabinet', () => {
 
   it('rolls rarities in proportion to their weights (first compartment)', () => {
     const odds = rarityOdds();
-    // 16 commons, 15 uncommons, 6 rares, 4 legendaries (cursed are never offered):
-    // weights 16 + 12.75 + 3.6 + 1.2 = 33.55.
-    expect(odds.common).toBeCloseTo(16 / 33.55, 6);
-    expect(odds.legendary).toBeCloseTo(1.2 / 33.55, 6);
+    // 16 commons, 15 uncommons, 6 rares, 5 legendaries (cursed are never offered):
+    // weights 16 + 12.75 + 3.6 + 1.5 = 33.85.
+    expect(odds.common).toBeCloseTo(16 / 33.85, 6);
+    expect(odds.legendary).toBeCloseTo(1.5 / 33.85, 6);
     const rng = new Rng(hashSeed('rarity'));
     const counts = { common: 0, uncommon: 0, rare: 0, legendary: 0 };
     const N = 100000;

@@ -3,6 +3,7 @@ import { srcRef } from './effects.js';
 import { add } from './num.js';
 import { Rng } from './rng.js';
 import { drawPocket } from './wheel.js';
+import { doWork } from './wheelwork.js';
 import { liveWheel } from './widths.js';
 
 // The Bell (doc 5.8): a brass service bell that wakes active talismans. One
@@ -32,9 +33,10 @@ export function bellQueue(state) {
 
 /**
  * Rings the Bell on a draft. With `uid`, wakes that talisman; without, the
- * head of the queue. Returns the uid that answered, or null.
+ * head of the queue. `targets` are for a talisman that works on the wheel
+ * (run.js has checked them). Returns the uid that answered, or null.
  */
-export function ringBell(draft, uid, emit) {
+export function ringBell(draft, uid, emit, { targets = [] } = {}) {
   const target = uid ? draft.rail.find((t) => t.uid === uid) : draft.rail.find((t) => t.uid === bellQueue(draft)[0]);
   if (!target) {
     emit({ type: 'bellRung', uid: null, id: null });
@@ -49,6 +51,11 @@ export function ringBell(draft, uid, emit) {
     state: draft,
     self: target.data,
     charges: target.charges ?? 0,
+    targets,
+    /** Its wheel work (def.bell.work) on one target. */
+    work(t) {
+      doWork(draft, src.def.bell.work, t, emit, { kind: 'talisman', id: target.id, uid: target.uid });
+    },
     spendCharge() {
       target.charges -= 1;
       trigger('charge', { amount: target.charges });
@@ -63,8 +70,9 @@ export function ringBell(draft, uid, emit) {
       const rng = new Rng(draft.rng.wheel);
       const pocketIndex = drawPocket(liveWheel(draft), rng);
       draft.rng.wheel = rng.state();
-      draft.foreseen = { pocketIndex, by: target.uid };
       const p = draft.wheel.pockets[pocketIndex];
+      // Kept by the pocket's id too, so wheel work that moves pockets keeps it on its pocket.
+      draft.foreseen = { pocketIndex, pocketId: p.id, by: target.uid };
       trigger('foreseen', { pocketIndex });
       emit({ type: 'foreseen', uid: target.uid, pocketIndex, number: p.number, color: p.color });
     },

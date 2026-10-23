@@ -33,7 +33,7 @@ import { neighbourIndex } from '../wheel.js';
 const greenZero = (pocket) => pocket.color === 'green';
 const asleep = (state) => (devilLive(state) ? null : 'The Devil is not here yet.');
 const hasStraight = (state) => state.chips.some((c) => state.placements[c.id] && getBet(state.placements[c.id]).kind === 'straight');
-const isEven = (pocket) => pocket.number !== 0 && pocket.number % 2 === 0;
+const isEven = (pocket) => Number.isInteger(pocket.number) && pocket.number !== 0 && pocket.number % 2 === 0;
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 /** The last spin, unless the Devil took it (a burned number counts for nothing). */
 const lastSpin = (state) => {
@@ -703,6 +703,24 @@ export const TALISMAN_LIST = [
       },
       devilChance(ctx) {
         ctx.addChance(0.03);
+      },
+    },
+  },
+  {
+    id: 'number_punches',
+    name: 'Number Punches',
+    rarity: 'legendary',
+    tags: ['active', 'wheel'],
+    text: 'Bell, once a debt: re-stamp up to 3 pockets with any numbers you like.',
+    charges: { max: 1, refill: 'debt' },
+    bell: {
+      // You choose what it stamps, so only a ring at its own tag wakes it.
+      targetOnly: true,
+      work: { op: 'stamp', on: 'pocket', picks: 3 },
+      usable: (ctx) => ctx.charges > 0,
+      ring(ctx) {
+        ctx.spendCharge();
+        for (const t of ctx.targets) ctx.work(t);
       },
     },
   },

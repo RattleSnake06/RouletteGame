@@ -14,7 +14,8 @@ export function play(state, ...actions) {
   return { state, events };
 }
 
-export const pocketOf = (n) => EUROPEAN_ORDER.indexOf(n);
+/** Where `n` sits on the European wheel, or on this state's wheel (the first pocket with it). */
+export const pocketOf = (n, state = null) => (state ? state.wheel.pockets.findIndex((p) => p.number === n) : EUROPEAN_ORDER.indexOf(n));
 
 /** A fresh run with these talismans on the rail (left to right) and chips placed. */
 export function setup({ seed = 'TALISMAN-TEST', rail = [], chips = {}, coins = 100 } = {}) {

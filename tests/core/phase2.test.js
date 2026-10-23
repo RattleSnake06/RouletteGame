@@ -148,7 +148,7 @@ describe('review fixes', () => {
     let s = createRun({ seed: 'ODDS' });
     for (const id of ['red_ribbon', 'horseshoe', 'matchbook', 'lucky_penny', 'crumpled_receipt', 'pawn_ticket']) s = grantTalisman(s, id);
     // Ten of the sixteen commons are left in the pool.
-    expect(rarityOdds(s).common).toBeCloseTo(10 / 27.55, 9);
-    expect(rarityOdds(s).legendary).toBeCloseTo(1.2 / 27.55, 9);
+    expect(rarityOdds(s).common).toBeCloseTo(10 / 27.85, 9);
+    expect(rarityOdds(s).legendary).toBeCloseTo(1.5 / 27.85, 9);
   });
 });

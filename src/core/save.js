@@ -4,12 +4,13 @@ import { ECONOMY, PACKAGES, sellValueOf } from './economy.js';
 import { decimalText, isBig, num } from './num.js';
 import { newStats } from './run.js';
 import { rollDebtLeans } from './nudge.js';
+import { seedStreams } from './rng.js';
 import { emptyTally } from './tally.js';
 
 // Runs save as versioned JSON. Big money values are stored as { $d: "1.2e500" };
 // everything else in the run state is plain data.
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export function serializeRun(state) {
   // JSON.stringify calls Decimal#toJSON before the replacer sees the value,
@@ -139,6 +140,24 @@ const MIGRATIONS = {
       chips: state.chips.map((c) => ({ ...c, material: c.material === 'clay' ? 'normal' : c.material })),
       fixed: [],
       chipTokens: 0,
+    };
+  },
+  // Phase 5's wheel work: pockets get ids and enhancements, the oddity
+  // compartment opens at the next restock, and a stream for shattering glass.
+  5(state) {
+    // Every wheel before them was the European one, one pocket per number.
+    const pockets = state.wheel.pockets.map((p) => ({ id: `p${p.number}`, ...p, enh: p.enh ?? null }));
+    const foreseen = state.foreseen && { ...state.foreseen, pocketId: pockets[state.foreseen.pocketIndex]?.id ?? null };
+    const slots = state.cabinet.slots.map((x) => (x.kind === 'oddity' ? { kind: 'oddity', id: null, sold: true } : x));
+    return {
+      ...state,
+      version: 6,
+      wheel: { ...state.wheel, pockets, nextId: pockets.length },
+      foreseen,
+      luckyNudge: 0,
+      devil: { ...state.devil, nightCurse: 0 },
+      cabinet: { ...state.cabinet, slots },
+      rng: { ...state.rng, pockets: seedStreams(state.seed).pockets },
     };
   },
 };

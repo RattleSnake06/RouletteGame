@@ -135,10 +135,11 @@ describe('black cards', () => {
     expect(act(b, { type: 'buy', slot: 2 }).events[0].code).toBe('noTokens');
   });
 
-  it('feed the zero: zero twice as wide, and chips pay ×2 for the rest of the run', () => {
+  it('feed the zero: a second zero pocket beside the first, and chips pay ×2 for the rest of the run', () => {
     const s = take(setup({ chips: { c1: 'red' } }), 'feed_zero').state;
-    expect(widthOf(s, 0)).toBe(2);
-    expect(amounts(paysOn(s, 32))).toEqual([4]);
+    expect(s.wheel.pockets.slice(0, 3).map((p) => [p.number, p.color])).toEqual([[0, 'green'], [0, 'green'], [32, 'red']]);
+    expect(s.wheel.pockets.length).toBe(38);
+    expect(amounts(evaluate(s, [{ ball: 0, pocketIndex: pocketOf(32, s) }]))).toEqual([4]);
     expect(s.boons.map((b) => b.id)).toEqual(['feed_zero']);
   });
 

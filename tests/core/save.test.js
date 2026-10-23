@@ -87,11 +87,12 @@ describe('saves', () => {
     const v1 = asVersion1(advance(createRun({ seed: 'TEST-SAVE' }), [{ type: 'choosePackage', packageId: 'long' }]));
     const a = deserializeRun(JSON.stringify(v1));
     const b = deserializeRun(JSON.stringify(v1));
-    expect(a.version).toBe(5);
+    expect(a.version).toBe(6);
     expect(a.rail).toEqual([]);
     expect(a.railHooks).toBe(6);
     expect(a.cabinet.slots.slice(0, 3).every((s) => s.kind === 'talisman' && s.id)).toBe(true);
-    expect(a.cabinet.slots[3]).toMatchObject({ kind: 'oddity', shut: true });
+    // The oddity compartment opens at the next restock.
+    expect(a.cabinet.slots[3]).toEqual({ kind: 'oddity', id: null, sold: true });
     expect(a.cabinet).toEqual(b.cabinet);
     expect(a.chips.every((c) => c.roundValue === 0)).toBe(true);
     expect(a.armed).toEqual({ rethrow: null });
@@ -109,12 +110,12 @@ describe('saves', () => {
     ]);
     const v2 = asVersion2(played);
     const a = deserializeRun(JSON.stringify(v2));
-    expect(a.version).toBe(5);
+    expect(a.version).toBe(6);
     expect(a.debtSpins).toBe(2);
     expect(a.leans.debt).toHaveLength(5);
     expect(a.leans.night).toBe(null);
     expect(a.missStreak).toBe(0);
-    expect(a.devil).toEqual({ firedThisDebt: false });
+    expect(a.devil).toEqual({ firedThisDebt: false, nightCurse: 0 });
     expect(a.stats).toMatchObject({ leans: 0, hops: 0, devils: 0, spins: 2 });
     expect(deserializeRun(JSON.stringify(v2))).toEqual(a);
     // The schedule is the one a new run of the seed draws; no other stream is touched.

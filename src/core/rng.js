@@ -3,7 +3,8 @@
 // Cabinet can never change the next spin. Stream states are plain arrays so
 // they save and load with the run.
 
-export const STREAMS = ['wheel', 'devil', 'lean', 'cabinet', 'fortunes', 'misc'];
+// Each stream is seeded from its own name, so adding one never changes the others.
+export const STREAMS = ['wheel', 'devil', 'lean', 'cabinet', 'fortunes', 'misc', 'pockets'];
 
 /** cyrb128: hashes a string into four 32-bit words. */
 export function hashSeed(str) {

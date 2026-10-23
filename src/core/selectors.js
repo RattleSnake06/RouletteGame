@@ -1,17 +1,20 @@
 import { bellQueue, canAnswer } from './bell.js';
 import { betCovers, getBet } from './bets.js';
-import { RECORDS, getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
+import { RECORDS, getEnhancement, getEngraving, getFortune, getOddity, getRecord, getTalisman } from './content/index.js';
 import { RARITY, priceOf, sellValueOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
 import { copyTarget, echoTarget, sources } from './effects.js';
 import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
-import { costOf, freeRestockBy, hooksFor, offerPrice, owed, restockPrice } from './run.js';
+import { copyRun, costOf, freeRestockBy, hooksFor, offerPrice, owed, restockPrice } from './run.js';
 import { canTake, dealOf, rerollCost } from './oracle.js';
 import { restockCost } from './economy.js';
 import { gte } from './num.js';
 import { liveWheel } from './widths.js';
+import { tableCell } from './bets.js';
+import { createEuropeanWheel, isBlank } from './wheel.js';
+import { doWork, workRefusal, workTargets } from './wheelwork.js';
 
 // Pure read models for the view and the sim. Nothing here changes state.
 
@@ -70,6 +73,7 @@ export function cabinetView(state) {
   const railFree = state.rail.length < hooksFor(state);
   return {
     slots: state.cabinet.slots.map((offer, slot) => {
+      if (offer.kind === 'oddity') return oddityOffer(state, slot, offer);
       if (offer.kind !== 'talisman') return { slot, kind: offer.kind, shut: !!offer.shut };
       const def = offer.id ? getTalisman(offer.id) : null;
       if (!def) return { slot, kind: 'talisman', sold: true };
@@ -104,6 +108,28 @@ export function cabinetView(state) {
   };
 }
 
+/** The oddity compartment: what is in it, its price, and whether it could do its work now. */
+function oddityOffer(state, slot, offer) {
+  const def = offer.id && !offer.sold ? getOddity(offer.id) : null;
+  if (!def) return { slot, kind: 'oddity', sold: true };
+  return {
+    slot,
+    kind: 'oddity',
+    id: def.id,
+    name: def.name,
+    rarity: def.rarity,
+    text: def.text,
+    price: def.price,
+    listPrice: def.price,
+    sold: false,
+    affordable: state.tokens >= def.price,
+    short: Math.max(0, def.price - state.tokens),
+    picks: def.picks,
+    // Its first pick needs somewhere to act; a later one can always take the same pocket again or another.
+    workable: workTargets(state, def.picks[0]).length > 0,
+  };
+}
+
 /**
  * The House's luck as the room shows it, for the next spin: the Nudge (with
  * what it is made of and what restricts it) and the Devil's chance.
@@ -129,14 +155,107 @@ export function luckView(state) {
 }
 
 /**
- * The wheel as the ball meets it, for the view: each pocket's number, colour,
- * live width (talismans included) and chance, in wheel order.
+ * The wheel as the ball meets it, for the view: each pocket's id, number,
+ * colour, enhancement, live width (talismans included) and chance, in wheel
+ * order. A blank pocket has no number and no colour.
  */
 export function wheelView(state) {
   const { pockets } = liveWheel(state);
   let total = 0;
   for (const p of pockets) total += p.width;
-  return pockets.map((p) => ({ number: p.number, color: p.color, width: p.width, chance: p.width / total }));
+  return pockets.map((p) => ({ id: p.id, number: p.number, color: p.color, enh: p.enh ?? null, width: p.width, chance: p.width / total }));
+}
+
+/**
+ * Every number as the felt shows it (doc 5.4): its chance on the live wheel
+ * and the pockets that carry it (none when it was chiselled away or stamped
+ * over), so the felt can follow the paint, mark duplicates "×2" and show
+ * enhancements. `blanks` are the pockets with no number.
+ */
+export function numbersView(state) {
+  const wheel = wheelView(state);
+  const numbers = Array.from({ length: 37 }, (_, n) => ({ number: n, chance: 0, pockets: [] }));
+  const blanks = { chance: 0, pockets: [] };
+  for (const p of wheel) {
+    const into = isBlank(p) ? blanks : numbers[p.number];
+    into.chance += p.chance;
+    into.pockets.push({ id: p.id, color: p.color, enh: p.enh, width: p.width });
+  }
+  return { numbers, blanks };
+}
+
+/**
+ * The stats chalkboard (doc 5.11): the live chance of every number, colour,
+ * dozen, column and half, the pockets and what is done to them, and how the
+ * wheel differs from the House's own.
+ */
+export function statsView(state) {
+  const wheel = wheelView(state);
+  const { numbers, blanks } = numbersView(state);
+  const colors = { red: 0, black: 0, green: 0, blank: blanks.chance };
+  const dozens = [0, 0, 0];
+  const columns = [0, 0, 0];
+  const halves = { low: 0, high: 0, odd: 0, even: 0 };
+  for (const p of wheel) {
+    if (isBlank(p)) continue;
+    colors[p.color] += p.chance;
+    if (p.number < 1) continue;
+    const { col, row } = tableCell(p.number);
+    dozens[Math.floor(col / 4)] += p.chance;
+    columns[row] += p.chance;
+    halves[p.number <= 18 ? 'low' : 'high'] += p.chance;
+    halves[p.number % 2 ? 'odd' : 'even'] += p.chance;
+  }
+  const enhanced = wheel.filter((p) => p.enh).map((p) => ({ id: p.id, number: p.number, enh: p.enh, name: getEnhancement(p.enh)?.name ?? p.enh }));
+  const plain = createEuropeanWheel().pockets.length;
+  return {
+    pockets: wheel.length,
+    plainPockets: plain,
+    numbers: numbers.map((n) => ({ number: n.number, chance: n.chance, count: n.pockets.length, colors: [...new Set(n.pockets.map((p) => p.color))], enh: n.pockets.map((p) => p.enh).filter(Boolean) })),
+    blanks: blanks.pockets.length,
+    colors,
+    dozens,
+    columns,
+    halves,
+    enhanced,
+    // The fair chance of one number on the House's own wheel, to compare against.
+    fair: 1 / plain,
+  };
+}
+
+/**
+ * What the next pick of some wheel work could act on, after the picks chosen
+ * so far (each done in turn on a copy of the run): `works` are the picks in
+ * order (an oddity's, or the Number Punches' stamps), `chosen` their targets
+ * so far. Returns { work, index, last, numbers, blanks } for the felt: for
+ * pocket work, each number lists the pockets with it the work could act on
+ * (`blanks` the blank ones); for number work, `numbers[n]` is true when it
+ * can act on n. A stamp's pocket can be any pocket; its number is a second tap.
+ */
+export function pickView(state, works, chosen = []) {
+  let s = state;
+  if (chosen.length) {
+    s = copyRun(state);
+    chosen.forEach((t, i) => !workRefusal(s, works[i], t) && doWork(s, works[i], t, () => {}, null));
+  }
+  const index = chosen.length;
+  const work = works[index];
+  if (!work) return null;
+  const numbers = {};
+  const blanks = [];
+  if (work.on === 'number') {
+    for (let n = 0; n <= 36; n++) numbers[n] = !workRefusal(s, work, n);
+  } else {
+    const ok = new Set(workTargets(s, work));
+    for (let n = 0; n <= 36; n++) numbers[n] = [];
+    for (const p of s.wheel.pockets) {
+      if (!ok.has(p.id)) continue;
+      const entry = { id: p.id, color: p.color, enh: p.enh, width: p.width };
+      if (isBlank(p)) blanks.push(entry);
+      else numbers[p.number].push(entry);
+    }
+  }
+  return { work, index, last: index === works.length - 1, numbers, blanks, pockets: s.wheel.pockets.length };
 }
 
 export function bellView(state) {
