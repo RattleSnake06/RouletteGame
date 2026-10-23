@@ -792,7 +792,7 @@ export class Game {
       className: `numbers ${kind}`,
       kicker: kind === 'neighbours' ? 'The racetrack · Neighbours' : 'The racetrack · Finales',
       title: kind === 'neighbours' ? 'Which number?' : 'Which digit?',
-      lines: [kind === 'neighbours' ? `The number and the two pockets either side of it on the wheel. Pays ${BET_KINDS.neighbours.odds}.` : 'Every number ending in the digit: 9, or 12 for 7, 8 and 9.'],
+      lines: [kind === 'neighbours' ? `The number and the two pockets either side of it on the wheel. Pays ${BET_KINDS.neighbours.odds}.` : 'Every number ending in the digit. Pays 9, or 12 on 7, 8 and 9.'],
       actions: [{ label: 'Never mind', primary: true }, ...actions],
     });
   }
