@@ -13,7 +13,9 @@ import { restockCost } from './economy.js';
 import { gte, max, sub } from './num.js';
 import { liveWheel } from './widths.js';
 import { BET_KINDS, levelOdds, levelOf, tableCell } from './bets.js';
-import { createEuropeanWheel, isBlank } from './wheel.js';
+import { isBlank, isHousePocket } from './wheel.js';
+import { getStartingWheel } from './content/index.js';
+import { numberCount } from './house.js';
 import { doWork, workRefusal, workTargets } from './wheelwork.js';
 
 // Pure read models for the view and the sim. Nothing here changes state.
@@ -190,14 +192,15 @@ export function wheelView(state) {
  */
 export function numbersView(state) {
   const wheel = wheelView(state);
-  const numbers = Array.from({ length: 37 }, (_, n) => ({ number: n, chance: 0, pockets: [] }));
+  const numbers = Array.from({ length: numberCount(state) }, (_, n) => ({ number: n, chance: 0, pockets: [] }));
   const blanks = { chance: 0, pockets: [] };
+  const house = { chance: 0, pockets: [] };
   for (const p of wheel) {
-    const into = isBlank(p) ? blanks : numbers[p.number];
+    const into = isHousePocket(p) ? house : isBlank(p) ? blanks : numbers[p.number];
     into.chance += p.chance;
     into.pockets.push({ id: p.id, color: p.color, enh: p.enh, width: p.width });
   }
-  return { numbers, blanks };
+  return { numbers, blanks, house };
 }
 
 /**
@@ -207,34 +210,36 @@ export function numbersView(state) {
  */
 export function statsView(state) {
   const wheel = wheelView(state);
-  const { numbers, blanks } = numbersView(state);
-  const colors = { red: 0, black: 0, green: 0, blank: blanks.chance };
+  const { numbers, blanks, house } = numbersView(state);
+  const colors = { red: 0, black: 0, green: house.chance, blank: blanks.chance };
   const dozens = [0, 0, 0];
   const columns = [0, 0, 0];
   const halves = { low: 0, high: 0, odd: 0, even: 0 };
   for (const p of wheel) {
     if (isBlank(p)) continue;
     colors[p.color] += p.chance;
-    if (p.number < 1) continue;
+    if (p.number < 1 || p.number > 36) continue;
     const { col, row } = tableCell(p.number);
     dozens[Math.floor(col / 4)] += p.chance;
     columns[row] += p.chance;
     halves[p.number <= 18 ? 'low' : 'high'] += p.chance;
     halves[p.number % 2 ? 'odd' : 'even'] += p.chance;
   }
-  const enhanced = wheel.filter((p) => p.enh).map((p) => ({ id: p.id, number: p.number, enh: p.enh, name: getEnhancement(p.enh)?.name ?? p.enh }));
-  const plain = createEuropeanWheel().pockets.length;
+  const enhanced = wheel.filter((p) => p.enh && !isHousePocket(p)).map((p) => ({ id: p.id, number: p.number, enh: p.enh, name: getEnhancement(p.enh)?.name ?? p.enh }));
+  // The run's starting wheel as it came, to compare against.
+  const plain = getStartingWheel(state.wheelId).order.length;
   return {
     pockets: wheel.length,
     plainPockets: plain,
     numbers: numbers.map((n) => ({ number: n.number, chance: n.chance, count: n.pockets.length, colors: [...new Set(n.pockets.map((p) => p.color))], enh: n.pockets.map((p) => p.enh).filter(Boolean) })),
     blanks: blanks.pockets.length,
+    house: house.pockets.length,
     colors,
     dozens,
     columns,
     halves,
     enhanced,
-    // The fair chance of one number on the House's own wheel, to compare against.
+    // The fair chance of one number on the starting wheel, to compare against.
     fair: 1 / plain,
   };
 }
@@ -261,11 +266,12 @@ export function pickView(state, works, chosen = []) {
   const blanks = [];
   // A level is for a kind of bet: every spot on the felt can take it.
   if (work.on === 'bet') return { work, index, last: index === works.length - 1, numbers, blanks, bets: true, pockets: s.wheel.pockets.length };
+  const count = numberCount(s);
   if (work.on === 'number') {
-    for (let n = 0; n <= 36; n++) numbers[n] = !workRefusal(s, work, n);
+    for (let n = 0; n < count; n++) numbers[n] = !workRefusal(s, work, n);
   } else {
     const ok = new Set(workTargets(s, work));
-    for (let n = 0; n <= 36; n++) numbers[n] = [];
+    for (let n = 0; n < count; n++) numbers[n] = [];
     for (const p of s.wheel.pockets) {
       if (!ok.has(p.id)) continue;
       const entry = { id: p.id, color: p.color, enh: p.enh, width: p.width };
@@ -348,14 +354,26 @@ export function oracleView(state) {
   };
 }
 
-/** The gramophone (doc 5.10): what plays, and the crate. */
+/**
+ * The gramophone (doc 5.10): what plays, and the crate. `playing` is its
+ * first slot, `second` the slot the Vault's second lock opens (`slots` 2).
+ */
 export function gramophoneView(state) {
-  const playing = getRecord(state.playing);
+  const view = (id) => {
+    const r = getRecord(id);
+    return r && { id: r.id, name: r.name, rule: r.rule, tune: r.tune, reverse: !!r.reverse };
+  };
+  const playing = view(state.playing);
+  const second = view(state.playing2);
   return {
-    playing: playing && { id: playing.id, name: playing.name, rule: playing.rule, tune: playing.tune, reverse: !!playing.reverse },
+    playing,
+    second,
+    slots: state.gramophoneSlots ?? 1,
+    // The wheel turns backwards if either slot plays Carousel.
+    reverse: !!(playing?.reverse || second?.reverse),
     crate: state.records.map((id) => {
       const r = getRecord(id);
-      return { id, name: r.name, rule: r.rule, tune: r.tune, playing: id === state.playing };
+      return { id, name: r.name, rule: r.rule, tune: r.tune, playing: id === state.playing || id === state.playing2 };
     }),
     known: RECORDS.length,
   };

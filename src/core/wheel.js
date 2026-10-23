@@ -7,7 +7,8 @@
 //   { id, number, color, width, enh }
 //
 // A blank pocket (a shattered Glass one) has no number and no colour: no bet
-// covers it.
+// covers it. The House's pocket (House Edge, doc 7.2) has no number either,
+// but is green, and no wheel work touches it.
 
 /** European single-zero order, clockwise seen from above. */
 export const EUROPEAN_ORDER = [
@@ -15,23 +16,43 @@ export const EUROPEAN_ORDER = [
   31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26,
 ];
 
+// The American wheel's 00 is number 37 in the rules (green, like 0, and in
+// no dozen, column or even-money bet); everything the player reads says "00".
+export const DOUBLE_ZERO = 37;
+
+/** American double-zero order, clockwise seen from above (37 is 00). */
+export const AMERICAN_ORDER = [
+  0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, 37, 27, 10, 25, 29, 12, 8, 19,
+  31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2,
+];
+
+/** The Mirror wheel (doc 7.2): the numbers in the felt's order, 0 to 36 round the rim. */
+export const MIRROR_ORDER = Array.from({ length: 37 }, (_, n) => n);
+
 export const RED_NUMBERS = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
 ]);
 
 export function defaultColor(n) {
-  if (n === 0) return 'green';
+  if (n === 0 || n === DOUBLE_ZERO) return 'green';
   return RED_NUMBERS.has(n) ? 'red' : 'black';
 }
 
-export function createEuropeanWheel() {
+/** A number as the player reads it: 00 for the American wheel's second zero. */
+export const numberLabel = (n) => (n === DOUBLE_ZERO ? '00' : String(n));
+
+/** A plain wheel with one pocket per number, in this order. */
+export function createWheel(order = EUROPEAN_ORDER) {
   return {
-    pockets: EUROPEAN_ORDER.map((number) => ({ id: `p${number}`, number, color: defaultColor(number), width: 1, enh: null })),
-    nextId: EUROPEAN_ORDER.length,
+    pockets: order.map((number) => ({ id: `p${number}`, number, color: defaultColor(number), width: 1, enh: null })),
+    nextId: Math.max(...order) + 1,
   };
 }
 
+export const createEuropeanWheel = () => createWheel(EUROPEAN_ORDER);
+
 export const isBlank = (pocket) => pocket.number === null;
+export const isHousePocket = (pocket) => pocket.enh === 'house';
 
 /** Where the pocket with this id sits now, or -1. */
 export const indexOfPocket = (wheel, id) => wheel.pockets.findIndex((p) => p.id === id);

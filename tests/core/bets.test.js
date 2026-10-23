@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { BETS, BET_KINDS, betCovers, getBet, tableCell } from '../../src/core/bets.js';
 
-const byKind = (kind) => BETS.filter((b) => b.kind === kind);
+// The European table's bets: the American wheel's 00 (37) has its own.
+const EUROPEAN = BETS.filter((b) => !b.numberSet.has(37));
+const byKind = (kind) => EUROPEAN.filter((b) => b.kind === kind);
 const containing = (kind, n) => byKind(kind).filter((b) => b.numberSet.has(n));
 
 // Adjacency on the felt, with zero touching 1, 2 and 3.

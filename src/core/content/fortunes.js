@@ -13,8 +13,8 @@
 //   hooks     effects that last the rest of the run, as for talismans; a taken
 //             card with hooks stays as a boon and acts before the rail
 //
-// Cards that need later systems (the Neighbours bet, the figures in the
-// dark) wait for their phase (decision 22). The two bet-level cards came with
+// Cards that need later systems (the Neighbours bet) wait for their phase
+// (decision 22); "Ask the figures" sends one away since Phase 6. The two bet-level cards came with
 // Phase 5's second half. The two chip cards ("Your stack grows heavy", "A new
 // chip in your pocket") were left out at the owner's word (decision 28): a
 // run starts with three chips of value 1, so either was a third more stake
@@ -277,8 +277,11 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'rare',
     text: 'Ask the figures.',
-    effect: '+1 Nudge on every spin, for the rest of the run.',
+    effect: 'The oldest figure in the dark goes. +1 Nudge on every spin, for the rest of the run.',
     lore: 'THEY ARE STILL WATCHING',
+    take(ctx) {
+      ctx.sendFigureAway();
+    },
     hooks: {
       nudge(ctx) {
         ctx.addNudge(1);

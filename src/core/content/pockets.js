@@ -21,4 +21,6 @@ export const ENHANCEMENT_LIST = [
   { id: 'ember', name: 'Ember', chipValue: 1, text: 'A chip that wins here gains +1 value, for good.' },
   { id: 'cursed', name: 'Cursed', devil: 0.01, text: "When the ball lands here, the Devil's chance +1% for the rest of the night." },
   { id: 'blank', name: 'Blank', carves: false, text: 'No number. Nothing wins here.' },
+  // House Edge 1 (doc 7.2): a green pocket with no number, which no wheel work can touch.
+  { id: 'house', name: 'The House’s pocket', carves: false, text: 'Green, and no number: every bet loses here. No tool touches it.' },
 ];

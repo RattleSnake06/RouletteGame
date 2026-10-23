@@ -56,7 +56,8 @@ export function dealCards(state, kind, rng, hooks) {
 /**
  * What a card can do when taken, on the draft. Each change emits a
  * `fortuneEffect` event for the view. `helpers` comes from run.js: hang(def)
- * puts a talisman on the rail for nothing, play(id) puts a record on.
+ * puts a talisman on the rail for nothing, play(id) puts a record on if a
+ * slot of the gramophone is free.
  */
 export function fortuneCtx(s, def, emit, rng, helpers) {
   const effect = (kind, more = {}) => emit({ type: 'fortuneEffect', id: def.id, effect: kind, ...more });
@@ -134,6 +135,11 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
       }
       effect('levels', { kinds });
     },
+    /** The oldest figure standing in the dark goes (doc 7.3): the run counts one fewer, and the profile drops it. */
+    sendFigureAway() {
+      if (s.figures > 0) s.figures -= 1;
+      effect('figureGone');
+    },
     addHook() {
       s.railHooks += 1;
       effect('hook', { amount: 1 });
@@ -144,7 +150,7 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
       const record = left[rng.int(left.length)];
       s.records = [...s.records, record.id];
       effect('record', { record: record.id });
-      if (!s.playing) helpers.play(record.id);
+      helpers.play(record.id);
     },
     /** A random talisman gets a random engraving; `only` names it instead (and may replace one). */
     engraveTalisman({ cursed = true, only = null } = {}) {

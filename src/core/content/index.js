@@ -1,3 +1,5 @@
+import { ACHIEVEMENT_LIST } from './achievements.js';
+import { EDGE_LIST } from './edges.js';
 import { ENGRAVING_LIST } from './engravings.js';
 import { FORTUNE_LIST } from './fortunes.js';
 import { MATERIAL_LIST } from './materials.js';
@@ -5,6 +7,7 @@ import { ODDITY_LIST } from './oddities.js';
 import { ENHANCEMENT_LIST } from './pockets.js';
 import { RECORD_LIST } from './records.js';
 import { TALISMAN_LIST } from './talismans.js';
+import { WHEEL_LIST } from './wheels.js';
 
 // The content registry. Definitions are frozen data; hooks read state and
 // call ctx methods, never write state themselves.
@@ -70,6 +73,18 @@ export const ENHANCEMENTS = ENHANCEMENT_LIST.map((d) => Object.freeze({ mult: 1,
 const ENHANCEMENT_BY_ID = new Map(ENHANCEMENTS.map((d) => [d.id, d]));
 /** A pocket's enhancement, or null for a plain pocket (or one the game no longer knows). */
 export const getEnhancement = (id) => (id ? (ENHANCEMENT_BY_ID.get(id) ?? null) : null);
+
+// Phase 6: starting wheels and House Edge levels (doc 7.2).
+export const STARTING_WHEELS = WHEEL_LIST.map((d) => Object.freeze({ nightTokens: 0, gilded: 0, boneBlacks: false, debtMult: 1, devilFrom: null, ...d }));
+const WHEEL_BY_ID = new Map(STARTING_WHEELS.map((d) => [d.id, d]));
+/** A starting wheel; an unknown one (an old save) is the European. */
+export const getStartingWheel = (id) => WHEEL_BY_ID.get(id) ?? STARTING_WHEELS[0];
+export const EDGES = EDGE_LIST.map((d) => Object.freeze(d));
+export const ACHIEVEMENTS = ACHIEVEMENT_LIST.map((d) => Object.freeze(d));
+export const MAX_EDGE = EDGES.length;
+
+/** The records on the gramophone, its first slot first (a second opens with the Vault's second lock). */
+export const playingRecords = (state) => [state.playing, state.playing2].filter(Boolean).map(getRecord).filter(Boolean);
 
 export const ODDITIES = ODDITY_LIST.map((d) => Object.freeze({ gives: null, ...d, picks: d.picks.map((p) => Object.freeze({ on: 'pocket', ...p })) }));
 const ODDITY_BY_ID = new Map(ODDITIES.map((d) => [d.id, d]));

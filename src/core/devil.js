@@ -1,4 +1,5 @@
 import { sources, srcRef } from './effects.js';
+import { devilFrom } from './house.js';
 import { Rng } from './rng.js';
 
 // The Devil (design doc 5.7). The wheel's numbers sum to 666. Once the second
@@ -12,7 +13,9 @@ export const DEVIL = {
   cap: 0.25,
 };
 
-export const devilLive = (state) => state.debt >= DEVIL.liveFrom;
+/** The debt the Devil wakes at in this run (sooner on the Bone wheel or at House Edge 2). */
+export const devilLiveFrom = (state) => devilFrom(state, DEVIL.liveFrom);
+export const devilLive = (state) => state.debt >= devilLiveFrom(state);
 
 const round6 = (x) => Math.round(x * 1e6) / 1e6;
 
@@ -24,7 +27,7 @@ const round6 = (x) => Math.round(x * 1e6) / 1e6;
  */
 export function devilChanceFor(state, emit = null) {
   if (!devilLive(state)) return 0;
-  let chance = DEVIL.base + DEVIL.perDebt * (state.debt - DEVIL.liveFrom);
+  let chance = DEVIL.base + DEVIL.perDebt * (state.debt - devilLiveFrom(state));
   // Cursed pockets the ball landed in tonight (doc 6.5).
   const curse = state.devil.nightCurse ?? 0;
   if (curse > 0) {

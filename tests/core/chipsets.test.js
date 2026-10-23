@@ -105,7 +105,7 @@ describe('unlocks', () => {
     expect(deserializeProfile(serializeProfile(p))).toEqual(p);
     expect(deserializeProfile('not json')).toEqual(newProfile());
     expect(deserializeProfile(null)).toEqual(newProfile());
-    expect(deserializeProfile(JSON.stringify({ v: 1, unlocked: ['clay', 'mystery'], best: { clay: 2, mystery: 9 } }))).toEqual({ v: 1, unlocked: ['normal', 'clay'], best: { clay: 2 } });
+    expect(deserializeProfile(JSON.stringify({ v: 1, unlocked: ['clay', 'mystery'], best: { clay: 2, mystery: 9 } }))).toEqual({ ...newProfile(), unlocked: ['normal', 'clay'], best: { clay: 2 } });
   });
 });
 
@@ -116,11 +116,11 @@ describe('saves', () => {
     delete old.chipSet;
     delete old.fixed;
     delete old.chipTokens;
-    const json = serializeRun(old).replace('"v":7', '"v":4');
+    const json = serializeRun(old).replace('"v":8', '"v":4');
     const back = deserializeRun(json);
     expect(back.chipSet).toBe('normal');
     expect(back.chips.every((c) => c.material === 'normal')).toBe(true);
-    expect(back).toMatchObject({ fixed: [], chipTokens: 0, version: 7 });
+    expect(back).toMatchObject({ fixed: [], chipTokens: 0, version: 8 });
   });
 
   it('a run with fixed chips and Gold tokens round-trips', () => {

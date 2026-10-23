@@ -1,9 +1,10 @@
 import { BET_BY_ID } from './bets.js';
 import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
-import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman } from './content/index.js';
+import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman, playingRecords } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
+import { debtMultiplier, nightTokensFor, startingWheel } from './house.js';
 import { commitCtx, interestRateFor, lifecycle, sources } from './effects.js';
 import { add, ceil, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
@@ -11,7 +12,6 @@ import { canTake, dealCards, dealOf, fortuneCtx, rerollCost } from './oracle.js'
 import { resolveSpin } from './resolve.js';
 import { Rng, seedStreams } from './rng.js';
 import { copyTally, emptyRoundTally, emptyTally } from './tally.js';
-import { createEuropeanWheel } from './wheel.js';
 import { doWork, workRefusal } from './wheelwork.js';
 
 // The run as a state machine (design doc 9.3). `act(state, action)` returns
@@ -21,7 +21,8 @@ import { doWork, workRefusal } from './wheelwork.js';
 //   roundStart  choose a package (long night, short night, sit out)
 //   betting     arrange chips and spin until the night's spins run out
 //   nightOver   bank coins at the Cage, then end the night
-//   gameOver    the Cage collected and the deposits fell short
+//   gameOver    the Cage collected and the deposits fell short, or the
+//               player stepped out of the light past the goal
 //
 // Chips, the Cage, the Curio Cabinet, the rail, the Bell, Madame Zero and the
 // gramophone can be used in any phase but gameOver; so can wheel work.
@@ -33,22 +34,44 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 7;
+export const RUN_VERSION = 8;
+
+// The Vault (design doc 7.1): a run's goal is debt 4 + the locks open when it
+// began. Lock k opens the first time debt 3 + k is paid with the locks before
+// it open; with all four open, paying debt 8 or later opens the Vault.
+export const VAULT = { baseGoal: 4, locks: 4 };
+/** The debt whose payment opens lock `k`. */
+export const lockDebt = (k) => VAULT.baseGoal - 1 + k;
 const HISTORY_LENGTH = 40;
 
 const noEvents = () => {};
 const FIXED = 'Bone chips stay where they lie until the night ends.';
 
-/** A new run. `chipSet` is the material of the starting chips (decision 26). */
-export function createRun({ seed, chipSet = MATERIALS[0].id }) {
+/**
+ * A new run. `chipSet` is the material of the starting chips (decision 26);
+ * `wheel` the starting wheel and `edge` the House Edge level (doc 7.2). From
+ * the profile: `locks` the Vault's open locks (they set the goal and the
+ * gramophone's slots), `vault` whether it is open already, and `figures` the
+ * figures standing in the dark (Danse Macabre reads them).
+ */
+export function createRun({ seed, chipSet = MATERIALS[0].id, wheel = 'european', edge = 0, locks = 0, vault = false, figures = 0 }) {
   const material = getMaterial(chipSet);
   const chips = [];
   for (let i = 0; i < material.count; i++) chips.push({ id: `c${i + 1}`, value: 1, material: material.id, roundValue: 0 });
+  const rng = seedStreams(seed);
+  const pockets = new Rng(rng.pockets);
   const s = {
     version: RUN_VERSION,
     seed,
     chipSet: material.id,
-    rng: seedStreams(seed),
+    wheelId: getStartingWheel(wheel).id,
+    edge,
+    locks,
+    goal: VAULT.baseGoal + locks,
+    vault,
+    won: null, // the debt whose payment reached the goal
+    figures,
+    rng,
     phase: PHASE.ROUND_START,
     debt: 1,
     round: 1,
@@ -64,7 +87,7 @@ export function createRun({ seed, chipSet = MATERIALS[0].id }) {
     fixed: [], // chips placed tonight that may not move until the night ends (Bone)
     chipTokens: 0, // tokens chips have earned tonight (Gold, capped a night)
     levels: {}, // each kind of bet's level, where something raised it (doc 5.3)
-    wheel: createEuropeanWheel(),
+    wheel: startingWheel(wheel, edge, pockets),
     railHooks: ECONOMY.startHooks,
     rail: [],
     nextUid: 1,
@@ -84,6 +107,8 @@ export function createRun({ seed, chipSet = MATERIALS[0].id }) {
     nextBoonUid: 1,
     records: [],
     playing: null,
+    playing2: null, // the gramophone's second slot, from the Vault's second lock
+    gramophoneSlots: locks >= 2 ? 2 : 1,
     recordData: {},
     overture: null, // the debt Overture of Excess played during (it owes double)
     tally: emptyTally(),
@@ -92,6 +117,7 @@ export function createRun({ seed, chipSet = MATERIALS[0].id }) {
     stats: newStats(),
     outcome: null,
   };
+  s.rng.pockets = pockets.state();
   lifecycle(s, 'runStart', noEvents);
   beginDebt(s, noEvents);
   beginRound(s, noEvents);
@@ -124,8 +150,16 @@ export function newStats() {
 
 // --- Selectors --------------------------------------------------------------
 
-/** What the Cage collects this debt: twice as much if Overture of Excess played during it. */
-export const owed = (state) => (state.overture === state.debt ? mul(owedFor(state.debt), 2) : owedFor(state.debt));
+/**
+ * What the Cage collects at the end of debt `debt` (this one by default): the
+ * debt table's, more on the Gilded wheel and at House Edge 4, and twice as
+ * much if Overture of Excess played during it.
+ */
+export function owed(state, debt = state.debt) {
+  const x = debtMultiplier(state);
+  const due = x === 1 ? owedFor(debt) : ceil(mul(owedFor(debt), x));
+  return state.overture === debt ? mul(due, 2) : due;
+}
 export const spinCost = (state) => spinCostFor(state.debt);
 /** A night's price, with what plays on the gramophone (`packageCost` hooks). */
 export function costOf(state, packageId) {
@@ -137,7 +171,7 @@ export function costOf(state, packageId) {
   return cost;
 }
 /** Talisman hooks on the rail, with a record's (Static). */
-export const hooksFor = (state) => state.railHooks + ((state.playing && getRecord(state.playing)?.extraHooks) || 0);
+export const hooksFor = (state) => state.railHooks + playingRecords(state).reduce((n, r) => n + (r.extraHooks || 0), 0);
 /** What a Cabinet talisman costs now: nothing on a free buy, less with a discount. */
 export const offerPrice = (state, def) => (state.cabinet.freeBuys > 0 ? 0 : Math.max(0, priceOf(def.rarity) - state.cabinet.discount));
 /** A Restless talisman whose free restock this debt is unused, or null. */
@@ -166,7 +200,7 @@ function beginDebt(s, emit) {
   s.leans = { debt: rollDebtLeans(s), night: null };
   s.devil = { ...s.devil, firedThisDebt: false };
   // A debt that begins to Overture of Excess owes double, as one it starts during would.
-  if (s.playing && getRecord(s.playing)?.doublesDebt) s.overture = s.debt;
+  if (playingRecords(s).some((r) => r.doublesDebt)) s.overture = s.debt;
   const refilled = [];
   for (const inst of s.rail) {
     const def = getTalisman(inst.id);
@@ -294,23 +328,29 @@ function addChip(s, material, emit) {
   return chip;
 }
 
-/** A record into the crate; it plays at once if nothing is playing. */
+/** A record into the crate; it plays at once if a slot of the gramophone is free. */
 function giveRecord(s, id, emit) {
   s.records = [...s.records, id];
   emit({ type: 'recordGained', record: id });
-  if (!s.playing) playOn(s, id, emit);
+  const slot = freeSlot(s);
+  if (slot !== null) playOn(s, id, emit, slot);
 }
 
-/** The gramophone plays `id` (or nothing). A record keeps its own data between plays. */
-function playOn(s, id, emit) {
-  const was = s.playing;
-  s.playing = id;
+const SLOT_KEY = ['playing', 'playing2'];
+/** The gramophone's first empty slot, or null. */
+const freeSlot = (s) => (!s.playing ? 0 : s.gramophoneSlots > 1 && !s.playing2 ? 1 : null);
+
+/** Slot `slot` of the gramophone plays `id` (or nothing). A record keeps its own data between plays. */
+function playOn(s, id, emit, slot = 0) {
+  const key = SLOT_KEY[slot];
+  const was = s[key];
+  s[key] = id;
   const def = id ? getRecord(id) : null;
   if (def) {
     s.recordData = { ...s.recordData, [id]: s.recordData[id] ?? def.init?.() ?? {} };
     if (def.doublesDebt) s.overture = s.debt;
   }
-  emit({ type: 'recordPlayed', id, was });
+  emit({ type: 'recordPlayed', id, was, slot });
 }
 
 function sellOne(s, uid, emit) {
@@ -416,9 +456,10 @@ const HANDLERS = {
     const interest = interestOn(s.deposited, rate);
     s.deposited = add(s.deposited, interest);
     emit({ type: 'interest', amount: interest, deposited: s.deposited, rate });
-    s.tokens += ECONOMY.nightTokens;
-    s.stats.tokensEarned += ECONOMY.nightTokens;
-    emit({ type: 'tokens', amount: ECONOMY.nightTokens, reason: 'night' });
+    const nightTokens = nightTokensFor(s);
+    s.tokens += nightTokens;
+    s.stats.tokensEarned += nightTokens;
+    emit({ type: 'tokens', amount: nightTokens, reason: 'night' });
 
     lifecycle(s, 'roundEnd', emit);
     s.leans = { ...s.leans, night: null };
@@ -462,7 +503,21 @@ const HANDLERS = {
       rewardTokens,
       rewardCoins,
       surplus: s.deposited,
+      devilFired: !!s.devil.firedThisDebt,
     });
+    // The Vault (doc 7.1): a lock, the goal, the Vault itself.
+    if (s.locks < VAULT.locks && s.debt === lockDebt(s.locks + 1)) {
+      s.locks += 1;
+      emit({ type: 'lockOpened', lock: s.locks });
+    }
+    if (s.debt === s.goal) {
+      s.won = s.debt;
+      emit({ type: 'goalReached', debt: s.debt, edge: s.edge });
+    }
+    if (!s.vault && s.locks === VAULT.locks && s.debt >= VAULT.baseGoal + VAULT.locks) {
+      s.vault = true;
+      emit({ type: 'vaultOpened', debt: s.debt });
+    }
 
     s.debt += 1;
     s.round = 1;
@@ -619,7 +674,11 @@ const HANDLERS = {
     def.take?.(
       fortuneCtx(s, def, emit, rng, {
         hang: (talisman) => hang(s, talisman, 0, emit),
-        play: (record) => playOn(s, record, emit),
+        // A record she gives plays at once if a slot of the gramophone is free.
+        play: (record) => {
+          const slot = freeSlot(s);
+          if (slot !== null) playOn(s, record, emit, slot);
+        },
       }),
     );
     s.rng.fortunes = rng.state();
@@ -632,17 +691,33 @@ const HANDLERS = {
     return { state: s, events };
   },
 
-  /** Puts a record from the crate on the gramophone (null lifts the needle). */
-  playRecord(state, { id }) {
-    if (id === state.playing) return { state, events: [] };
+  /**
+   * Puts a record from the crate on slot `slot` of the gramophone (null lifts
+   * that needle). The second slot opens with the Vault's second lock.
+   */
+  playRecord(state, { id, slot = 0 }) {
+    if (slot !== 0 && !(slot === 1 && state.gramophoneSlots > 1)) return reject(state, 'The gramophone has one slot.', 'noSlot');
+    const key = SLOT_KEY[slot];
+    if (id === state[key]) return { state, events: [] };
     if (id !== null && !state.records.includes(id)) throw new Error(`No record ${id} in the crate`);
+    if (id !== null && id === state[SLOT_KEY[1 - slot]]) return reject(state, 'It is playing already.', 'playing');
     // A record's extra hook (Static) cannot go while a talisman hangs on it.
-    const hooks = state.railHooks + ((id && getRecord(id)?.extraHooks) || 0);
+    const other = getRecord(state[SLOT_KEY[1 - slot]]);
+    const hooks = state.railHooks + ((id && getRecord(id)?.extraHooks) || 0) + (other?.extraHooks || 0);
     if (state.rail.length > hooks) return reject(state, 'Every hook is in use: sell a talisman first.', 'railFull');
     const s = copyRun(state);
     const events = [];
-    playOn(s, id, (e) => events.push(e));
+    playOn(s, id, (e) => events.push(e), slot);
     return { state: s, events };
+  },
+
+  /** Past the goal, the player steps out of the light: the run is won, and ends (doc 7.1). */
+  leave(state) {
+    if (!state.won) return reject(state, 'The Cage lets no one go before the goal.', 'notWon');
+    const s = copyRun(state);
+    s.phase = PHASE.GAME_OVER;
+    s.outcome = { reason: 'left', debt: s.debt, debtsPaid: s.stats.debtsPaid };
+    return { state: s, events: [{ type: 'left', debtsPaid: s.stats.debtsPaid }] };
   },
 
   /**

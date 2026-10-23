@@ -1,6 +1,7 @@
 import { BET_KINDS, levelOdds, levelOf } from './bets.js';
 import { getEnhancement } from './content/index.js';
-import { defaultColor, indexOfPocket, isBlank } from './wheel.js';
+import { hasDoubleZero, untouchable } from './house.js';
+import { DOUBLE_ZERO, defaultColor, indexOfPocket, isBlank } from './wheel.js';
 import { MIN_WIDTH } from './widths.js';
 
 // Wheel work (design doc 5.4): what oddities, fortunes and the Number Punches
@@ -34,13 +35,14 @@ const pocketOf = (state, target) => {
   return state.wheel.pockets.find((p) => p.id === id) ?? null;
 };
 const withNumber = (state, n) => state.wheel.pockets.filter((p) => p.number === n);
-const isNumber = (n) => Number.isInteger(n) && n >= 0 && n <= 36;
+/** A number this run's wheel can carry: 0–36, and 00 on the American wheel. */
+const isNumber = (state, n) => Number.isInteger(n) && n >= 0 && (n <= 36 || (n === DOUBLE_ZERO && hasDoubleZero(state)));
 
 /** Why this work cannot act on this target now, or null when it can. */
 export function workRefusal(state, work, target) {
   if (work.on === 'bet') return BET_KINDS[target] ? null : 'Tap a bet.';
   if (work.on === 'number') {
-    if (!isNumber(target)) return 'Choose a number.';
+    if (!isNumber(state, target)) return 'Choose a number.';
     const pockets = withNumber(state, target);
     if (!pockets.length) return `No pocket reads ${target}.`;
     if (work.op === 'narrow' && !pockets.some((p) => p.width > MIN_WIDTH)) return 'It is as narrow as it goes.';
@@ -48,6 +50,7 @@ export function workRefusal(state, work, target) {
   }
   const pocket = pocketOf(state, target);
   if (!pocket) return 'Choose a pocket.';
+  if (untouchable(pocket)) return 'The House’s pocket is not yours to work.';
   const count = state.wheel.pockets.length;
   switch (work.op) {
     case 'gild':
@@ -66,7 +69,7 @@ export function workRefusal(state, work, target) {
       if (count <= WHEEL.minPockets) return `No fewer than ${WHEEL.minPockets} pockets.`;
       return state.foreseen?.pocketId === pocket.id ? 'The Glass Eye is watching that pocket.' : null;
     case 'stamp':
-      if (!isNumber(target?.number)) return 'Choose a number to stamp.';
+      if (!isNumber(state, target?.number)) return 'Choose a number to stamp.';
       return pocket.number === target.number ? `It reads ${target.number} already.` : null;
     default:
       throw new Error(`Unknown wheel work: ${work.op}`);
@@ -76,9 +79,9 @@ export function workRefusal(state, work, target) {
 /** Every target this work could act on now: pocket ids, or numbers (not for stamping). */
 export function workTargets(state, work) {
   if (work.on === 'bet') return Object.keys(BET_KINDS);
-  if (work.on === 'number') return Array.from({ length: 37 }, (_, n) => n).filter((n) => !workRefusal(state, work, n));
-  // Any pocket can take a stamp; only the number can be refused.
-  if (work.op === 'stamp') return state.wheel.pockets.map((p) => p.id);
+  if (work.on === 'number') return Array.from({ length: 38 }, (_, n) => n).filter((n) => !workRefusal(state, work, n));
+  // Any pocket but the House's can take a stamp; only the number can be refused.
+  if (work.op === 'stamp') return state.wheel.pockets.filter((p) => !untouchable(p)).map((p) => p.id);
   return state.wheel.pockets.filter((p) => !workRefusal(state, work, p.id)).map((p) => p.id);
 }
 

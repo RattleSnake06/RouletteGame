@@ -1,6 +1,7 @@
 // Records (design doc 5.10, 6.3): the gramophone plays one, and while it plays
 // it changes the music and one rule. Records can be swapped at any time; only
-// the one playing acts. In Phase 4 they come only from Madame Zero's fortunes.
+// the one playing acts (two, once the Vault's second lock gives the gramophone
+// a second slot). They come from Madame Zero's fortunes and the Cabinet.
 //
 //   rule       the rule as the record's label says it
 //   tune       which synthesised loop plays (src/audio/records.js)
@@ -128,5 +129,18 @@ export const RECORD_LIST = [
     // Only a spin that has Nudge already (a Lean, pity, a talisman) gets the
     // extra pocket, so nudge.js adds it after every other source.
     reach: 1,
+  },
+  // Phase 6: the figures in the dark (doc 7.3) stand in the profile; a run
+  // counts the ones standing when it began (fewer if she sends one away).
+  {
+    id: 'danse_macabre',
+    name: 'Danse Macabre',
+    rule: '+1% interest for each figure standing in the dark.',
+    tune: 'danse',
+    hooks: {
+      interestRate(ctx) {
+        if (ctx.state.figures > 0) ctx.addRate(0.01 * ctx.state.figures);
+      },
+    },
   },
 ];

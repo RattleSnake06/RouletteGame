@@ -101,6 +101,17 @@ export const TUNES = {
   },
   // Static: no music, only the groove's hiss and crackle.
   static: { bpm: 60, steps: 16, tracks: [], crackle: 4, hiss: 3 },
+  // Danse Macabre: G minor, Death's fiddle tuned to the tritone, then the
+  // bones of the xylophone.
+  danse: {
+    bpm: 126,
+    steps: 48,
+    tracks: [
+      { inst: 'bass', notes: [[0, 43, 4], [12, 43, 4], [24, 38, 4], [36, 43, 4]] },
+      { inst: 'reed', level: 0.45, notes: [[0, [69, 75], 2], [3, [69, 75], 2], [6, [69, 75], 2], [24, [62, 66, 69], 3], [30, [62, 66, 69], 3], [36, [67, 70, 74], 3], [42, [67, 70, 74], 3]] },
+      { inst: 'bell', notes: [[12, 67, 2], [14, 67, 2], [16, 67, 2], [18, 70, 2], [20, 69, 2], [22, 67, 2], [24, 66, 2], [26, 67, 2], [28, 69, 2], [30, 62, 6], [36, 67, 2], [38, 67, 2], [40, 67, 2], [42, 70, 2], [44, 74, 4]] },
+    ],
+  },
   // Carousel: F major, a calliope's fairground waltz.
   carousel: {
     bpm: 152,

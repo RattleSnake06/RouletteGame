@@ -9,7 +9,7 @@ const wheel = createEuropeanWheel();
 
 describe('expected value', () => {
   it('is exactly 36/37 per unit of chip value for every base bet', () => {
-    for (const bet of BETS) {
+    for (const bet of BETS.filter((b) => !b.numberSet.has(37))) {
       let ev = 0;
       wheel.pockets.forEach((p, i) => {
         if (betCovers(bet, p)) ev += pocketChance(wheel, i) * betOdds(bet);

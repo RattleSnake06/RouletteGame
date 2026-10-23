@@ -1,4 +1,4 @@
-import { getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
+import { getEngraving, getFortune, getTalisman, playingRecords } from './content/index.js';
 import { add } from './num.js';
 import { hashSeed } from './rng.js';
 
@@ -58,8 +58,8 @@ import { hashSeed } from './rng.js';
  */
 export function sources(state) {
   const out = [];
-  const record = state.playing ? getRecord(state.playing) : null;
-  if (record) {
+  // The gramophone's records act first, its first slot before the second.
+  for (const record of playingRecords(state)) {
     const inst = { uid: 'record', id: record.id, data: state.recordData?.[record.id] ?? record.init?.() ?? {} };
     out.push({ index: -1, inst, def: record, as: record, self: inst.data, copyOf: null, by: null, kind: 'record' });
   }

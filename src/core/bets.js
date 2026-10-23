@@ -6,8 +6,12 @@
 // Table geometry: numbers 1–36 sit in 12 columns of three, one "street" each.
 // col = floor((n − 1) / 3) runs 0–11 away from zero; row = (n − 1) % 3, where
 // row 0 holds 1, 4, 7… and row 2 holds 3, 6, 9….
+//
+// The American wheel's 00 (number 37, wheel.js) has its own straight-up and
+// splits with 0, 2 and 3; on any other wheel no pocket reads it, and the felt
+// shows none of them.
 
-import { RED_NUMBERS } from './wheel.js';
+import { DOUBLE_ZERO, RED_NUMBERS } from './wheel.js';
 
 export function tableCell(n) {
   return { col: Math.floor((n - 1) / 3), row: (n - 1) % 3 };
@@ -47,6 +51,7 @@ function make(kind, numbers, id, label) {
 function buildBets() {
   const bets = [];
   for (let n = 0; n <= 36; n++) bets.push(make('straight', [n], undefined, `Straight up ${n}`));
+  bets.push(make('straight', [DOUBLE_ZERO], undefined, 'Straight up 00'));
 
   // Splits: along a street (n, n+1), across streets (n, n+3), and with zero.
   for (let n = 1; n <= 36; n++) {
@@ -54,6 +59,8 @@ function buildBets() {
     if (n <= 33) bets.push(make('split', [n, n + 3]));
   }
   for (const n of [1, 2, 3]) bets.push(make('split', [0, n]));
+  bets.push(make('split', [0, DOUBLE_ZERO], undefined, 'Split 0–00'));
+  for (const n of [2, 3]) bets.push(make('split', [n, DOUBLE_ZERO], undefined, `Split ${n}–00`));
 
   for (let c = 0; c < 12; c++) bets.push(make('street', range(3 * c + 1, 3 * c + 3)));
 

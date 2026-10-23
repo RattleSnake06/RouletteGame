@@ -1,7 +1,8 @@
 import { betCovers, getBet } from './bets.js';
-import { getRecord } from './content/index.js';
+import { playingRecords } from './content/index.js';
 import { ECONOMY } from './economy.js';
 import { sources, srcRef } from './effects.js';
+import { leanAfterEdge } from './house.js';
 import { evaluate } from './payout.js';
 import { add, gt } from './num.js';
 import { Rng } from './rng.js';
@@ -93,7 +94,7 @@ const debtSpinsOver = (state) => state.phase === 'gameOver' || (state.phase === 
 export function upcomingLean(state) {
   // Lullaby for Zero: the House does not lean while it plays (the Leans are
   // still rolled, so the run's other draws stay as they were).
-  if (state.playing && getRecord(state.playing)?.noLeans) return 0;
+  if (playingRecords(state).some((r) => r.noLeans)) return 0;
   const spin = nextSpin(state);
   let strength = 0;
   // Debt 1's schedule counts spins of the debt, so a Lean can be announced at
@@ -102,7 +103,7 @@ export function upcomingLean(state) {
   if (!debtSpinsOver(state)) for (const l of state.leans.debt) if (l.at === spin.ofDebt) strength += l.strength;
   const night = state.leans.night;
   if (night && state.phase === 'betting' && night.at === spin.ofNight) strength += night.strength;
-  return strength;
+  return leanAfterEdge(state, strength);
 }
 
 /** Pity on the next spin, from the misses in a row so far (it starts after `after` misses). */
@@ -186,10 +187,12 @@ export function nudgeFor(state, emit = null) {
   // included, so the board shows no pity for it either.
   const pity = pityBlocker || blocked ? 0 : rawPity;
   // Carousel: Nudge that is there at all reaches a pocket further.
-  const record = state.playing ? getRecord(state.playing) : null;
-  if (record?.reach && !blocked && lean + pity + charms > 0) {
-    charms += record.reach;
-    emit?.({ type: 'trigger', src: { uid: 'record', id: record.id, as: record.id }, hook: 'nudge', effect: 'nudge', amount: record.reach });
+  const reach = playingRecords(state).filter((r) => r.reach);
+  if (reach.length && !blocked && lean + pity + charms > 0) {
+    for (const record of reach) {
+      charms += record.reach;
+      emit?.({ type: 'trigger', src: { uid: 'record', id: record.id, as: record.id }, hook: 'nudge', effect: 'nudge', amount: record.reach });
+    }
   }
   const total = blocked ? 0 : lean + pity + charms;
   // What the hops look like on screen: a Lean's warm spark, pity's cold one,
