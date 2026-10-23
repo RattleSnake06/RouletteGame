@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BETS, betCovers, betOdds } from '../../src/core/bets.js';
+import { BETS, betCovers, betOdds, isSpecial } from '../../src/core/bets.js';
 import { evaluate } from '../../src/core/payout.js';
 import { Rng, hashSeed } from '../../src/core/rng.js';
 import { emptyTally } from '../../src/core/tally.js';
@@ -9,7 +9,7 @@ const wheel = createEuropeanWheel();
 
 describe('expected value', () => {
   it('is exactly 36/37 per unit of chip value for every base bet', () => {
-    for (const bet of BETS.filter((b) => !b.numberSet.has(37))) {
+    for (const bet of BETS.filter((b) => !b.numberSet.has(37) && !isSpecial(b.kind))) {
       let ev = 0;
       wheel.pockets.forEach((p, i) => {
         if (betCovers(bet, p)) ev += pocketChance(wheel, i) * betOdds(bet);

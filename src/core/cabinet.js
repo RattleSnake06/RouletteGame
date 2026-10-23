@@ -1,4 +1,4 @@
-import { ENGRAVINGS, ODDITIES, RECORDS, TALISMANS } from './content/index.js';
+import { ENGRAVINGS, ODDITIES, RECORDS, TALISMANS, isOffered } from './content/index.js';
 import { ECONOMY, RARITY } from './economy.js';
 import { Rng } from './rng.js';
 
@@ -47,10 +47,10 @@ export function rollEngraving(rng, { always = false, cursed = true } = {}) {
  * again, so the weights are exactly the relative odds. Nothing on the rail is
  * offered, and nothing twice in one restock.
  */
-export function rollTalismanSlots(rail, rng, debt = 1) {
+export function rollTalismanSlots(rail, rng, debt = 1, opened = null) {
   const exclude = new Set(rail.map((t) => t.id));
   return Array.from({ length: TALISMAN_SLOTS }, () => {
-    const pool = TALISMANS.filter((d) => d.inCabinet && !exclude.has(d.id));
+    const pool = TALISMANS.filter((d) => d.inCabinet && !exclude.has(d.id) && isOffered({ opened }, d));
     if (!pool.length) return { ...EMPTY };
     let pick = null;
     for (let tries = 0; tries < 64; tries++) {
@@ -69,8 +69,8 @@ export function rollTalismanSlots(rail, rng, debt = 1) {
  * and again). A chip is not offered to a full hand, nor a record when every
  * record is owned; a record is one not yet owned, drawn here too.
  */
-export function rollOdditySlot(rng, { owned = [], chips = 0 } = {}) {
-  const left = RECORDS.filter((r) => !owned.includes(r.id));
+export function rollOdditySlot(rng, { owned = [], chips = 0, opened = null } = {}) {
+  const left = RECORDS.filter((r) => !owned.includes(r.id) && isOffered({ opened }, r));
   const pool = ODDITIES.filter((d) => !(d.gives?.chip && chips >= ECONOMY.maxChips) && !(d.gives?.record && !left.length));
   let pick = null;
   for (let tries = 0; tries < 64; tries++) {
@@ -85,8 +85,8 @@ export function rollOdditySlot(rng, { owned = [], chips = 0 } = {}) {
 /** Restocks the draft's compartments from its cabinet stream: talismans first, then the oddity. */
 export function restockSlots(draft) {
   const rng = new Rng(draft.rng.cabinet);
-  const talismans = rollTalismanSlots(draft.rail, rng, draft.debt);
-  const oddity = rollOdditySlot(rng, { owned: draft.records, chips: draft.chips.length });
+  const talismans = rollTalismanSlots(draft.rail, rng, draft.debt, draft.opened);
+  const oddity = rollOdditySlot(rng, { owned: draft.records, chips: draft.chips.length, opened: draft.opened });
   // "Until the next restock" (The cabinet owes you): this is the next restock.
   draft.cabinet.discount = 0;
   draft.rng.cabinet = rng.state();

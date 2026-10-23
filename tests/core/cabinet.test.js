@@ -34,10 +34,11 @@ describe('Curio Cabinet', () => {
 
   it('rolls rarities in proportion to their weights (first compartment)', () => {
     const odds = rarityOdds();
-    // 16 commons, 15 uncommons, 6 rares, 5 legendaries (cursed are never offered):
-    // weights 16 + 12.75 + 3.6 + 1.5 = 33.85.
-    expect(odds.common).toBeCloseTo(16 / 33.85, 6);
-    expect(odds.legendary).toBeCloseTo(1.5 / 33.85, 6);
+    // A new run's pool: 21 commons, 20 uncommons, 7 rares, 5 legendaries
+    // (cursed ones are never offered, and Phase 7's locked ones wait):
+    // weights 21 + 17 + 4.2 + 1.5 = 43.7.
+    expect(odds.common).toBeCloseTo(21 / 43.7, 6);
+    expect(odds.legendary).toBeCloseTo(1.5 / 43.7, 6);
     const rng = new Rng(hashSeed('rarity'));
     const counts = { common: 0, uncommon: 0, rare: 0, legendary: 0 };
     const N = 100000;

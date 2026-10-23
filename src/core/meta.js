@@ -96,8 +96,23 @@ export function standingFigures(profile) {
   return profile.figures.slice(-FIGURES.standing).filter((f) => !f.gone);
 }
 
+/** Content that waits for a lock of the Vault or a feat (decision 29). */
+const GATED = () => [...TALISMANS, ...FORTUNES, ...RECORDS].filter((d) => d.unlock);
+const opensWith = (profile, def) => (def.unlock.lock ? profile.locks >= def.unlock.lock : profile.achievements.includes(def.unlock.feat));
+
+/** The gated content this profile has opened. */
+export const openedContent = (profile) => GATED().filter((d) => opensWith(profile, d)).map((d) => d.id);
+
+/** What opens a gated item, as the Almanac says it. */
+export function opensLine(def) {
+  if (!def?.unlock) return null;
+  if (def.unlock.lock) return `Opens with lock ${def.unlock.lock} of the Vault.`;
+  const feat = ACHIEVEMENTS.find((a) => a.id === def.unlock.feat);
+  return `Opens with the feat “${feat?.name ?? def.unlock.feat}”: ${feat?.text ?? ''}`.trim();
+}
+
 /** What a new run takes from the profile (core/run.js createRun). */
-export const runOptions = (profile) => ({ locks: profile.locks, vault: profile.vault, figures: standingFigures(profile).length });
+export const runOptions = (profile) => ({ locks: profile.locks, vault: profile.vault, figures: standingFigures(profile).length, opened: openedContent(profile) });
 
 /** The goal a new run would have: debt 4 + the open locks. */
 export const goalFor = (profile) => UNLOCK_DEBT + profile.locks;
@@ -139,7 +154,8 @@ export function applyRun(profile, state, events) {
       if (r.unlocked) news.push({ kind: 'chips', id: r.unlocked });
     } else if (e.type === 'lockOpened' && e.lock > p.locks) {
       p = { ...p, locks: e.lock };
-      news.push({ kind: 'lock', lock: e.lock, wheels: STARTING_WHEELS.filter((w) => w.lock === e.lock).map((w) => w.id), slot: e.lock === 2 });
+      const content = GATED().filter((d) => d.unlock.lock === e.lock).map((d) => d.id);
+      news.push({ kind: 'lock', lock: e.lock, wheels: STARTING_WHEELS.filter((w) => w.lock === e.lock).map((w) => w.id), slot: e.lock === 2, content });
     } else if (e.type === 'goalReached') {
       p = { ...p, stats: { ...p.stats, goals: p.stats.goals + 1 } };
       if (state.edge >= p.edge && p.edge < MAX_EDGE) {
@@ -158,7 +174,7 @@ export function applyRun(profile, state, events) {
   const fresh = ACHIEVEMENTS.filter((a) => !done.has(a.id) && a.check(state, events)).map((a) => a.id);
   if (fresh.length) {
     p = { ...p, achievements: [...p.achievements, ...fresh] };
-    for (const id of fresh) news.push({ kind: 'achievement', id });
+    for (const id of fresh) news.push({ kind: 'achievement', id, content: GATED().filter((d) => d.unlock.feat === id).map((d) => d.id) });
   }
   return { profile: p, news };
 }
@@ -261,7 +277,8 @@ const TITLES = { talismans: 'Talismans', fortunes: 'Fortunes', records: 'Records
 export function almanacView(profile) {
   const sections = SEEN_KINDS.map((kind) => {
     const seen = new Set(profile.seen[kind]);
-    const entries = POOL[kind]().map((d) => (seen.has(d.id) ? { id: d.id, seen: true, ...ENTRY[kind](d) } : { id: d.id, seen: false }));
+    // An unseen entry that waits for a lock or a feat says what opens it.
+    const entries = POOL[kind]().map((d) => (seen.has(d.id) ? { id: d.id, seen: true, ...ENTRY[kind](d) } : { id: d.id, seen: false, opens: d.unlock && !opensWith(profile, d) ? opensLine(d) : null }));
     return { kind, title: TITLES[kind], entries, seen: entries.filter((e) => e.seen).length };
   });
   const done = new Set(profile.achievements);

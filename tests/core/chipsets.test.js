@@ -116,11 +116,11 @@ describe('saves', () => {
     delete old.chipSet;
     delete old.fixed;
     delete old.chipTokens;
-    const json = serializeRun(old).replace('"v":8', '"v":4');
+    const json = serializeRun(old).replace('"v":9', '"v":4');
     const back = deserializeRun(json);
     expect(back.chipSet).toBe('normal');
     expect(back.chips.every((c) => c.material === 'normal')).toBe(true);
-    expect(back).toMatchObject({ fixed: [], chipTokens: 0, version: 8 });
+    expect(back).toMatchObject({ fixed: [], chipTokens: 0, version: 9 });
   });
 
   it('a run with fixed chips and Gold tokens round-trips', () => {

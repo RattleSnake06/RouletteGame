@@ -1,6 +1,6 @@
 import { bellQueue, canAnswer } from './bell.js';
-import { betCovers, getBet } from './bets.js';
-import { RECORDS, getEnhancement, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman } from './content/index.js';
+import { betCovers, betOf } from './bets.js';
+import { RECORDS, getEnhancement, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman, isOffered } from './content/index.js';
 import { ECONOMY, RARITY, priceOf, sellValueOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
 import { copyTarget, echoTarget, sources } from './effects.js';
@@ -59,14 +59,15 @@ export function railView(state) {
 
 /**
  * Each rarity's chance in the first compartment. Talismans on the rail are
- * never offered, so with a state the odds follow what is owned.
+ * never offered, nor ones this run has not opened (decision 29), so with a
+ * state the odds follow what is owned and open.
  */
 export function rarityOdds(state = null) {
   const owned = new Set(state?.rail.map((t) => t.id) ?? []);
   const totals = {};
   let sum = 0;
   for (const d of TALISMANS) {
-    if (!d.inCabinet || owned.has(d.id)) continue;
+    if (!d.inCabinet || owned.has(d.id) || !isOffered(state, d)) continue;
     totals[d.rarity] = (totals[d.rarity] ?? 0) + RARITY[d.rarity].weight;
     sum += RARITY[d.rarity].weight;
   }
@@ -299,7 +300,7 @@ export function bellView(state) {
  * most generous.
  */
 export function previewBet(state, betId, value = 1) {
-  const bet = getBet(betId);
+  const bet = betOf(state, betId);
   // The run's own material, so a note says what this run's chips would pay.
   const chip = { id: '__preview', value, material: state.chipSet ?? 'normal', roundValue: 0 };
   const probe = { ...state, chips: [chip], placements: { [chip.id]: betId } };
@@ -322,7 +323,7 @@ export function previewBet(state, betId, value = 1) {
 
 /** How often this bet wins on the live wheel, before Nudge (doc 5.4: the felt says what the wheel does). */
 export function betChance(state, betId) {
-  const bet = getBet(betId);
+  const bet = betOf(state, betId);
   const { pockets } = liveWheel(state);
   let total = 0;
   let hit = 0;

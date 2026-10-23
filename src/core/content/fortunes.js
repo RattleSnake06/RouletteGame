@@ -32,6 +32,7 @@ const freeHook = (state, hooks) => state.rail.length < hooks;
 const owns = (state, id) => state.rail.some((t) => t.id === id);
 const GILD = { op: 'gild', on: 'pocket' };
 const CURSE = { op: 'enhance', on: 'pocket', enh: 'cursed' };
+const REMOVE = { op: 'remove', on: 'pocket' };
 const canWork = (state, work) => workTargets(state, work).length > 0;
 const zeroPocket = (state) => state.wheel.pockets.find((p) => p.number === 0);
 const OUTSIDE = ['dozen', 'column', 'red', 'black', 'odd', 'even', 'low', 'high'];
@@ -45,6 +46,12 @@ const FORTUNE = {
   gilds: 3,
   borrowedGilds: 4,
   borrowedCurses: 2,
+  // Phase 7
+  zeroWiden: 0.5,
+  twinMult: 0.5,
+  devilsHand: 0.01,
+  breaks: 2,
+  breakTokens: 4,
 };
 
 export const FORTUNE_LIST = [
@@ -299,6 +306,75 @@ export const FORTUNE_LIST = [
     take(ctx) {
       ctx.workRandom(GILD, FORTUNE.borrowedGilds);
       ctx.workRandom(CURSE, FORTUNE.borrowedCurses, { plain: true });
+    },
+  },
+  // --- Phase 7: five more; some wait for a lock of the Vault or a feat -------
+  {
+    id: 'neighbours_talk',
+    kind: 'white',
+    rarity: 'rare',
+    maxPicks: 1,
+    unlock: { lock: 1 },
+    opens: ['neighbours'],
+    text: 'Neighbours talk.',
+    effect: 'The Neighbours bet opens on the racetrack, for the rest of the run: a number and the two pockets either side of it.',
+    lore: 'THEY HEAR EVERYTHING',
+  },
+  {
+    id: 'zero_smiles',
+    kind: 'white',
+    rarity: 'common',
+    text: 'Zero smiles on you.',
+    effect: `Every green zero +${FORTUNE.zeroWiden} wide, for good.`,
+    lore: 'ZERO IS NOT EMPTY',
+    take(ctx) {
+      ctx.widen((p) => p.color === 'green' && p.number !== null, FORTUNE.zeroWiden);
+    },
+  },
+  {
+    id: 'twin_ball',
+    kind: 'white',
+    rarity: 'rare',
+    maxPicks: 1,
+    unlock: { lock: 4 },
+    text: 'The ball has a twin.',
+    effect: `A second ball on every spin, for the rest of the run. It pays ×${FORTUNE.twinMult}.`,
+    lore: 'TWO OF EVERYTHING',
+    hooks: {
+      balls(ctx) {
+        ctx.addBall({ mult: FORTUNE.twinMult });
+      },
+    },
+  },
+  {
+    id: 'devils_hand',
+    kind: 'black',
+    rarity: 'uncommon',
+    unlock: { feat: 'the_house_at_its_worst' },
+    text: 'Shake the Devil’s hand.',
+    effect: `Winning chips +1 Stake, for the rest of the run. The Devil's chance +${FORTUNE.devilsHand * 100}%.`,
+    lore: 'HE KEEPS HIS WORD',
+    hooks: {
+      chipStake(ctx) {
+        ctx.addStake(1);
+      },
+      devilChance(ctx) {
+        ctx.addChance(FORTUNE.devilsHand);
+      },
+    },
+  },
+  {
+    id: 'break_the_wheel',
+    kind: 'black',
+    rarity: 'common',
+    unlock: { lock: 3 },
+    text: 'Break the wheel.',
+    effect: `${FORTUNE.breaks} pockets are chiselled out at random. +${FORTUNE.breakTokens} tokens.`,
+    lore: 'IT WAS NEVER FAIR',
+    requires: (state) => canWork(state, REMOVE),
+    take(ctx) {
+      ctx.workRandom(REMOVE, FORTUNE.breaks);
+      ctx.gainTokens(FORTUNE.breakTokens);
     },
   },
 ];

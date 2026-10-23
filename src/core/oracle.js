@@ -1,5 +1,5 @@
 import { BET_KINDS, levelOdds, levelOf } from './bets.js';
-import { FORTUNES, RECORDS, getTalisman } from './content/index.js';
+import { FORTUNES, RECORDS, getTalisman, isOffered } from './content/index.js';
 import { rollEngraving } from './cabinet.js';
 import { RARITY } from './economy.js';
 import { mul, num } from './num.js';
@@ -27,13 +27,13 @@ export const rerollCost = (state) => num(state.debt + (dealOf(state)?.rerolls ??
  * often as a run allows, and able to do something (`hooks`: the rail's hooks).
  */
 export function fortunePool(state, kind, hooks) {
-  return FORTUNES.filter((d) => d.kind === kind && canTake(state, d, hooks));
+  return FORTUNES.filter((d) => d.kind === kind && isOffered(state, d) && canTake(state, d, hooks));
 }
 
 /** Could this card be taken now: under its limit, and with something to do? */
 export function canTake(state, def, hooks) {
   if (def.maxPicks !== null && (state.picks[def.id] ?? 0) >= def.maxPicks) return false;
-  const recordsLeft = RECORDS.filter((r) => !state.records.includes(r.id)).length;
+  const recordsLeft = RECORDS.filter((r) => !state.records.includes(r.id) && isOffered(state, r)).length;
   return !def.requires || def.requires(state, { hooks, recordsLeft });
 }
 
@@ -145,7 +145,7 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
       effect('hook', { amount: 1 });
     },
     giveRecord() {
-      const left = RECORDS.filter((r) => !s.records.includes(r.id));
+      const left = RECORDS.filter((r) => !s.records.includes(r.id) && isOffered(s, r));
       if (!left.length) return;
       const record = left[rng.int(left.length)];
       s.records = [...s.records, record.id];

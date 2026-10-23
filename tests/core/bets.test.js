@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { BETS, BET_KINDS, betCovers, getBet, tableCell } from '../../src/core/bets.js';
+import { BETS, BET_KINDS, betCovers, getBet, isSpecial, tableCell } from '../../src/core/bets.js';
 
-// The European table's bets: the American wheel's 00 (37) has its own.
-const EUROPEAN = BETS.filter((b) => !b.numberSet.has(37));
+// The European table's bets: the American wheel's 00 (37) has its own, and
+// the special bets (Phase 7) round their odds down.
+const EUROPEAN = BETS.filter((b) => !b.numberSet.has(37) && !isSpecial(b.kind));
 const byKind = (kind) => EUROPEAN.filter((b) => b.kind === kind);
 const containing = (kind, n) => byKind(kind).filter((b) => b.numberSet.has(n));
 
@@ -67,7 +68,7 @@ describe('European table bets', () => {
   });
 
   it('prices every base bet at 36 ÷ numbers covered', () => {
-    for (const b of BETS) expect(BET_KINDS[b.kind].odds * b.numbers.length).toBe(36);
+    for (const b of EUROPEAN) expect(BET_KINDS[b.kind].odds * b.numbers.length).toBe(36);
   });
 
   it('settles red and black by pocket colour, and loses everything outside on zero', () => {

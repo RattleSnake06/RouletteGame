@@ -96,8 +96,8 @@ describe('saves', () => {
     const s = setup();
     const old = { ...s, version: 6 };
     delete old.levels;
-    const back = deserializeRun(serializeRun(old).replace('"v":8', '"v":6'));
-    expect(back).toMatchObject({ version: 8, levels: {} });
+    const back = deserializeRun(serializeRun(old).replace('"v":9', '"v":6'));
+    expect(back).toMatchObject({ version: 9, levels: {} });
   });
 
   it('levels and new chips round-trip', () => {

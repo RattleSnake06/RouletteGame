@@ -1,6 +1,6 @@
-import { getBet } from '../bets.js';
+import { SPECIAL_KINDS, getBet, isSpecial, tableCell } from '../bets.js';
 import { devilLive } from '../devil.js';
-import { ECONOMY, interestOn, owedFor } from '../economy.js';
+import { ECONOMY, interestOn, owedFor, spinCostFor } from '../economy.js';
 import { interestRateFor, omen } from '../effects.js';
 import { add, format, gt, mul, mulFloor } from '../num.js';
 import { nudgeFor, upcomingLean } from '../nudge.js';
@@ -58,6 +58,42 @@ const CLOVER = { chance: 0.25, nudge: 2, blooms: 6 };
 const inBloom = (state) => omen(state, 'four_leaf_clover') < CLOVER.chance;
 /** The Black Cat crosses your path on every 13th spin of the run. */
 const catCrosses = (state) => (state.stats.spins + 1) % 13 === 0;
+
+// Phase 7 (doc 6.1): the drafts not yet built, and what each build family
+// lacked at some rarity. Some wait for a lock of the Vault or a feat in the
+// Almanac (`unlock`, decision 29).
+const P7 = {
+  chalk: 1, // spins' worth of coins for a ball on an odd number
+  cookie: 3, // Fortune Cookie: straight-ups on the named number ×
+  shard: 0.5, // Mirror Shard: the pocket opposite pays at ×
+  tableMap: 0.5, // Table Map: a split or corner beside the number pays at ×
+  ivory: 0.5, // Ivory Ball: its ball's lines ×
+  bag: { balls: 2, mult: 0.5 }, // Bag of Marbles: balls, each paying ×
+  coals: { step: 0.5, max: 4 }, // Hot Coals: + per win in a row, up to ×
+  chain: 3, // Surveyor's Chain: inside bets ×
+  thread: 2, // Green Thread: Stake on bets that cover zero
+  zero: { tokens: 3, spins: 3 }, // Zero's Coin, on a green pocket
+  rose: 2, // Rose Brooch: a colour that came up last spin ×
+  brimstone: { mult: 2, devil: 0.01 },
+  metronome: { every: 4, nudge: 2 },
+  loaded: 0.5, // Loaded Wheel: every red pocket + this wide
+  glove: 1.5, // Croupier's Glove: sector chips ×
+  snake: 2, // Snakeskin: Snake chips + Stake
+};
+const SECTOR_KINDS = ['voisins', 'tiers', 'orphelins', 'jeuZero', 'finale'];
+const INSIDE_LINES = ['split', 'street', 'corner', 'sixLine'];
+const isGreenNumber = (pocket) => pocket.color === 'green' && pocket.number !== null;
+const isOdd = (n) => Number.isInteger(n) && n >= 1 && n <= 36 && n % 2 === 1;
+/** Two numbers whose cells share an edge on the table. */
+function touchOnTable(a, b) {
+  if (!(a >= 1 && a <= 36 && b >= 1 && b <= 36)) return false;
+  const ca = tableCell(a);
+  const cb = tableCell(b);
+  return Math.abs(ca.col - cb.col) + Math.abs(ca.row - cb.row) === 1;
+}
+/** The Fortune Cookie's number for the next spin: fixed before you bet. */
+export const cookieNumber = (state) => Math.floor(omen(state, 'fortune_cookie') * 37);
+const coalsMult = (streak) => Math.min(P7.coals.max, 1 + P7.coals.step * streak);
 
 export const TALISMAN_LIST = [
   {
@@ -721,6 +757,331 @@ export const TALISMAN_LIST = [
       ring(ctx) {
         ctx.spendCharge();
         for (const t of ctx.targets) ctx.work(t);
+      },
+    },
+  },  // --- Phase 7 (doc 6.1): the drafts, and every family at every rarity ------
+  {
+    id: 'chalk_stub',
+    name: 'Chalk Stub',
+    rarity: 'common',
+    tags: ['economy'],
+    text: 'Whenever a ball lands on an odd number: coins worth a spin.',
+    hooks: {
+      ballLanded(ctx) {
+        if (isOdd(ctx.landing.number)) ctx.bonusCoins(mul(spinCostFor(ctx.state.debt), P7.chalk));
+      },
+    },
+  },
+  {
+    id: 'wishbone',
+    name: 'Wishbone',
+    rarity: 'common',
+    tags: ['economy', 'safety'],
+    text: 'The first spin each night that pays nothing gives its spin’s cost back.',
+    status: (data, state) => (data.night === tonight(state) ? 'Snapped tonight.' : 'Whole tonight.'),
+    hooks: {
+      spinPaid(ctx) {
+        if (ctx.winners || ctx.self.night === tonight(ctx.state)) return;
+        ctx.bonusCoins(spinCostFor(ctx.state.debt));
+        ctx.setData('night', tonight(ctx.state));
+      },
+    },
+  },
+  {
+    id: 'mirror_shard',
+    name: 'Mirror Shard',
+    rarity: 'uncommon',
+    tags: ['wheel'],
+    text: `The pocket straight across the wheel also counts as hit, at ×${P7.shard}.`,
+    hooks: {
+      hits(ctx) {
+        const n = ctx.state.wheel.pockets.length;
+        ctx.addHit({ pocketIndex: neighbourIndex(ctx.state.wheel, ctx.landing.pocketIndex, Math.floor(n / 2)), mult: P7.shard });
+      },
+    },
+  },
+  {
+    id: 'hourglass',
+    name: 'Hourglass',
+    rarity: 'uncommon',
+    tags: ['tempo', 'economy'],
+    text: '+1 spin every night you play.',
+    hooks: {
+      nightSpins(ctx) {
+        ctx.addSpins(1);
+      },
+    },
+  },
+  {
+    id: 'saints_medal',
+    name: 'Saint’s Medal',
+    rarity: 'uncommon',
+    tags: ['zero', 'colour'],
+    text: 'A green zero counts as red and as black.',
+    hooks: {
+      covers(ctx) {
+        if ((ctx.bet.kind === 'red' || ctx.bet.kind === 'black') && isGreenNumber(ctx.hit.pocket)) ctx.cover();
+      },
+    },
+  },
+  {
+    id: 'fortune_cookie',
+    name: 'Fortune Cookie',
+    rarity: 'uncommon',
+    tags: ['inside', 'luck'],
+    text: `Each spin names a number, shown before you bet: straight-ups on it pay ×${P7.cookie}.`,
+    status: (data, state) => `The next spin’s number: ${cookieNumber(state)}.`,
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.bet.kind === 'straight' && ctx.bet.numbers[0] === cookieNumber(ctx.state)) ctx.mul(P7.cookie);
+      },
+    },
+  },
+  {
+    id: 'ivory_ball',
+    name: 'Ivory Ball',
+    rarity: 'rare',
+    tags: ['multi'],
+    text: `A second ball every spin. It pays ×${P7.ivory}.`,
+    hooks: {
+      balls(ctx) {
+        ctx.addBall({ mult: P7.ivory });
+      },
+    },
+  },
+  {
+    id: 'gilders_knife',
+    name: 'Gilder’s Knife',
+    rarity: 'rare',
+    tags: ['wheel'],
+    unlock: { feat: 'platinum' },
+    text: 'Once a night, gild the pocket the ball lands in (a gilded one turns platinum).',
+    status: (data, state) => (data.night === tonight(state) ? 'Used tonight.' : 'Ready tonight.'),
+    hooks: {
+      afterSpin(ctx) {
+        if (ctx.self.night === tonight(ctx.state) || ctx.result.devil) return;
+        if (ctx.work({ op: 'gild' }, ctx.result.balls[0].pocketId)) ctx.setData('night', tonight(ctx.state));
+      },
+    },
+  },
+  {
+    id: 'snakeskin',
+    name: 'Snakeskin',
+    rarity: 'rare',
+    tags: ['special', 'outside'],
+    unlock: { lock: 1 },
+    opens: ['snake'],
+    text: `Opens the Snake on the racetrack. Snake chips +${P7.snake} Stake.`,
+    hooks: {
+      chipStake(ctx) {
+        if (ctx.bet.kind === 'snake') ctx.addStake(P7.snake);
+      },
+    },
+  },
+  {
+    id: 'croupiers_glove',
+    name: 'Croupier’s Glove',
+    rarity: 'rare',
+    tags: ['special', 'wheel'],
+    unlock: { lock: 1 },
+    opens: SECTOR_KINDS,
+    text: `Opens the sectors on the racetrack (Voisins, Tiers, Orphelins, Jeu Zéro) and the Finales. Their chips ×${P7.glove}.`,
+    hooks: {
+      chipMult(ctx) {
+        if (SECTOR_KINDS.includes(ctx.bet.kind)) ctx.mul(P7.glove);
+      },
+    },
+  },
+  {
+    id: 'table_map',
+    name: 'Table Map',
+    rarity: 'rare',
+    tags: ['inside'],
+    unlock: { feat: 'a_wheel_of_your_own' },
+    text: `Splits and corners also win, at ×${P7.tableMap}, when the ball lands on a number touching them on the table.`,
+    hooks: {
+      covers(ctx) {
+        if (ctx.bet.kind !== 'split' && ctx.bet.kind !== 'corner') return;
+        const n = ctx.hit.pocket.number;
+        if (ctx.bet.numbers.some((m) => touchOnTable(m, n))) ctx.cover(P7.tableMap);
+      },
+    },
+  },
+  {
+    id: 'metronome',
+    name: 'Metronome',
+    rarity: 'legendary',
+    tags: ['luck', 'timing'],
+    unlock: { feat: 'step_out' },
+    text: `Every ${P7.metronome.every}th spin of a night: +${P7.metronome.nudge} Nudge.`,
+    hooks: {
+      nudge(ctx) {
+        if (ctx.spin.ofNight && ctx.spin.ofNight % P7.metronome.every === 0) ctx.addNudge(P7.metronome.nudge);
+      },
+    },
+  },
+  {
+    id: 'loaded_wheel',
+    name: 'Loaded Wheel',
+    rarity: 'legendary',
+    tags: ['colour', 'wheel'],
+    unlock: { feat: 'out_of_the_red' },
+    text: `When bought: every red pocket grows +${P7.loaded} wide, for good.`,
+    hooks: {
+      purchased(ctx) {
+        if (ctx.isSelf) ctx.widenPockets((p) => p.color === 'red', P7.loaded);
+      },
+    },
+  },
+  {
+    id: 'rose_brooch',
+    name: 'Rose Brooch',
+    rarity: 'rare',
+    tags: ['colour', 'streaks'],
+    unlock: { feat: 'a_thousand' },
+    text: `Chips on Red or Black pay ×${P7.rose} when their colour came up last spin.`,
+    hooks: {
+      chipMult(ctx) {
+        const k = ctx.bet.kind;
+        if ((k === 'red' || k === 'black') && lastSpin(ctx.state)?.color === k) ctx.mul(P7.rose);
+      },
+    },
+  },
+  {
+    id: 'surveyors_chain',
+    name: 'Surveyor’s Chain',
+    rarity: 'legendary',
+    tags: ['inside'],
+    unlock: { feat: 'bare_hands' },
+    text: `Split, street, corner and six-line chips ×${P7.chain}.`,
+    hooks: {
+      chipMult(ctx) {
+        if (INSIDE_LINES.includes(ctx.bet.kind)) ctx.mul(P7.chain);
+      },
+    },
+  },
+  {
+    id: 'tally_stick',
+    name: 'Tally Stick',
+    rarity: 'common',
+    tags: ['streaks'],
+    text: 'A chip on a bet that won last spin: +1 Stake.',
+    hooks: {
+      chipStake(ctx) {
+        if (ctx.state.lastSpin?.wins?.some((w) => w.betId === ctx.bet.id)) ctx.addStake(1);
+      },
+    },
+  },
+  {
+    id: 'hot_coals',
+    name: 'Hot Coals',
+    rarity: 'rare',
+    tags: ['streaks'],
+    unlock: { feat: 'same_again' },
+    text: `Each paying spin in a row: chips +×${P7.coals.step}, up to ×${P7.coals.max}. A spin that pays nothing puts the coals out.`,
+    init: () => ({ streak: 0 }),
+    status: (data) => (data.streak ? `Glowing: ×${coalsMult(data.streak)} on the next paying spin.` : 'Cold.'),
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.self.streak) ctx.mul(coalsMult(ctx.self.streak));
+      },
+      afterSpin(ctx) {
+        const next = ctx.result.miss ? 0 : ctx.self.streak + 1;
+        if (next !== ctx.self.streak) ctx.setData('streak', next);
+      },
+    },
+  },
+  {
+    id: 'green_thread',
+    name: 'Green Thread',
+    rarity: 'common',
+    tags: ['zero'],
+    text: `Chips on a bet that covers zero: +${P7.thread} Stake.`,
+    hooks: {
+      chipStake(ctx) {
+        if (ctx.bet.numberSet.has(0) || ctx.bet.numberSet.has(37)) ctx.addStake(P7.thread);
+      },
+    },
+  },
+  {
+    id: 'zeros_coin',
+    name: 'Zero’s Coin',
+    rarity: 'rare',
+    tags: ['zero', 'tokens'],
+    unlock: { feat: 'ride_the_lean' },
+    text: `When a ball lands on a green zero: +${P7.zero.tokens} tokens and coins worth ${P7.zero.spins} spins.`,
+    hooks: {
+      ballLanded(ctx) {
+        if (!isGreenNumber(ctx.landing.pocket)) return;
+        ctx.bonusTokens(P7.zero.tokens);
+        ctx.bonusCoins(mul(spinCostFor(ctx.state.debt), P7.zero.spins));
+      },
+    },
+  },
+  {
+    id: 'marble',
+    name: 'Marble',
+    rarity: 'common',
+    tags: ['multi'],
+    text: 'The last spin of each night throws a second ball.',
+    hooks: {
+      balls(ctx) {
+        if (ctx.spin.last) ctx.addBall();
+      },
+    },
+  },
+  {
+    id: 'jugglers_ball',
+    name: 'Juggler’s Ball',
+    rarity: 'uncommon',
+    tags: ['multi'],
+    text: 'Every third spin of a night throws a second ball.',
+    hooks: {
+      balls(ctx) {
+        if (ctx.spin.ofNight && ctx.spin.ofNight % 3 === 0) ctx.addBall();
+      },
+    },
+  },
+  {
+    id: 'bag_of_marbles',
+    name: 'Bag of Marbles',
+    rarity: 'legendary',
+    tags: ['multi'],
+    unlock: { feat: 'the_vault' },
+    text: `Every spin throws ${P7.bag.balls} more balls. Each pays ×${P7.bag.mult}.`,
+    hooks: {
+      balls(ctx) {
+        for (let i = 0; i < P7.bag.balls; i++) ctx.addBall({ mult: P7.bag.mult });
+      },
+    },
+  },
+  {
+    id: 'usurers_seal',
+    name: 'Usurer’s Seal',
+    rarity: 'legendary',
+    tags: ['economy'],
+    unlock: { feat: 'a_full_rail' },
+    text: 'Interest is doubled (all the interest the talismans to its left give, too).',
+    hooks: {
+      interestRate(ctx) {
+        ctx.addRate(ctx.rate);
+      },
+    },
+  },
+  {
+    id: 'brimstone',
+    name: 'Brimstone',
+    rarity: 'rare',
+    tags: ['devil', 'risk'],
+    unlock: { feat: 'paid_in_spite' },
+    text: `Once the Devil has fired this debt, chips pay ×${P7.brimstone.mult}. The Devil's chance +1%.`,
+    status: (data, state) => (state.devil?.firedThisDebt ? 'Burning: the Devil has fired this debt.' : asleep(state) ?? 'Waiting for the Devil.'),
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.state.devil?.firedThisDebt) ctx.mul(P7.brimstone.mult);
+      },
+      devilChance(ctx) {
+        ctx.addChance(P7.brimstone.devil);
       },
     },
   },

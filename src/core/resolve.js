@@ -1,7 +1,7 @@
 import { devilChanceFor, rollDevil } from './devil.js';
 import { getEnhancement } from './content/index.js';
 import { commitCtx, lifecycle, sources, srcRef } from './effects.js';
-import { nudgeFor, nudgeLandings } from './nudge.js';
+import { nextSpin, nudgeFor, nudgeLandings } from './nudge.js';
 import { commitPlan, evaluate, pocketRef } from './payout.js';
 import { Rng } from './rng.js';
 import { recordLanding } from './tally.js';
@@ -27,13 +27,37 @@ import { liveWheel } from './widths.js';
 //   8. a ward that turned the Devil away is used up (the vial shatters): only
 //      now, so the whole spin paid with the rail it was thrown with
 
-/** Balls per spin. Multi-ball talismans arrive later. */
-export const ballCount = () => 1;
+/**
+ * The balls thrown this spin (doc 6.1, multi-ball): the House's own, then one
+ * more for each `balls` hook that adds one, in rail order. Each is
+ * { ball, mult, by }: an extra ball's lines pay × mult. Pure; with `emit`,
+ * each extra ball emits a `trigger` (so the next spin's balls can be shown).
+ */
+export function ballsFor(state, emit = null) {
+  const balls = [{ ball: 0, mult: 1, by: null }];
+  const spin = nextSpin(state);
+  for (const src of sources(state)) {
+    const fn = src.as.hooks?.balls;
+    if (!fn) continue;
+    fn({
+      state,
+      self: src.self,
+      spin,
+      addBall({ mult = 1 } = {}) {
+        balls.push({ ball: balls.length, mult, by: srcRef(src) });
+        emit?.({ type: 'trigger', src: srcRef(src), hook: 'balls', effect: 'ball', amount: mult });
+      },
+    });
+  }
+  return balls;
+}
+
+export const ballCount = (state) => ballsFor(state).length;
 
 const describe = (state, landings) =>
-  landings.map(({ ball, pocketIndex }) => {
+  landings.map(({ ball, pocketIndex, mult = 1 }) => {
     const p = state.wheel.pockets[pocketIndex];
-    return { ball, pocketIndex, pocketId: p.id, number: p.number, color: p.color, enh: p.enh };
+    return { ball, pocketIndex, pocketId: p.id, number: p.number, color: p.color, enh: p.enh, mult };
   });
 
 /**
@@ -79,7 +103,9 @@ export function resolveSpin(s, emit) {
   s.luckyNudge = 0;
 
   const rng = new Rng(s.rng.wheel);
-  const balls = Array.from({ length: ballCount(s) }, (_, i) => i);
+  const thrown = ballsFor(s, emit);
+  const balls = thrown.map((b) => b.ball);
+  const multOf = (ball) => thrown[ball].mult;
   const foreseen = s.foreseen;
   s.foreseen = null;
 
@@ -92,7 +118,10 @@ export function resolveSpin(s, emit) {
       }
       return { ball, pocketIndex: drawPocket(wheel, rng) };
     });
-    const { landings, hops, holds } = nudgeLandings(s, landed, luck);
+    const nudged = nudgeLandings(s, landed, luck);
+    const { hops, holds } = nudged;
+    // An extra ball pays at its own mult (the Ivory Ball's half).
+    const landings = nudged.landings.map((l) => (multOf(l.ball) === 1 ? l : { ...l, mult: multOf(l.ball) }));
     for (const hop of hops) emit({ type: 'nudged', ...hop, nudge: luck.total, kind: luck.kind, first });
     // An anchor that kept the ball from hopping to something better shows itself.
     for (const hold of holds) {

@@ -1,11 +1,11 @@
-import { BET_BY_ID } from './bets.js';
+import { BET_BY_ID, isSpecial } from './bets.js';
 import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
 import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman, playingRecords } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
 import { debtMultiplier, debtTokensFor, nightTokensFor, startingWheel } from './house.js';
-import { commitCtx, interestRateFor, lifecycle, sources } from './effects.js';
+import { commitCtx, interestRateFor, lifecycle, openSpecials, sources } from './effects.js';
 import { add, ceil, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
 import { canTake, dealCards, dealOf, fortuneCtx, rerollCost } from './oracle.js';
@@ -34,7 +34,7 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 8;
+export const RUN_VERSION = 9;
 
 // The Vault (design doc 7.1): a run's goal is debt 4 + the locks open when it
 // began. Lock k opens the first time debt 3 + k is paid with the locks before
@@ -52,9 +52,12 @@ const FIXED = 'Bone chips stay where they lie until the night ends.';
  * `wheel` the starting wheel and `edge` the House Edge level (doc 7.2). From
  * the profile: `locks` the Vault's open locks (they set the goal and the
  * gramophone's slots), `vault` whether it is open already, and `figures` the
- * figures standing in the dark (Danse Macabre reads them).
+ * figures standing in the dark (Danse Macabre reads them). `opened` lists the
+ * content the Vault's locks and the Almanac's feats have opened (Phase 7,
+ * decision 29): until then the Cabinet, Madame Zero and the crate never
+ * offer it. `endless` is a run with no goal (doc 7.1).
  */
-export function createRun({ seed, chipSet = MATERIALS[0].id, wheel = 'european', edge = 0, locks = 0, vault = false, figures = 0 }) {
+export function createRun({ seed, chipSet = MATERIALS[0].id, wheel = 'european', edge = 0, locks = 0, vault = false, figures = 0, opened = [], endless = false }) {
   const material = getMaterial(chipSet);
   const chips = [];
   for (let i = 0; i < material.count; i++) chips.push({ id: `c${i + 1}`, value: 1, material: material.id, roundValue: 0 });
@@ -65,9 +68,13 @@ export function createRun({ seed, chipSet = MATERIALS[0].id, wheel = 'european',
     seed,
     chipSet: material.id,
     wheelId: getStartingWheel(wheel).id,
+    // Neighbours bets follow the starting wheel (bets.js betOf); the House's own needs none.
+    wheelOrder: getStartingWheel(wheel).id === 'european' ? null : [...getStartingWheel(wheel).order],
+    opened: [...opened],
+    endless,
     edge,
     locks,
-    goal: VAULT.baseGoal + locks,
+    goal: endless ? null : VAULT.baseGoal + locks,
     vault,
     won: null, // the debt whose payment reached the goal
     figures,
@@ -161,6 +168,17 @@ export function owed(state, debt = state.debt) {
   return state.overture === debt ? mul(due, 2) : due;
 }
 export const spinCost = (state) => spinCostFor(state.debt);
+/** A night's spins: the package's, and more from `nightSpins` hooks (the Hourglass) on a night that has any. */
+export function spinsOf(state, packageId) {
+  let spins = PACKAGES[packageId].spins;
+  if (spins === 0) return 0;
+  for (const src of sources(state)) {
+    const fn = src.as.hooks?.nightSpins;
+    if (fn) fn({ state, self: src.self, addSpins: (n) => (spins += n) });
+  }
+  return spins;
+}
+
 /** A night's price, with what plays on the gramophone (`packageCost` hooks). */
 export function costOf(state, packageId) {
   let cost = packageCost(state.debt, packageId);
@@ -375,17 +393,18 @@ const HANDLERS = {
     s.coins = sub(s.coins, cost);
     s.tokens += pkg.tokens;
     s.stats.tokensEarned += pkg.tokens;
-    s.spinsLeft = pkg.spins;
-    s.spinsTonight = pkg.spins;
+    const spins = spinsOf(state, packageId);
+    s.spinsLeft = spins;
+    s.spinsTonight = spins;
     delete s.spinsTonightGuessed;
-    s.leans = { ...s.leans, night: rollNightLean(s, pkg.spins) };
-    if (pkg.spins === 0) {
+    s.leans = { ...s.leans, night: rollNightLean(s, spins) };
+    if (spins === 0) {
       s.satOut += 1;
       s.phase = PHASE.NIGHT_OVER;
     } else {
       s.phase = PHASE.BETTING;
     }
-    return { state: s, events: [{ type: 'packageChosen', packageId, cost, tokens: pkg.tokens }] };
+    return { state: s, events: [{ type: 'packageChosen', packageId, cost, tokens: pkg.tokens, spins }] };
   },
 
   placeChip(state, { chipId, betId }) {
@@ -394,6 +413,8 @@ const HANDLERS = {
     if (!BET_BY_ID.has(betId)) throw new Error(`Unknown bet: ${betId}`);
     if (state.placements[chipId] === betId) return { state, events: [] };
     if (state.fixed.includes(chipId)) return reject(state, FIXED, 'fixed');
+    const kind = BET_BY_ID.get(betId).kind;
+    if (isSpecial(kind) && !openSpecials(state).has(kind)) return reject(state, 'That bet is closed: something in the run must open it.', 'closed');
     const s = copyRun(state);
     s.placements[chipId] = betId;
     if (getMaterial(chip.material).fixed) s.fixed.push(chipId);
@@ -510,7 +531,7 @@ const HANDLERS = {
       s.locks += 1;
       emit({ type: 'lockOpened', lock: s.locks });
     }
-    if (s.debt === s.goal) {
+    if (s.goal && s.debt === s.goal) {
       s.won = s.debt;
       emit({ type: 'goalReached', debt: s.debt, edge: s.edge });
     }
@@ -682,7 +703,7 @@ const HANDLERS = {
       }),
     );
     s.rng.fortunes = rng.state();
-    if (Object.keys(def.hooks).length) {
+    if (Object.keys(def.hooks).length || def.opens) {
       s.boons = [...s.boons, { uid: `b${s.nextBoonUid}`, id, data: {} }];
       s.nextBoonUid += 1;
     }

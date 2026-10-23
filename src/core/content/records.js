@@ -13,10 +13,13 @@
 //   reach      pockets added to any Nudge a spin already has (nudge.js)
 //   hooks      effect hooks, as for talismans; a record acts before the rail
 
+import { SPECIAL_KINDS, isSpecial } from '../bets.js';
+
 // Tuned with the simulator (doc 9.8).
 const RECORD = {
   boogieMax: 2, // drafted without a cap
   nocturne: 3, // drafted ×4
+  twoStep: 0.6,
 };
 
 const lastSpinOfNight = (state) => state.phase === 'betting' && state.spinsLeft === 1;
@@ -140,6 +143,35 @@ export const RECORD_LIST = [
     hooks: {
       interestRate(ctx) {
         if (ctx.state.figures > 0) ctx.addRate(0.01 * ctx.state.figures);
+      },
+    },
+  },
+  // Phase 7: one opens with the Vault's first lock, one with its second.
+  {
+    id: 'habanera',
+    name: 'Habanera',
+    rule: 'The special bets on the racetrack are open while it plays. Their chips +1 Stake.',
+    tune: 'habanera',
+    unlock: { lock: 1 },
+    opens: SPECIAL_KINDS,
+    hooks: {
+      chipStake(ctx) {
+        if (isSpecial(ctx.bet.kind)) ctx.addStake(1);
+      },
+    },
+  },
+  {
+    id: 'two_step',
+    name: 'Two-Step',
+    rule: `A second ball every spin. Every payout ×${RECORD.twoStep}.`,
+    tune: 'twostep',
+    unlock: { lock: 2 },
+    hooks: {
+      balls(ctx) {
+        ctx.addBall();
+      },
+      chipMult(ctx) {
+        ctx.mul(RECORD.twoStep);
       },
     },
   },

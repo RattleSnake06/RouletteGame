@@ -1,6 +1,7 @@
 import { getEngraving, getFortune, getTalisman, playingRecords } from './content/index.js';
 import { add } from './num.js';
 import { hashSeed } from './rng.js';
+import { doWork, workRefusal } from './wheelwork.js';
 
 // Hook dispatch (design doc 9.7). Content never writes state: a hook calls
 // methods on its ctx, and every method that changes something emits one
@@ -11,7 +12,7 @@ import { hashSeed } from './rng.js';
 //   pure (payout.js, recorded into a plan, no randomness):
 //     hits        per ball            ctx.addHit({ pocketIndex, mult, betKinds })
 //     ballLanded  per ball            ctx.bonusCoins(n), ctx.bonusTokens(n)
-//     covers      per uncovered chip  ctx.cover()
+//     covers      per uncovered chip  ctx.cover(mult = 1): it pays, at × mult (Table Map: ½)
 //     chipStake   per paying line     ctx.addStake(n); every line hook reads ctx.paidBefore
 //     chipOdds    per paying line     ctx.addOdds(n), ctx.addOddsMult(n)
 //     chipMult    per paying line     ctx.mul(x)
@@ -21,6 +22,10 @@ import { hashSeed } from './rng.js';
 //                                     spin is committed); reads ctx.winners, ctx.lines
 //   pure prices (run.js):
 //     packageCost  a night's cost     ctx.mulCost(x)
+//     nightSpins   a night's spins    ctx.addSpins(n) (only a night that has spins)
+//   pure balls (resolve.js; also shown before the spin):
+//     balls        per spin           ctx.addBall({ mult }): one more ball, its lines × mult;
+//                                     reads ctx.spin (nudge.js nextSpin)
 //   pure luck (nudge.js, devil.js, widths.js; also shown before the spin):
 //     nudge        per spin           ctx.addNudge(n), ctx.clockwiseOnly(), ctx.straightOnly(),
 //                                     ctx.noPity(), ctx.pityAfter(n), ctx.noNudge(), ctx.anchor(number);
@@ -33,7 +38,10 @@ import { hashSeed } from './rng.js';
 //                                     ctx.destroySelf(reason)
 //     ward (resolve.js)               the Devil fired: the first ward turned him away, and is
 //                                     used up once the spin is over
-//     interestRate (endNight)         ctx.addRate(r)
+//     interestRate (endNight)         ctx.addRate(r); reads ctx.rate, the rate so far
+//
+// A definition may also open special bets while it acts (`opens`: kinds of
+// bet, bets.js): a talisman on the rail, a lasting card or a record.
 //     bell (def.bell.ring, bell.js)   see bell.js
 //
 // Calling a method a hook point does not offer throws (its ctx lacks it).
@@ -65,7 +73,7 @@ export function sources(state) {
   }
   for (const boon of state.boons ?? []) {
     const def = getFortune(boon.id);
-    if (def && Object.keys(def.hooks).length) out.push({ index: -1, inst: boon, def, as: def, self: boon.data, copyOf: null, by: null, kind: 'boon' });
+    if (def && (Object.keys(def.hooks).length || def.opens)) out.push({ index: -1, inst: boon, def, as: def, self: boon.data, copyOf: null, by: null, kind: 'boon' });
   }
   const rail = state.rail;
   for (let i = 0; i < rail.length; i++) {
@@ -176,6 +184,22 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
       writeData(src.inst, src.copyOf, src.self, key, value);
       trigger('data', { key, amount: value });
     },
+    /** Wheel work on a target (wheelwork.js), when it can act there. */
+    work(work, target) {
+      if (workRefusal(draft, work, target)) return false;
+      doWork(draft, work, target, emit, { kind: 'talisman', id: src.def.id, uid: src.inst.uid });
+      return true;
+    },
+    /** Pockets passing `test` grow by `amount`, for good (wheel work, as a fortune's widen). */
+    widenPockets(test, amount) {
+      let count = 0;
+      for (const p of draft.wheel.pockets) {
+        if (!test(p)) continue;
+        p.width = Math.round((p.width + amount) * 1e6) / 1e6;
+        count += 1;
+      }
+      trigger('widen', { amount, count });
+    },
     /**
      * The talisman is used up (crumbled, wilted, shattered) and leaves the
      * rail. A Twin Mirrors' copy cannot take the mirror with it: the copy
@@ -195,6 +219,13 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
 }
 
 const OWN_ONLY = new Set(['purchased', 'sold']);
+
+/** The special bets open this run: whatever acts now opens them (a talisman, a card, a record). */
+export function openSpecials(state) {
+  const out = new Set();
+  for (const src of sources(state)) for (const kind of src.as.opens ?? []) out.add(kind);
+  return out;
+}
 
 /** Runs a commit-phase hook on every source in order. */
 export function lifecycle(draft, hook, emit, extra = {}) {
@@ -219,6 +250,9 @@ export function interestRateFor(state, base, emit = () => {}) {
     fn({
       state,
       self: src.self,
+      get rate() {
+        return rate;
+      },
       addRate(r) {
         rate = Math.round((rate + r) * 1e6) / 1e6;
         emit({ type: 'trigger', src: srcRef(src), hook: 'interestRate', effect: 'interest', amount: r });

@@ -83,6 +83,13 @@ export const EDGES = EDGE_LIST.map((d) => Object.freeze(d));
 export const ACHIEVEMENTS = ACHIEVEMENT_LIST.map((d) => Object.freeze(d));
 export const MAX_EDGE = EDGES.length;
 
+/**
+ * Is this content offered in this run? Content Phase 7 added may wait for a
+ * lock of the Vault or a feat (`unlock`, decision 29); the run lists what was
+ * open when it began (`state.opened`).
+ */
+export const isOffered = (state, def) => !def.unlock || (state?.opened ?? []).includes(def.id);
+
 /** The records on the gramophone, its first slot first (a second opens with the Vault's second lock). */
 export const playingRecords = (state) => [state.playing, state.playing2].filter(Boolean).map(getRecord).filter(Boolean);
 

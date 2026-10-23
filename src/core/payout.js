@@ -1,6 +1,6 @@
-import { betCovers, betOdds, getBet, levelOf } from './bets.js';
+import { betCovers, betOdds, betOf, isSpecial, levelOf } from './bets.js';
 import { getEnhancement, getMaterial } from './content/index.js';
-import { sources, srcRef, writeData } from './effects.js';
+import { openSpecials, sources, srcRef, writeData } from './effects.js';
 import { add, mulFloor } from './num.js';
 import { isBlank } from './wheel.js';
 
@@ -34,14 +34,20 @@ function lineAmount(f) {
 
 /**
  * What these landings would pay. Never changes state, draws no randomness.
- * landings: [{ ball, pocketIndex }]
+ * landings: [{ ball, pocketIndex, mult? }] — a ball thrown by a multi-ball
+ * talisman may pay at less than full (its `mult`).
+ * A chip on a special bet nothing opens this run neither wins nor loses.
  * Returns a plan: { landings, lines, losses, deferred, steps, chipTotal,
  * bonusCoins, bonusTokens, miss }. `steps` are exactly the events commitPlan
  * will emit, in playback order.
  */
 export function evaluate(state, landings) {
   const srcs = sources(state);
-  const placed = state.chips.filter((c) => state.placements[c.id]);
+  const open = openSpecials(state);
+  const placed = state.chips.filter((c) => {
+    const id = state.placements[c.id];
+    return id && (!isSpecial(betOf(state, id).kind) || open.has(betOf(state, id).kind));
+  });
   const base = baseFactors(state);
   const plan = {
     landings,
@@ -69,9 +75,9 @@ export function evaluate(state, landings) {
   });
   const firstLineSeen = new Set();
 
-  for (const { ball, pocketIndex } of landings) {
+  for (const { ball, pocketIndex, mult: ballMult = 1 } of landings) {
     const pocket = state.wheel.pockets[pocketIndex];
-    const landing = { ball, pocketIndex, pocket, number: pocket.number, color: pocket.color };
+    const landing = { ball, pocketIndex, pocket, number: pocket.number, color: pocket.color, ballMult };
     const hits = [{ pocketIndex, pocket, mult: 1, primary: true, betKinds: null, src: null }];
 
     for (const src of srcs) {
@@ -105,9 +111,10 @@ export function evaluate(state, landings) {
       if (isBlank(hit.pocket)) continue;
       const enh = getEnhancement(hit.pocket.enh);
       for (const chip of placed) {
-        const bet = getBet(state.placements[chip.id]);
+        const bet = betOf(state, state.placements[chip.id]);
         if (hit.betKinds && !hit.betKinds.includes(bet.kind)) continue;
         let covered = betCovers(bet, hit.pocket);
+        let coverMult = 1;
         if (!covered) {
           for (const src of srcs) {
             const fn = src.as.hooks?.covers;
@@ -120,10 +127,11 @@ export function evaluate(state, landings) {
               hit,
               chip,
               bet,
-              cover() {
+              cover(mult = 1) {
                 if (covered) return;
                 covered = true;
-                trigger(src, 'covers', 'covers', { ball, chipId: chip.id, pocketIndex: hit.pocketIndex });
+                coverMult = mult;
+                trigger(src, 'covers', 'covers', { ball, chipId: chip.id, pocketIndex: hit.pocketIndex, amount: mult });
               },
             });
           }
@@ -136,7 +144,7 @@ export function evaluate(state, landings) {
           odds: betOdds(bet, levelOf(state, bet.kind)),
           oddsMult: base.oddsMult,
           pocketMult: 1,
-          hitMult: hit.mult,
+          hitMult: hit.mult * coverMult * ballMult,
           mult: 1,
         };
         // Chips that already paid this spin, this one aside (the Domino counts them).
@@ -241,7 +249,7 @@ export function evaluate(state, landings) {
 
     for (const chip of placed) {
       if (paidThisBall.has(chip.id)) continue;
-      const bet = getBet(state.placements[chip.id]);
+      const bet = betOf(state, state.placements[chip.id]);
       plan.losses.push({ ball, chipId: chip.id, betId: bet.id });
       plan.steps.push({ type: 'chipLost', ball, chipId: chip.id, betId: bet.id });
       for (const src of srcs) {

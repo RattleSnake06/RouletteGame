@@ -1,4 +1,4 @@
-import { betCovers, getBet } from './bets.js';
+import { betCovers, betOf } from './bets.js';
 import { playingRecords } from './content/index.js';
 import { ECONOMY } from './economy.js';
 import { sources, srcRef } from './effects.js';
@@ -211,7 +211,7 @@ function straightPockets(state) {
   for (const chip of state.chips) {
     const betId = state.placements[chip.id];
     if (!betId) continue;
-    const bet = getBet(betId);
+    const bet = betOf(state, betId);
     if (bet.kind !== 'straight') continue;
     state.wheel.pockets.forEach((p, i) => betCovers(bet, p) && out.add(i));
   }

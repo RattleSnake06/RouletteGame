@@ -322,8 +322,8 @@ describe('saves', () => {
     old.rng = { ...old.rng };
     delete old.rng.pockets;
     old.cabinet = { ...old.cabinet, slots: [...old.cabinet.slots.slice(0, 3), { kind: 'oddity', id: null, shut: true }] };
-    const back = deserializeRun(serializeRun(old).replace('"v":8', '"v":5'));
-    expect(back.version).toBe(8);
+    const back = deserializeRun(serializeRun(old).replace('"v":9', '"v":5'));
+    expect(back.version).toBe(9);
     expect(back.wheel.pockets.map((p) => p.id)).toEqual(s.wheel.pockets.map((p) => p.id));
     expect(back.wheel.nextId).toBe(37);
     expect(back.foreseen).toEqual({ pocketIndex: 3, pocketId: s.wheel.pockets[3].id, by: 't1' });

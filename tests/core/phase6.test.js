@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BETS, betCovers, betOdds, getBet } from '../../src/core/bets.js';
+import { BETS, betCovers, betOdds, getBet, isSpecial } from '../../src/core/bets.js';
 import { FORTUNES } from '../../src/core/content/index.js';
 import { devilLive } from '../../src/core/devil.js';
 import { applyRun, almanacView, deserializeProfile, edgeChoices, endRun, newProfile, runOptions, serializeProfile, standingFigures, wheelChoices } from '../../src/core/meta.js';
@@ -30,8 +30,8 @@ describe('starting wheels', () => {
     expect(lineOn(s, 'straight:37', at(s, 37))).toEqual([36]);
     expect(lineOn(s, 'split:0-37', at(s, 37))).toEqual([18]);
     for (const b of ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'column:3']) expect(lineOn(s, b, at(s, 37))).toEqual([]);
-    // Every bet returns 36/38 on it.
-    for (const bet of BETS) {
+    // Every table bet returns 36/38 on it (the special bets round down).
+    for (const bet of BETS.filter((b) => !isSpecial(b.kind))) {
       let ev = 0;
       s.wheel.pockets.forEach((p, i) => betCovers(bet, p) && (ev += pocketChance(s.wheel, i) * betOdds(bet)));
       expect(ev, bet.id).toBeCloseTo(36 / 38, 12);
@@ -216,7 +216,7 @@ describe('the profile', () => {
     const s = run();
     let r = applyRun(p, s, [{ type: 'lockOpened', lock: 1 }, { type: 'goalReached', debt: 4, edge: 0 }]);
     p = r.profile;
-    expect(r.news).toEqual([{ kind: 'lock', lock: 1, wheels: ['american'], slot: false }, { kind: 'edge', level: 1 }]);
+    expect(r.news).toEqual([{ kind: 'lock', lock: 1, wheels: ['american'], slot: false, content: ['snakeskin', 'croupiers_glove', 'neighbours_talk', 'habanera'] }, { kind: 'edge', level: 1 }]);
     expect(wheelChoices(p).filter((w) => w.unlocked).map((w) => w.id)).toEqual(['european', 'american']);
     // The goal at a level below the top opens nothing.
     r = applyRun({ ...p, edge: 3 }, { ...s, edge: 1 }, [{ type: 'goalReached', debt: 4, edge: 1 }]);
@@ -232,12 +232,13 @@ describe('the profile', () => {
     expect(profile.seen.talismans).toContain('red_ribbon');
     expect(profile.seen.records).toEqual(['nocturne']);
     expect(profile.seen.engravings).toEqual(['gilt']);
-    expect(news).toContainEqual({ kind: 'achievement', id: 'out_of_the_red' });
+    expect(news).toContainEqual({ kind: 'achievement', id: 'out_of_the_red', content: ['loaded_wheel'] });
     expect(news).toContainEqual({ kind: 'chips', id: 'clay' });
     const view = almanacView(profile);
     const talismans = view.sections.find((x) => x.kind === 'talismans');
     expect(talismans.entries.find((e) => e.id === 'red_ribbon')).toMatchObject({ seen: true, name: 'Red Ribbon' });
-    expect(talismans.entries.find((e) => e.id === 'horseshoe')).toEqual({ id: 'horseshoe', seen: false });
+    expect(talismans.entries.find((e) => e.id === 'horseshoe')).toEqual({ id: 'horseshoe', seen: false, opens: null });
+    expect(talismans.entries.find((e) => e.id === 'hot_coals').opens).toMatch(/Same Again/);
     expect(view.achievements.find((a) => a.id === 'out_of_the_red').done).toBe(true);
     // Nothing new: the same profile comes back.
     expect(applyRun(profile, s, []).profile).toBe(profile);
@@ -258,10 +259,10 @@ describe('saves', () => {
     const s = run();
     const old = { ...s, version: 7, tally: { ...s.tally, round: { dozens: [0, 0, 0], columns: [0, 0, 0] } } };
     for (const k of ['wheelId', 'edge', 'locks', 'goal', 'vault', 'won', 'figures', 'playing2', 'gramophoneSlots']) delete old[k];
-    const back = deserializeRun(serializeRun(old).replace('"v":8', '"v":7'));
-    expect(back).toMatchObject({ version: 8, wheelId: 'european', edge: 0, goal: 4, won: null, gramophoneSlots: 1, playing2: null });
+    const back = deserializeRun(serializeRun(old).replace('"v":9', '"v":7'));
+    expect(back).toMatchObject({ version: 9, wheelId: 'european', edge: 0, goal: 4, won: null, gramophoneSlots: 1, playing2: null });
     expect(back.tally.round.numbers).toEqual({});
-    const past = deserializeRun(serializeRun({ ...old, debt: 6 }).replace('"v":8', '"v":7'));
+    const past = deserializeRun(serializeRun({ ...old, debt: 6 }).replace('"v":9', '"v":7'));
     expect(past.won).toBe(4);
   });
 

@@ -1,5 +1,5 @@
 import { emptyCabinet, restockSlots } from './cabinet.js';
-import { getEngraving, getFortune, getRecord, getTalisman } from './content/index.js';
+import { getEngraving, getFortune, getRecord, getStartingWheel, getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, sellValueOf } from './economy.js';
 import { decimalText, isBig, num } from './num.js';
 import { newStats } from './run.js';
@@ -10,7 +10,7 @@ import { emptyTally } from './tally.js';
 // Runs save as versioned JSON. Big money values are stored as { $d: "1.2e500" };
 // everything else in the run state is plain data.
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 export function serializeRun(state) {
   // JSON.stringify calls Decimal#toJSON before the replacer sees the value,
@@ -182,6 +182,12 @@ const MIGRATIONS = {
       gramophoneSlots: 1,
       tally: { ...state.tally, round: { numbers: {}, ...state.tally.round } },
     };
+  },
+  // Phase 7: content opened by the Vault and the Almanac (none, for a run
+  // begun before it), the starting wheel's order for Neighbours, endless runs.
+  8(state) {
+    const order = getStartingWheel(state.wheelId).order;
+    return { ...state, version: 9, opened: [], endless: false, wheelOrder: state.wheelId && state.wheelId !== 'european' ? [...order] : null };
   },
 };
 
