@@ -116,7 +116,7 @@ export function createMainMenu(handlers) {
   const chooser = (onClick) => {
     const b = el('button', 'ts-item ts-pick');
     b.type = 'button';
-    b.append(el('span', 'label scrawl fat'), el('span', 'sub typed'));
+    b.append(el('span', 'label scrawl fat'));
     b.addEventListener('click', onClick);
     return b;
   };
@@ -146,10 +146,10 @@ export function createMainMenu(handlers) {
     wheelBtn.hidden = setup.wheels < 2;
     edgeBtn.hidden = setup.edges < 2;
     picks.hidden = wheelBtn.hidden && edgeBtn.hidden;
-    wheelBtn.querySelector('.label').textContent = `${setup.wheel.name} wheel`;
-    wheelBtn.querySelector('.sub').textContent = 'change the wheel';
-    edgeBtn.querySelector('.label').textContent = setup.edge.level ? `House Edge ${setup.edge.level}` : 'No House Edge';
-    edgeBtn.querySelector('.sub').textContent = 'change the edge';
+    // With the choosers out, a narrow screen drops Begin's second line (CSS).
+    chips.classList.toggle('setup', !picks.hidden);
+    wheelBtn.querySelector('.label').textContent = `${setup.wheel.name} wheel ▾`;
+    edgeBtn.querySelector('.label').textContent = setup.edge.level ? `House Edge ${setup.edge.level} ▾` : 'No House Edge ▾';
     wheelBtn.setAttribute('aria-label', `${setup.wheel.name} wheel. ${setup.wheel.upside} ${setup.wheel.downside} Change the wheel.`);
     edgeBtn.setAttribute('aria-label', `House Edge ${setup.edge.level}: ${setup.edge.text} Change the edge.`);
   }

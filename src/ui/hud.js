@@ -672,15 +672,19 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
     }
     sheet.appendChild(h);
   }
-  for (const line of lines) sheet.appendChild(el('p', 'modal-line typed', line));
+  // The lines and the ledger scroll when a short screen has no room for
+  // them, so the card's buttons always stay in reach (doc 9.10).
+  const body = el('div', 'modal-body');
+  for (const line of lines) body.appendChild(el('p', 'modal-line typed', line));
   if (ledger.length) {
     const grid = el('div', 'modal-ledger');
     ledger.forEach(([k, v, cls = ''], i) => {
       grid.append(el('span', 'k typed', escapeHtml(k)), markImg(dotsMark(200, 10, 80 + i), 'dots'), el('span', `v scrawl fat ${cls}`, escapeHtml(v)));
     });
     grid.appendChild(markImg(lineMark(470, 14, 73, INK.boneDim, 2.4, { y0: 6, y1: 8, double: true }), 'rule'));
-    sheet.appendChild(grid);
+    body.appendChild(grid);
   }
+  if (body.childNodes.length) sheet.appendChild(body);
 
   // Keep keyboard focus inside the card: Tab walks its buttons and wraps, and
   // a key pressed with focus lost (a click on the veil) brings it back.
