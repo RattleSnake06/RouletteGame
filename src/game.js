@@ -15,6 +15,7 @@ import { openSpecials } from './core/effects.js';
 import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
 import { showAlmanac } from './ui/almanac.js';
+import { showGuide } from './ui/guide.js';
 import { showModal } from './ui/hud.js';
 import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, placardNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
@@ -298,6 +299,12 @@ export class Game {
   }
 
   /** The Almanac (doc 7.4), from the main menu, the pause menu or the book on the table. */
+  /** The Info book (Phase 8): how the game works, from the main menu or the pause menu. */
+  openGuide({ onClose } = {}) {
+    if (this.guide) return;
+    this.guide = showGuide({ onClose: () => ((this.guide = null), onClose?.()) });
+  }
+
   openAlmanac() {
     if (this.almanac) return;
     const names = (id) => getMaterial(id)?.id === id ? getMaterial(id).name : (contentName(id) ?? id);
@@ -378,13 +385,13 @@ export class Game {
     this.leaveMenu();
   }
 
-  /** The settings, from the main menu: what the pause menu switches. */
-  openSettings() {
+  /** The settings, from the main menu or the pause menu (`onDone` goes back to it). */
+  openSettings({ onDone } = {}) {
     showModal({
       className: 'pause',
       title: 'Settings',
       actions: [
-        { label: 'Done', primary: true },
+        { label: 'Done', primary: true, onClick: () => onDone?.() },
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
         { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
@@ -2415,9 +2422,9 @@ export class Game {
       ],
       actions: [
         { label: 'Resume', primary: true, onClick: () => (this.menuClose = null) },
-        { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
-        { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
-        { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
+        // Settings and Info come back to this menu when they close.
+        { label: 'Settings', onClick: () => ((this.menuClose = null), this.openSettings({ onDone: () => this.toggleMenu() })) },
+        { label: 'Info', onClick: () => ((this.menuClose = null), this.openGuide({ onClose: () => this.toggleMenu() })) },
         { label: 'Almanac', onClick: () => ((this.menuClose = null), this.openAlmanac()) },
         // Past the goal the run can be won and ended here too (doc 7.1).
         ...(s.won ? [{ label: 'Step out of the light', onClick: () => ((this.menuClose = null), this.stepOut()) }] : []),

@@ -201,6 +201,7 @@ async function init() {
   const menu = createMainMenu({
     onContinue: () => game.continueRun(),
     onPlay: () => game.playFromMenu(),
+    onInfo: () => game.openGuide(),
     onAlmanac: () => game.openAlmanac(),
     onSettings: () => game.openSettings(),
     onWheel: () => game.chooseWheel(),

@@ -1696,6 +1696,24 @@ img.mark {
   outline: none;
 }
 
+/* A short screen: the menu's items two to a row, so five fit above her whisper. */
+@media (max-height: 460px) {
+  .ts-title {
+    font-size: calc(80 * var(--u));
+  }
+
+  .ts-menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 calc(28 * var(--u));
+    width: min(460px, 64vw);
+  }
+
+  .ts-item .sub:empty {
+    display: none;
+  }
+}
+
 /* ---- Chip select ---- */
 
 .ts-chips {
@@ -2099,6 +2117,46 @@ img.mark {
   right: 8px;
   top: 8px;
   font-size: 0.4px;
+}
+
+/* The Info book (Phase 8): sections of plain reading on the Almanac's card. */
+/* Eleven tabs: smaller on a short screen, so they keep to two rows. */
+@media (max-height: 460px) {
+  .guide .alm-tab {
+    padding: 4px 6px;
+  }
+
+  .guide .alm-tab .label {
+    font-size: 16px;
+  }
+
+  .guide .alm-head h2 {
+    font-size: 24px;
+  }
+}
+
+.guide-section {
+  max-width: 72ch;
+  margin: 0 auto 14px;
+}
+
+.guide-section h3 {
+  margin: 4px 0 4px;
+  font-size: 22px;
+  font-weight: normal;
+  color: var(--bone);
+}
+
+.guide-section p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bone-dim);
+}
+
+.guide-section p b {
+  color: var(--bone);
+  font-weight: normal;
 }
 
 .alm-note {
