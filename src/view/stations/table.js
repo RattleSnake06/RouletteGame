@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ECONOMY, PACKAGES } from '../../core/economy.js';
 import { format } from '../../core/num.js';
-import { canAfford, costOf } from '../../core/run.js';
+import { canAfford, costOf, spinsOf } from '../../core/run.js';
 import { numberLabel } from '../../core/wheel.js';
 import { SANS } from '../../ui/fonts.js';
 import { rng } from '../../ui/marks.js';
@@ -20,11 +20,13 @@ import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from 
 
 const TOP_Y = 0.95;
 const FELT_Y = TOP_Y + 0.002;
-const FELT_Z = -0.035;
+// The felt's centre: since the racetrack (Phase 7) it reaches further back,
+// so the numbers and outside bets stay where they were.
+const FELT_Z = -0.0716;
 const TRAY = { x0: 0.27, z: 0.262, step: 0.052 };
 // The night cards stand propped toward the player's eye (about 50° up from
 // the felt): lying flat they were seen edge-on and could not be read.
-const CARD = { w: 0.19, h: 0.268, tilt: 0.78, gap: 0.215, z: 0.045 };
+const CARD = { w: 0.19, h: 0.268, tilt: 0.78, gap: 0.215, z: 0.0816 };
 const CARD_ORDER = ['long', 'short', 'sitout'];
 
 // Night cards are black card stock lettered in the HUD's hand: bone words, a
@@ -78,16 +80,16 @@ function drawKey(ctx, key, seed) {
   paintLoop(ctx, 306, 56, 22, 20, seed, INK.boneDim, 2.4);
 }
 
-function drawNightCard(ctx, { id, cost, affordable, key }) {
+function drawNightCard(ctx, { id, cost, affordable, key, spins }) {
   const pkg = PACKAGES[id];
   const seed = 300 + key * 7;
   drawKey(ctx, String(key), seed);
   scrawlText(ctx, pkg.name, 172, 100, 44, INK.bone, { maxWidth: 270 });
   paintSwipe(ctx, 76, 166, 210, 96, seed + 1, INK.bloodDeep, { slope: -0.06 });
-  scrawlText(ctx, String(pkg.spins), 186, 216, 112, INK.bone);
+  scrawlText(ctx, String(spins), 186, 216, 112, INK.bone);
   ctx.font = typedFont(34);
   ctx.fillStyle = INK.bone;
-  ctx.fillText(pkg.spins === 1 ? 'spin' : 'spins', 180, 304);
+  ctx.fillText(spins === 1 ? 'spin' : 'spins', 180, 304);
   ctx.font = typedFont(30);
   const plural = (n) => `+${n} token${n === 1 ? '' : 's'}`;
   const bonus = id === 'short' ? plural(pkg.tokens) : id === 'sitout' ? `${plural(ECONOMY.sitOutTokens)} when the debt is paid` : 'the most spins';
@@ -453,6 +455,11 @@ export function createTable({ materials, interaction, callbacks }) {
     felt.setNumbers(wheelNumbers);
   }
 
+  /** The special bets open this run light their zones on the racetrack. */
+  function setTrack(open) {
+    felt.setTrack(open);
+  }
+
   function setMarks(marks = {}) {
     const next = marks.foreseen ?? null;
     if (next === foreseen) return;
@@ -753,7 +760,7 @@ export function createTable({ materials, interaction, callbacks }) {
       setCardTexture(
         card,
         darkCard(
-          (ctx) => drawNightCard(ctx, { id, cost: format(costOf(state, id)), affordable: card.affordable, key: i + 1 }),
+          (ctx) => drawNightCard(ctx, { id, cost: format(costOf(state, id)), affordable: card.affordable, key: i + 1, spins: spinsOf(state, id) }),
           101 + i,
         ),
       );
@@ -842,6 +849,7 @@ export function createTable({ materials, interaction, callbacks }) {
     setLampLevel,
     setMarks,
     setNumbers,
+    setTrack,
     setPicking,
     syncStats: (stats) => chalkboard.sync(stats),
     syncLevels: (levels) => placard.sync(levels),

@@ -1410,6 +1410,24 @@ img.mark {
   font-size: 1em;
 }
 
+/* The racetrack's number chooser: a grid of numbers, no gashes between. */
+.modal-backdrop.numbers .modal-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 2px 4px;
+  width: 100%;
+  margin-top: calc(14 * var(--u));
+}
+
+.modal-backdrop.numbers .modal-actions .gash {
+  display: none;
+}
+
+.modal-backdrop.numbers .modal-actions .modal-btn {
+  justify-content: center;
+  min-width: 44px;
+}
+
 .modal-btn.danger .label {
   color: var(--blood);
 }

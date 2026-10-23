@@ -10,7 +10,7 @@ import { mulberry32 } from './textures.js';
 const W = 520;
 const H = 700;
 const CARD = { w: 0.15, h: 0.2 };
-const SHORT = { straight: 'Straight', split: 'Split', street: 'Street', corner: 'Corner', firstFour: 'First Four', sixLine: 'Six Line', dozen: 'Dozen', column: 'Column', red: 'Red', black: 'Black', odd: 'Odd', even: 'Even', low: '1–18', high: '19–36' };
+const SHORT = { straight: 'Straight', split: 'Split', street: 'Street', corner: 'Corner', firstFour: 'First Four', sixLine: 'Six Line', dozen: 'Dozen', column: 'Column', red: 'Red', black: 'Black', odd: 'Odd', even: 'Even', low: '1–18', high: '19–36', neighbours: 'Neighbours', finale: 'Finale', jeuZero: 'Jeu Zéro', orphelins: 'Orphelins', tiers: 'Tiers', snake: 'Snake', voisins: 'Voisins' };
 const fmt = (x) => (Number.isInteger(x) ? String(x) : x.toFixed(2).replace(/0$/, ''));
 
 function paint(ctx, levels) {
@@ -45,17 +45,19 @@ function paint(ctx, levels) {
   const rows = levels.length;
   const top = 178;
   const step = (H - 60 - top) / rows;
+  // With the racetrack open (Phase 7) the rows run small.
+  const size = Math.min(30, step * 0.78);
   levels.forEach((k, i) => {
     const y = top + step * (i + 0.5);
     const up = k.level > 1;
     ctx.textAlign = 'left';
-    ctx.font = `500 30px ${SANS}`;
+    ctx.font = `500 ${size}px ${SANS}`;
     ctx.fillStyle = up ? '#7a4a0c' : '#2a1c10';
     ctx.fillText(SHORT[k.kind] ?? k.name, 64, y);
     ctx.textAlign = 'right';
-    ctx.font = `600 34px ${SANS}`;
+    ctx.font = `600 ${size * 1.13}px ${SANS}`;
     ctx.fillStyle = up ? '#a8660e' : '#2a1c10';
-    ctx.fillText(fmt(k.odds), W - 64, y);
+    ctx.fillText(k.kind === 'finale' ? `${fmt(k.odds)}–${fmt((k.odds * 4) / 3)}` : fmt(k.odds), W - 64, y);
     if (up) {
       // The level, tallied: one stroke for each level above the first.
       ctx.strokeStyle = '#a8660e';

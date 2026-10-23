@@ -11,6 +11,7 @@ import { PHASE, act, chipsOnTable, costOf, createRun, hooksFor, interestRate, is
 import { deserializeRun, serializeRun } from './core/save.js';
 import { bellView, cabinetView, gramophoneView, levelsView, luckView, numbersView, oracleView, pickView, previewBet, railView, statsView, wheelView } from './core/selectors.js';
 import { numberLabel } from './core/wheel.js';
+import { openSpecials } from './core/effects.js';
 import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
 import { showAlmanac } from './ui/almanac.js';
@@ -172,6 +173,7 @@ export class Game {
     this.clearFocus();
     const { wheel, edge } = this.chosenSetup();
     this.state = createRun({ seed: randomSeed(), chipSet, wheel, edge, ...runOptions(this.profile) });
+    this.hideExtraBalls();
     this.save();
     this.power = 1;
     this.busy = false;
@@ -425,6 +427,7 @@ export class Game {
     if (this.stage.wheel.setPockets(pockets, { animate }) && animate && before !== this.wheelWidths) this.audio.widen();
     this.wheelSynced = this.runId;
     this.table.setNumbers(numbersView(this.state));
+    this.table.setTrack(openSpecials(this.state));
     this.table.syncStats(statsView(this.state));
     this.table.syncLevels(levelsView(this.state));
     // The ball stays in the pocket it came to rest in while others come and go around it.
@@ -732,6 +735,32 @@ export class Game {
   }
 
   placeChip(chipId, betId) {
+    // The Neighbours and Finales zones of the racetrack hold a bet for every
+    // number: once open, a chip there asks which one.
+    const kind = getBet(betId).kind;
+    if ((kind === 'neighbours' || kind === 'finale') && openSpecials(this.state).has(kind)) {
+      this.chooseTrackBet(chipId, kind);
+      return;
+    }
+    this.placeChipOn(chipId, betId);
+  }
+
+  /** Which number for a Neighbours bet, or which last digit for a Finale. */
+  chooseTrackBet(chipId, kind) {
+    const numbers = kind === 'neighbours' ? Array.from({ length: this.state.wheelOrder?.length ?? 37 }, (_, n) => n) : Array.from({ length: 10 }, (_, d) => d);
+    showModal({
+      className: 'numbers',
+      kicker: 'The racetrack',
+      title: kind === 'neighbours' ? 'Neighbours of which number?' : 'Which finale?',
+      lines: [kind === 'neighbours' ? 'The number and the two pockets either side of it on the wheel. Pays 7.' : 'Every number ending in the digit: 9, or 12 for 7, 8 and 9.'],
+      actions: [
+        { label: 'Never mind', primary: true },
+        ...numbers.map((n) => ({ label: kind === 'neighbours' ? numberLabel(n) : String(n), onClick: () => this.placeChipOn(chipId, `${kind}:${n}`) })),
+      ],
+    });
+  }
+
+  placeChipOn(chipId, betId) {
     if (this.dispatch({ type: 'placeChip', chipId, betId })) {
       this.audio.chip();
       this.table.syncChips(this.state);
@@ -2042,9 +2071,9 @@ export class Game {
     const colorTone = (c) => (c === 'red' ? 'blood' : c === 'green' ? 'green' : 'bone');
     // Salt Cellar and Evil Eye keep watch on every throw once the Devil is live;
     // the Brass Scales lean on the wheel as it turns.
-    for (const e of detail) if (e.type === 'trigger' && (e.hook === 'devilChance' || e.hook === 'widths')) this.rail.pulse(e.src.uid, 0.45);
-    // Where each throw's ball comes to rest before Nudge moves it.
-    const landed = (hops, pocketIndex) => hops[0]?.from ?? pocketIndex;
+    for (const e of detail) if (e.type === 'trigger' && (e.hook === 'devilChance' || e.hook === 'widths' || e.hook === 'balls')) this.rail.pulse(e.src.uid, 0.45);
+    // Multi-ball (doc 6.1): say how many balls fly.
+    if (result.balls.length > 1) this.hud.flavor([[`${['', '', 'Two', 'Three'][result.balls.length] ?? result.balls.length} balls.`, 'bone']], 1200);
     // What each throw shows after its hops: anchors that held the ball, then
     // wards. On a re-throw, the first throw's are flagged `first`.
     const first = result.firstThrow?.[0];
@@ -2067,7 +2096,7 @@ export class Game {
     // An armed Wheel of Fortune: the first throw paid nothing, so the ball
     // jumps out and goes round again.
     if (first) {
-      await this.ball.launch(landed(result.firstHops, first.pocketIndex));
+      await this.launchBalls(result.firstThrow, result.firstHops);
       if (stale()) return;
       this.audio.settle();
       if (result.firstHops.length) {
@@ -2092,10 +2121,10 @@ export class Game {
       this.audio.bell('ding');
       this.audio.rethrow();
       this.hud.flavor([['Again.', 'blood']], 900);
-      await this.ball.launch(landed(result.hops, result.pocketIndex), { short: true });
+      await this.launchBalls(result.balls, result.hops, { short: true });
       if (stale()) return;
     } else {
-      await this.ball.launch(landed(result.hops, result.pocketIndex));
+      await this.launchBalls(result.balls, result.hops);
       if (stale()) return;
     }
 
@@ -2170,6 +2199,35 @@ export class Game {
    * and a tick on each hop, warm for a Lean, cold for pity, brass for a
    * talisman's own luck. The talismans that lent Nudge shake as it starts.
    */
+  /**
+   * Throws every ball of a spin together (multi-ball, doc 6.1): each to where
+   * it comes to rest before Nudge moves it. The ivory balls appear for a
+   * spin that throws them and go when one throws fewer. Resolves when all
+   * have settled.
+   */
+  launchBalls(balls, hops, opts = {}) {
+    const restsAt = (ball, pocketIndex) => hops.find((h) => h.ball === ball)?.from ?? pocketIndex;
+    const throws = [this.ball.launch(restsAt(0, balls[0].pocketIndex), opts)];
+    const n = this.state.wheel.pockets.length;
+    (this.extraBalls ?? []).forEach((extra, i) => {
+      const b = balls[i + 1];
+      if (!b) {
+        extra.ball.visible = false;
+        return;
+      }
+      // A new ball starts a few pockets along, so the balls never ride as one.
+      if (!extra.ball.visible) extra.restAt((this.ball.pocket + 7 * (i + 1)) % n);
+      extra.ball.visible = true;
+      throws.push(extra.launch(restsAt(b.ball, b.pocketIndex), opts));
+    });
+    return Promise.all(throws);
+  }
+
+  /** The ivory balls leave the wheel (a new run, a reload). */
+  hideExtraBalls() {
+    for (const extra of this.extraBalls ?? []) extra.ball.visible = false;
+  }
+
   async playHops(hops, luck, detail, fast) {
     const id = this.runId;
     for (const e of detail) if (e.type === 'trigger' && e.hook === 'nudge') this.rail.pulse(e.src.uid, 0.9);
@@ -2179,10 +2237,11 @@ export class Game {
     let step = 0;
     for (const hop of hops) {
       if (id !== this.runId) return;
-      await this.ball.hop(hop.path, {
+      const anim = hop.ball ? (this.extraBalls?.[hop.ball - 1] ?? this.ball) : this.ball;
+      await anim.hop(hop.path, {
         time: fast ? 0.08 : 0.13,
         onHop: () => {
-          this.sparks.burst(this.ball.ball.getWorldPosition(this._ballAt), luck.kind);
+          this.sparks.burst(anim.ball.getWorldPosition(this._ballAt), luck.kind);
           this.audio.hop(luck.kind, step);
           step += 1;
         },

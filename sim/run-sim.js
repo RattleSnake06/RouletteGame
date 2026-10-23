@@ -14,13 +14,16 @@
 //   npm run sim -- --edge 3              the House Edge level, 0–5 (doc 7.2)
 //   npm run sim -- --locks 2             the Vault's open locks (the goal, the gramophone's second slot)
 //   npm run sim -- --figures 6           figures standing in the dark (Danse Macabre)
+//   npm run sim -- --pool start          a new player's pool: nothing the Vault or the feats open
+//                                       (default full: everything open, decision 29)
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
 //   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
 //   npm run sim -- --set debt.2=240       override what a debt owes
 
-import { MATERIALS, MAX_EDGE, STARTING_WHEELS, TALISMANS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from '../src/core/content/index.js';
+import { FORTUNES, MATERIALS, MAX_EDGE, RECORDS, STARTING_WHEELS, TALISMANS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from '../src/core/content/index.js';
 import { getBet } from '../src/core/bets.js';
+import { cookieNumber } from '../src/core/content/talismans.js';
 import { DEVIL, devilLive } from '../src/core/devil.js';
 import { untouchable } from '../src/core/house.js';
 import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
@@ -42,7 +45,7 @@ process.argv.slice(2).forEach((a, i, all) => {
   args[key] = key in args ? [args[key]].flat().concat(value) : value;
 });
 const RUNS = Number(args.runs ?? 2000);
-const MAX_DEBT = Number(args['max-debt'] ?? 6);
+const MAX_DEBT = Number(args['max-debt'] ?? 8);
 const TEMPO = !!args.tempo;
 // --no-new: bots never buy the luck and Devil talismans (to measure the House's luck alone).
 const LUCK_ITEMS = ['rabbits_foot', 'pocket_watch', 'salt_cellar', 'evil_eye', 'compass', 'lodestone', 'wind_up_key', 'hamsa', 'four_leaf_clover', 'dowsing_rod', 'weathervane', 'holy_water'];
@@ -64,6 +67,9 @@ const EDGE = Number(args.edge ?? 0);
 if (!Number.isInteger(EDGE) || EDGE < 0 || EDGE > MAX_EDGE) throw new Error(`--edge: 0 to ${MAX_EDGE}`);
 const LOCKS = Number(args.locks ?? 0);
 const FIGURES = Number(args.figures ?? 0);
+const POOL = typeof args.pool === 'string' ? args.pool : 'full';
+if (!['start', 'full'].includes(POOL)) throw new Error('--pool: start or full');
+const OPENED = POOL === 'full' ? [...TALISMANS, ...FORTUNES, ...RECORDS].filter((d) => d.unlock).map((d) => d.id) : [];
 // --set overrides are checked, so a typo fails loudly instead of quietly
 // running the drafted numbers.
 const TABLES = { economy: ECONOMY, luck: LUCK, devil: DEVIL };
@@ -101,11 +107,17 @@ for (const kv of args.set === undefined ? [] : [args.set].flat()) {
 // Phase 5 targets for the best bot (doc 9.8, decision 27), a step above
 // Phase 4's: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25%.
 // Wheel work carries the later debts.
+// Debts 1–4: decision 27's. Debts 5–8: the gentle tail (decision 30), so
+// every lock of the Vault can be earned.
 const TARGETS = [
   [1, 0.9, 1],
   [2, 0.7, 0.85],
   [3, 0.35, 0.5],
   [4, 0.15, 0.25],
+  [5, 0.08, 0.15],
+  [6, 0.04, 0.1],
+  [7, 0.02, 0.06],
+  [8, 0.01, 0.04],
 ];
 
 // --- Where chips go ---------------------------------------------------------
@@ -138,13 +150,21 @@ const LAYOUT = {
   // Ouroboros: every chip on the number that just came up.
   chase: (i, k, s) => (lastNumber(s) === null ? LAYOUT.spread(i, k) : `straight:${lastNumber(s)}`),
   thirteen: () => 'straight:13',
+  // The racetrack (Phase 7): the sectors the Croupier's Glove opens, the Snake.
+  sector: (i) => ['voisins', 'tiers', 'orphelins'][i % 3],
+  snake: () => 'snake',
+  // The Fortune Cookie: the first chip on the number it names, the rest spread.
+  cookie: (i, k, s) => (i === 0 ? `straight:${cookieNumber(s)}` : LAYOUT.spread(i, k)),
 };
 
 const owns = (s, id) => s.rail.some((t) => t.id === id);
 
 /** Picks a chip layout from the rail: what the talismans reward. */
 function layoutFor(s, fallback) {
-  if (owns(s, 'brass_knuckles') && !owns(s, 'horseshoe') && !owns(s, 'croupiers_rake')) return 'corner';
+  if (owns(s, 'croupiers_glove')) return 'sector';
+  if (owns(s, 'snakeskin')) return 'snake';
+  if ((owns(s, 'brass_knuckles') || owns(s, 'surveyors_chain') || owns(s, 'table_map')) && !owns(s, 'horseshoe') && !owns(s, 'croupiers_rake')) return 'corner';
+  if (owns(s, 'fortune_cookie') && !owns(s, 'horseshoe')) return 'cookie';
   if (owns(s, 'horseshoe') || owns(s, 'croupiers_rake') || owns(s, 'house_key')) return 'inside';
   if (owns(s, 'abacus')) return 'outside';
   if (owns(s, 'brass_scales') || owns(s, 'string_of_pearls')) return 'even';
@@ -174,12 +194,15 @@ function extraLayouts(s) {
 // (the Cabinet never deals the newer ones) to compare against.
 const OLD_POOL = !!args['old-pool'];
 const NEWER = ['tuning_fork', 'brass_scales', 'string_of_pearls', 'wind_up_key', 'hamsa', 'beckoning_cat', 'grandmothers_purse', 'lost_wallet', 'magpie', 'domino', 'four_leaf_clover', 'holy_water', 'dowsing_rod', 'mousetrap', 'weathervane', 'seesaw', 'ouroboros', 'thirteen_ball', 'black_cat', 'golden_ball'];
+// Phase 7's talismans sit where each family would want them: the multi-ball
+// ones and the Hourglass help any layout; the Glove and Snakeskin turn the
+// outside builder to the racetrack.
 const LISTS = {
-  red: ['golden_ball', 'red_ribbon', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'magpie', 'beckoning_cat', 'rabbits_foot', 'ledger', 'black_cat', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'lucky_penny', 'lost_wallet'],
-  even: ['golden_ball', 'string_of_pearls', 'brass_scales', 'tuning_fork', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'magpie', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'lucky_penny', 'lost_wallet'],
-  outside: ['golden_ball', 'number_punches', 'abacus', 'seesaw', 'matchbook', 'domino', 'ledger', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'rabbits_foot', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny', 'lost_wallet'],
-  inside: ['ouroboros', 'golden_ball', 'number_punches', 'croupiers_rake', 'horseshoe', 'lodestone', 'thirteen_ball', 'house_key', 'twin_mirrors', 'tuning_fork', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'dowsing_rod', 'weathervane', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'lost_wallet'],
-  luck: ['ouroboros', 'number_punches', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'lost_wallet'],
+  red: ['golden_ball', 'loaded_wheel', 'bag_of_marbles', 'red_ribbon', 'rose_brooch', 'mousetrap', 'domino', 'ivory_ball', 'matchbook', 'twin_mirrors', 'tuning_fork', 'hot_coals', 'glass_eye', 'magpie', 'hourglass', 'beckoning_cat', 'rabbits_foot', 'saints_medal', 'ledger', 'black_cat', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
+  even: ['golden_ball', 'bag_of_marbles', 'string_of_pearls', 'brass_scales', 'tuning_fork', 'ivory_ball', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'hot_coals', 'magpie', 'hourglass', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'lucky_penny', 'lost_wallet'],
+  outside: ['golden_ball', 'bag_of_marbles', 'number_punches', 'croupiers_glove', 'snakeskin', 'abacus', 'seesaw', 'ivory_ball', 'matchbook', 'domino', 'hot_coals', 'ledger', 'twin_mirrors', 'tuning_fork', 'hourglass', 'glass_eye', 'rabbits_foot', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
+  inside: ['ouroboros', 'golden_ball', 'bag_of_marbles', 'number_punches', 'surveyors_chain', 'metronome', 'croupiers_rake', 'horseshoe', 'lodestone', 'fortune_cookie', 'thirteen_ball', 'house_key', 'ivory_ball', 'twin_mirrors', 'tuning_fork', 'mirror_shard', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'hourglass', 'dowsing_rod', 'weathervane', 'table_map', 'zeros_coin', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'jugglers_ball', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
+  luck: ['ouroboros', 'bag_of_marbles', 'number_punches', 'metronome', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'ivory_ball', 'mirror_shard', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'hourglass', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'jugglers_ball', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
 };
 const OLD_LISTS = {
   red: ['red_ribbon', 'matchbook', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'lucky_penny'],
@@ -194,7 +217,7 @@ if (OLD_POOL) {
 }
 const TIER = OLD_POOL
   ? ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny']
-  : ['ouroboros', 'golden_ball', 'number_punches', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
+  : ['ouroboros', 'golden_ball', 'bag_of_marbles', 'loaded_wheel', 'surveyors_chain', 'number_punches', 'ivory_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
 const FAMILY_OF = {
   red_ribbon: 'red',
   matchbook: 'red',
@@ -213,6 +236,13 @@ const FAMILY_OF = {
   ouroboros: 'inside',
   thirteen_ball: 'inside',
   weathervane: 'inside',
+  rose_brooch: 'red',
+  loaded_wheel: 'red',
+  surveyors_chain: 'inside',
+  fortune_cookie: 'inside',
+  metronome: 'inside',
+  croupiers_glove: 'outside',
+  snakeskin: 'outside',
 };
 // Once the Devil is live, safety comes first: these jump to the front of any list.
 const SAFETY = OLD_POOL ? ['evil_eye', 'salt_cellar'] : ['holy_water', 'evil_eye', 'salt_cellar'];
@@ -584,15 +614,15 @@ function punch(s, bot, log, inst) {
 // --- Madame Zero and the gramophone -------------------------------------------
 
 // Which card a bot takes: the first in its colour's list that was dealt.
-const WHITE_RANK = ['record_left', 'carved_in_brass', 'gold_finds_gold', 'stranger_tips', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'bell_rings_twice'];
-const BLACK_RANK = ['feed_zero', 'borrowed_gold', 'ask_figures', 'shiny_things', 'burn_ledger', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
+const WHITE_RANK = ['twin_ball', 'record_left', 'carved_in_brass', 'gold_finds_gold', 'stranger_tips', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'zero_smiles', 'bell_rings_twice'];
+const BLACK_RANK = ['feed_zero', 'borrowed_gold', 'devils_hand', 'ask_figures', 'shiny_things', 'burn_ledger', 'break_the_wheel', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
 // Which record a bot plays, by the bets it makes. None plays Waltz in Green:
 // nights at half again the price cost every bot more than its Nudge won back.
 // Danse Macabre pays only with figures in the dark, so it comes last.
 const RECORD_RANK = {
-  red: ['red_light_tango', 'overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'danse_macabre'],
-  outside: ['overture_of_excess', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
-  inside: ['carousel', 'overture_of_excess', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
+  red: ['red_light_tango', 'overture_of_excess', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'habanera', 'danse_macabre'],
+  outside: ['overture_of_excess', 'habanera', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
+  inside: ['carousel', 'overture_of_excess', 'two_step', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'habanera', 'danse_macabre'],
 };
 const recordFamily = (s, bot) => {
   const layout = layoutFor(s, bot.layout);
@@ -655,7 +685,7 @@ function newMetrics() {
 }
 
 function playRun(seed, bot, m, picks, firstPicks) {
-  let s = createRun({ seed, chipSet: CHIPS, wheel: WHEEL, edge: EDGE, locks: LOCKS, figures: FIGURES });
+  let s = createRun({ seed, chipSet: CHIPS, wheel: WHEEL, edge: EDGE, locks: LOCKS, figures: FIGURES, opened: OPENED });
   for (const id of bot.solo ?? []) s = grantTalisman(s, id);
   m.dry = 0; // a miss streak never carries over from the last run
   let first = true;
@@ -754,8 +784,8 @@ function runBot(name) {
 // --- Report -----------------------------------------------------------------
 
 const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
-const setup = [`${getMaterial(CHIPS).name} chips`, `${getStartingWheel(WHEEL).name} wheel`, EDGE ? `House Edge ${EDGE}` : null, LOCKS ? `${LOCKS} locks` : null, FIGURES ? `${FIGURES} figures` : null].filter(Boolean).join(' · ');
-console.log(`${RUNS} runs per bot · Phase 6 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings, wheel work) · ${setup}${TEMPO ? ' · tempo' : ''}${NO_WHEEL ? ' · no wheel work' : ''}\n`);
+const setup = [`${getMaterial(CHIPS).name} chips`, `${getStartingWheel(WHEEL).name} wheel`, POOL === 'start' ? 'a new player\'s pool' : null, EDGE ? `House Edge ${EDGE}` : null, LOCKS ? `${LOCKS} locks` : null, FIGURES ? `${FIGURES} figures` : null].filter(Boolean).join(' · ');
+console.log(`${RUNS} runs per bot · Phase 7 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings, wheel work) · ${setup}${TEMPO ? ' · tempo' : ''}${NO_WHEEL ? ' · no wheel work' : ''}\n`);
 const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
 console.log(header.join(' '));
 const results = names.map(runBot);
@@ -781,7 +811,7 @@ for (const r of results) {
 // The targets are for the best bot (doc 9.8): at each debt, the best of the
 // bots that play the House's luck, whichever that is.
 const graded = results.filter((r) => botFor(r.name).leans);
-console.log('\nPhase 5 targets for the best bot at each debt:');
+console.log(`\nTargets for the best bot at each debt (decisions 27 and 30; ${POOL === 'full' ? 'everything open' : 'a new player\'s pool'}):`);
 for (const [d, lo, hi] of TARGETS) {
   if (d > MAX_DEBT || !graded.length) continue;
   const best = graded.reduce((a, b) => (b.paid[d] > a.paid[d] ? b : a));

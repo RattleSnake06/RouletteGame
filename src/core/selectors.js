@@ -3,7 +3,8 @@ import { betCovers, betOf } from './bets.js';
 import { RECORDS, getEnhancement, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman, isOffered } from './content/index.js';
 import { ECONOMY, RARITY, priceOf, sellValueOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
-import { copyTarget, echoTarget, sources } from './effects.js';
+import { copyTarget, echoTarget, openSpecials, sources } from './effects.js';
+import { ballsFor } from './resolve.js';
 import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
@@ -146,8 +147,15 @@ function oddityOffer(state, slot, offer) {
  * level and what it pays now, in the felt's order.
  */
 export function levelsView(state) {
-  return Object.entries(BET_KINDS).map(([kind, k]) => ({ kind, name: k.name, base: k.odds, level: levelOf(state, kind), odds: levelOdds(kind, levelOf(state, kind)) }));
+  // The special bets only while something opens them (the placard has room for the rest).
+  const open = openSpecials(state);
+  return Object.entries(BET_KINDS)
+    .filter(([kind, k]) => !k.special || open.has(kind))
+    .map(([kind, k]) => ({ kind, name: k.name, base: k.odds, level: levelOf(state, kind), odds: levelOdds(kind, levelOf(state, kind)) }));
 }
+
+/** The balls the next spin throws (multi-ball, doc 6.1): each with its mult and what throws it. */
+export const ballsView = (state) => ballsFor(state);
 
 /**
  * The House's luck as the room shows it, for the next spin: the Nudge (with

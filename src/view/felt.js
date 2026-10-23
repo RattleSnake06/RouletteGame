@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BETS, BET_KINDS, getBet, tableCell } from '../core/bets.js';
+import { BETS, BET_KINDS, getBet, isSpecial, tableCell } from '../core/bets.js';
 import { DOUBLE_ZERO, RED_NUMBERS, numberLabel } from '../core/wheel.js';
 
 // The betting layout in "layout units" (one number cell = 1 unit). Zero sits
@@ -11,10 +11,30 @@ import { DOUBLE_ZERO, RED_NUMBERS, numberLabel } from '../core/wheel.js';
 //
 // On the American wheel (doc 7.2) the zero's cell splits: 00 on the far
 // half, beside 3, and 0 on the near half, beside 1, with 2 between them.
+//
+// Beyond the numbers, on the far side, runs the racetrack (Phase 7): a zone
+// for each special bet, at y from TRACK.y0 to TRACK.y1 (negative: further
+// from the player than row 0). Closed zones are drawn dark. Every neighbours
+// bet shares the Neighbours zone and every finale the Finales zone: a tap
+// there asks which number (game.js).
 
 export const LAYOUT_W = 14;
 export const LAYOUT_H = 4.6;
 const MARGIN = 0.4;
+// Tall enough for a finger in the phone's close-up.
+export const TRACK = { y0: -1.45, y1: -0.15 };
+// The layout's own top, past the racetrack: canvas y = (y + MARGIN + TOP) px.
+const TOP = 1.55;
+export const TRACK_ZONES = [
+  { kind: 'neighbours', x0: 1, x1: 3.1, label: 'NEIGHBOURS' },
+  { kind: 'finale', x0: 3.1, x1: 5, label: 'FINALES' },
+  { kind: 'voisins', x0: 5, x1: 7.4, label: 'VOISINS' },
+  { kind: 'tiers', x0: 7.4, x1: 9.4, label: 'TIERS' },
+  { kind: 'orphelins', x0: 9.4, x1: 11.6, label: 'ORPHELINS' },
+  { kind: 'jeuZero', x0: 11.6, x1: 13.2, label: 'JEU ZÉRO' },
+  { kind: 'snake', x0: 13.2, x1: 14.4, label: 'SNAKE' },
+];
+const zoneOf = (kind) => TRACK_ZONES.find((z) => z.kind === kind);
 const NUMBERS_BOTTOM = 3;
 const DOZEN_BOTTOM = 3.8;
 
@@ -59,6 +79,13 @@ function buildSpots() {
   for (const bet of BETS) {
     const ns = bet.numbers;
     if (!doubleZero && ns.includes(DOUBLE_ZERO)) continue;
+    if (isSpecial(bet.kind)) {
+      // A racetrack zone: every bet of the kind sits on it.
+      const z = zoneOf(bet.kind);
+      const rect = { x0: z.x0, y0: TRACK.y0, x1: z.x1, y1: TRACK.y1 };
+      spots.set(bet.id, { type: 'box', x: (z.x0 + z.x1) / 2, y: (TRACK.y0 + TRACK.y1) / 2, rect, track: true });
+      continue;
+    }
     switch (bet.kind) {
       case 'straight': {
         const r = cellRect(ns[0]);
@@ -173,8 +200,10 @@ export class FeltCanvas {
   constructor({ width = 2048 } = {}) {
     this.px = width / (LAYOUT_W + 2 * MARGIN);
     this.width = width;
-    this.height = Math.round((LAYOUT_H + 2 * MARGIN) * this.px);
-    this.metersPerUnit = 0.075;
+    this.height = Math.round((LAYOUT_H + TOP + 2 * MARGIN) * this.px);
+    // Smaller than before the racetrack (0.075), so the felt still fits the table.
+    this.metersPerUnit = 0.068;
+    this.trackOpen = new Set();
 
     // The felt and its lines are drawn once; the numbers follow the wheel
     // (doc 5.4): its paint, "×2" for a number with two pockets, a struck-out
@@ -202,27 +231,27 @@ export class FeltCanvas {
     this.overlayTexture.colorSpace = THREE.SRGBColorSpace;
   }
 
-  /** Felt size in metres (including the margin). */
+  /** Felt size in metres (including the margin and the racetrack). */
   get size() {
     return {
       w: (LAYOUT_W + 2 * MARGIN) * this.metersPerUnit,
-      h: (LAYOUT_H + 2 * MARGIN) * this.metersPerUnit,
+      h: (LAYOUT_H + TOP + 2 * MARGIN) * this.metersPerUnit,
     };
   }
 
   /** Layout units → felt-local metres (x right, z toward the player). */
   toLocal(x, y) {
-    return { x: (x - LAYOUT_W / 2) * this.metersPerUnit, z: (y - LAYOUT_H / 2) * this.metersPerUnit };
+    return { x: (x - LAYOUT_W / 2) * this.metersPerUnit, z: (y - (LAYOUT_H - TOP) / 2) * this.metersPerUnit };
   }
 
   /** Felt-local metres → layout units. */
   toLayout(x, z) {
-    return { x: x / this.metersPerUnit + LAYOUT_W / 2, y: z / this.metersPerUnit + LAYOUT_H / 2 };
+    return { x: x / this.metersPerUnit + LAYOUT_W / 2, y: z / this.metersPerUnit + (LAYOUT_H - TOP) / 2 };
   }
 
   /** Layout units → pixels on the felt's canvas. */
   toCanvas(x, y) {
-    return { x: this._u(x), y: this._u(y) };
+    return { x: this._u(x), y: this._u(y + TOP) };
   }
 
   _u(v) {
@@ -252,6 +281,9 @@ export class FeltCanvas {
     vg.addColorStop(1, 'rgba(10,0,0,0.45)');
     ctx.fillStyle = vg;
     ctx.fillRect(0, 0, W, H);
+    // Everything below is drawn in layout units with the racetrack above row 0.
+    ctx.save();
+    ctx.translate(0, TOP * px);
 
     const lw = Math.max(2, px * 0.03);
     ctx.strokeStyle = COLORS.line;
@@ -306,9 +338,70 @@ export class FeltCanvas {
       }
     });
 
-    // A double rule round the whole layout.
+    // A double rule round the whole layout, the racetrack inside it.
     ctx.lineWidth = lw * 0.6;
-    ctx.strokeRect(u(-0.2), u(-0.2), u(LAYOUT_W + 0.2) - u(-0.2), u(LAYOUT_H + 0.2) - u(-0.2));
+    ctx.strokeRect(u(-0.2), u(TRACK.y0 - 0.2), u(LAYOUT_W + 0.2) - u(-0.2), u(LAYOUT_H + 0.2) - u(TRACK.y0 - 0.2));
+    ctx.restore();
+  }
+
+  /**
+   * The racetrack: an oval band of zones, each lettered with its bet. A
+   * closed zone (nothing in the run opens it) sinks into the dark.
+   */
+  _drawTrack(ctx) {
+    const { px } = this;
+    const u = (v) => this._u(v);
+    const lw = Math.max(2, px * 0.03);
+    const y0 = u(TRACK.y0);
+    const y1 = u(TRACK.y1);
+    const h = y1 - y0;
+    ctx.save();
+    ctx.strokeStyle = COLORS.line;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.roundRect(u(TRACK_ZONES[0].x0), y0, u(TRACK_ZONES.at(-1).x1) - u(TRACK_ZONES[0].x0), h, h / 2);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    TRACK_ZONES.forEach((z, i) => {
+      const open = this.trackOpen.has(z.kind);
+      const x0 = u(z.x0);
+      const x1 = u(z.x1);
+      if (i) this._line(ctx, x0, y0, x0, y1);
+      if (!open) {
+        // Closed: dark, with a brass crosshatch over the name.
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(u(TRACK_ZONES[0].x0), y0, u(TRACK_ZONES.at(-1).x1) - u(TRACK_ZONES[0].x0), h, h / 2);
+        ctx.clip();
+        ctx.fillStyle = 'rgba(8, 3, 3, 0.55)';
+        ctx.fillRect(x0, y0, x1 - x0, h);
+        ctx.strokeStyle = 'rgba(224, 204, 152, 0.12)';
+        ctx.lineWidth = Math.max(1, px * 0.012);
+        for (let t = x0 - h; t < x1; t += px * 0.18) this._line(ctx, t, y1, t + h, y0);
+        ctx.restore();
+      }
+      ctx.font = `600 ${Math.round(px * (z.label.length > 8 ? 0.26 : 0.3))}px Oswald, "Arial Narrow", sans-serif`;
+      ctx.fillStyle = open ? COLORS.ink : 'rgba(224, 204, 152, 0.35)';
+      ctx.fillText(z.label, (x0 + x1) / 2, (y0 + y1) / 2 - (open ? px * 0.1 : 0));
+      if (open) {
+        ctx.font = `500 ${Math.round(px * 0.2)}px Oswald, "Arial Narrow", sans-serif`;
+        ctx.fillStyle = COLORS.line;
+        const odds = z.kind === 'finale' ? '9–12' : String(BET_KINDS[z.kind].odds);
+        ctx.fillText(`pays ${odds}`, (x0 + x1) / 2, (y0 + y1) / 2 + px * 0.24);
+      }
+    });
+    ctx.restore();
+  }
+
+  /** The special bets open this run (a set of kinds): the racetrack lights them. */
+  setTrack(open) {
+    const next = new Set(open);
+    if ([...next].sort().join() === [...this.trackOpen].sort().join()) return false;
+    this.trackOpen = next;
+    this.numbersKey = null;
+    this.setNumbers(this.lastNumbers ?? null);
+    return true;
   }
 
   /**
@@ -323,6 +416,7 @@ export class FeltCanvas {
       this._drawBase(this.ground.getContext('2d'));
       this.numbersKey = null;
     }
+    this.lastNumbers = numbers;
     const key = JSON.stringify(list.map((x) => x.pockets.map((p) => [p.color, p.enh])));
     if (key === this.numbersKey) return false;
     this.numbersKey = key;
@@ -330,6 +424,9 @@ export class FeltCanvas {
     ctx.drawImage(this.ground, 0, 0);
     const px = this.px;
     const u = (v) => this._u(v);
+    ctx.save();
+    ctx.translate(0, TOP * px);
+    this._drawTrack(ctx);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const { number: n, pockets } of list) {
@@ -386,6 +483,7 @@ export class FeltCanvas {
         ctx.restore();
       });
     }
+    ctx.restore();
     if (this.texture) this.texture.needsUpdate = true;
     return true;
   }
@@ -441,11 +539,13 @@ export class FeltCanvas {
     const u = (v) => this._u(v) * s;
     const px = this.px * s;
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+    ctx.save();
+    ctx.translate(0, TOP * px);
     if (pick && !pick.all) {
       // Choosing where wheel work goes: the felt sinks into the dark but for
       // the numbers it can act on; the ones already chosen wear a bone ring.
       ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
-      ctx.fillRect(0, 0, this.overlay.width, this.overlay.height);
+      ctx.fillRect(0, -TOP * px, this.overlay.width, this.overlay.height);
       ctx.strokeStyle = 'rgba(243, 223, 176, 0.9)';
       ctx.lineWidth = Math.max(1.5, px * 0.04);
       for (const n of pick.valid) {
@@ -514,6 +614,7 @@ export class FeltCanvas {
       ctx.strokeRect(u(r.x0) + 2, u(r.y0) + 2, (r.x1 - r.x0) * px - 4, (r.y1 - r.y0) * px - 4);
       ctx.restore();
     }
+    ctx.restore();
     this.overlayTexture.needsUpdate = true;
   }
 }

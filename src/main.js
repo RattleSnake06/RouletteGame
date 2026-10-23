@@ -181,6 +181,8 @@ async function init() {
     onBounce: (s) => audio.bounce(s),
     onRoll: (level) => audio.roll(level),
   });
+  // The balls multi-ball talismans throw: quieter, so three do not deafen.
+  const extraBalls = wheel.extraBalls.map((mesh) => new BallAnimator({ ball: mesh, spin, onBounce: (s) => audio.bounce(s * 0.4) }));
 
   // The meta in the room (doc 7.1, 7.3): the Vault at the back of the hall,
   // behind the wheel, and the figures at the edge of the light.
@@ -207,7 +209,7 @@ async function init() {
     onBack: () => game.menuBack(),
   });
   const profile = deserializeProfile(platform.load('profile'));
-  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch, menu, profile, vault, figures });
+  game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch, menu, profile, vault, figures, extraBalls });
   game.onSettingsChanged = saveSettings;
 
   // ---- Sizing and camera anchors ---------------------------------------------
@@ -344,6 +346,7 @@ async function init() {
     wheel.setSpeed(spin.speed);
     wheel.update(dt);
     ball.update(sdt);
+    for (const extra of extraBalls) if (extra.ball.visible) extra.update(sdt);
 
     // Pocket ticks when the player turns the wheel by hand; the ball's own
     // rattle takes over while it is in flight.

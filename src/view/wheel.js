@@ -496,6 +496,19 @@ export function createWheel({ envMap }) {
     ),
   );
   wheel.add(ball);
+  // Multi-ball (doc 6.1): ivory balls the talismans throw beside the House's
+  // own, hidden until a spin throws them.
+  const extraBalls = [0, 1].map(() => {
+    const extra = shadowed(
+      new THREE.Mesh(
+        ball.geometry,
+        new THREE.MeshPhysicalMaterial({ color: 0xe6d6b4, roughness: 0.2, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.08, envMap, envMapIntensity: 1.2 }),
+      ),
+    );
+    extra.visible = false;
+    wheel.add(extra);
+    return extra;
+  });
 
   // Blend toward the smeared numbers as the rotor speeds up (rad/s).
   function setSpeed(speed) {
@@ -604,6 +617,7 @@ export function createWheel({ envMap }) {
     group: wheel,
     rotor,
     ball,
+    extraBalls,
     lensMat,
     setSpeed,
     setLightLevel,
