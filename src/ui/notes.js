@@ -2,7 +2,7 @@ import { BET_KINDS, getBet } from '../core/bets.js';
 import { contentName, getEnhancement, getTalisman } from '../core/content/index.js';
 import { RARITY } from '../core/economy.js';
 import { gte } from '../core/num.js';
-import { betChance, bellView, cabinetView, gramophoneView, luckView, oracleView, previewBet, railView, rarityOdds, statsView } from '../core/selectors.js';
+import { betChance, bellView, cabinetView, gramophoneView, levelsView, luckView, oracleView, previewBet, railView, rarityOdds, statsView } from '../core/selectors.js';
 
 // What each object's note says (design doc 8.4): plain specs for hud.note,
 // read from the run's state. Nothing here changes the run.
@@ -76,6 +76,7 @@ export function betNote(state, betId) {
   const bet = getBet(betId);
   const base = BET_KINDS[bet.kind].odds;
   const preview = previewBet(state, betId);
+  const level = state.levels?.[bet.kind] ?? 1;
   // How often it wins on the wheel as built (doc 5.4); nothing, if no pocket carries it.
   const status = `Wins ${pct1(betChance(state, betId))} of spins on this wheel, before Nudge.`;
   if (!preview) return { title: bet.label, pays: { odds: base }, status };
@@ -83,6 +84,8 @@ export function betNote(state, betId) {
     .filter((s) => ['stake', 'odds', 'oddsMult', 'mult'].includes(s.effect))
     .map((s) => [s.as !== s.id ? `${nameOf(s.id)} (${nameOf(s.as)})` : nameOf(s.id), effectText(s)]);
   if (preview.paysMax > preview.pays) sources.push(['on some numbers', `up to ${preview.paysMax}×`]);
+  // A raised kind of bet: its level stands first, as the odds it starts from.
+  if (level > 1) sources.unshift([`Level ${level}`, `${preview.odds} base`]);
   return { title: bet.label, pays: { odds: preview.pays, base, sources }, status };
 }
 
@@ -122,8 +125,8 @@ export function slotNote(state, slot) {
     return {
       title: view.name,
       rarity: view.rarity,
-      lines: [view.text],
-      status: view.workable ? 'Wheel work: you choose where it goes on the felt.' : 'There is nowhere on the wheel it could work now.',
+      lines: view.record ? [view.text, `${view.record.name}: ${view.record.rule}`] : [view.text],
+      status: view.chip ? (view.workable ? 'It goes in the tray with your other chips.' : 'Your pockets are full: six chips at most.') : view.record ? null : view.workable ? 'You choose where it goes on the felt.' : 'There is nowhere on the wheel it could work now.',
       price: { amount: view.price, unit: 'coins', ok: view.affordable, short: view.affordable ? '' : `${view.short} short` },
     };
   }
@@ -195,6 +198,18 @@ export function chalkboardNote(state) {
     lines,
     status: v.pockets === v.plainPockets ? `${v.pockets} pockets.` : `${v.pockets} pockets, of the House's ${v.plainPockets}.`,
   };
+}
+
+/** The payout placard (doc 5.11): what each kind of bet pays now, and which ones are raised. */
+export function placardNote(state) {
+  const levels = levelsView(state);
+  const up = levels.filter((k) => k.level > 1);
+  const lines = [
+    'Straight 36, split 18, street 12, corner and first four 9, six line 6, dozen and column 3, even money 2: the House pays back the same on all of them.',
+  ];
+  for (const k of up) lines.push(`${k.name}: level ${k.level}, pays ${Math.round(k.odds * 100) / 100} (a quarter of its base more for each level).`);
+  if (!up.length) lines.push('Nothing raised yet. The Brass Odds Plate and two of Madame Zero’s cards raise a kind of bet a level.');
+  return { title: 'The odds', lines, status: up.length ? `${plural(up.length, 'kind')} of bet raised.` : 'Every bet at its base odds.' };
 }
 
 /** The results board: the LEAN lamp, the next spin's Nudge, and pity. */

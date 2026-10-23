@@ -6,6 +6,7 @@ import { SANS } from '../../ui/fonts.js';
 import { rng } from '../../ui/marks.js';
 import { CHIP, createChipMesh } from '../chips.js';
 import { createChalkboard } from '../chalkboard.js';
+import { createPlacard } from '../placard.js';
 import { FeltCanvas, LAYOUT_H, LAYOUT_W, SPOTS, betAt, numbersFor } from '../felt.js';
 import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from '../ink.js';
 
@@ -304,6 +305,18 @@ export function createTable({ materials, interaction, callbacks }) {
   chalkboard.group.position.set(-0.86, 1.16, -0.5);
   chalkboard.group.rotation.y = 0.62;
   group.add(chalkboard.group);
+
+  // The payout placard stands at the felt's right edge (doc 5.11).
+  const placard = createPlacard({
+    materials,
+    interaction,
+    enabled: () => !locked,
+    onOpen: () => callbacks.onPlacard?.(),
+    onHover: (on, ev) => callbacks.onHoverPlacard?.(on, ev),
+  });
+  placard.group.position.set(0.66, TOP_Y + 0.09, 0.08);
+  placard.group.rotation.set(-0.35, -0.55, 0, 'YXZ');
+  group.add(placard.group);
 
   board.userData.role = 'board';
   interaction.add(board, {
@@ -749,6 +762,7 @@ export function createTable({ materials, interaction, callbacks }) {
 
   // ---- Per-frame ----------------------------------------------------------
   function update(dt, t = 0) {
+    placard.update(dt);
     // An old bulb never burns quite steady.
     const waver = 1 + Math.sin(t * 7.3) * 0.015 + Math.sin(t * 17.1) * 0.01;
     lamp.intensity = LAMP_INTENSITY * lampLevel * waver;
@@ -816,6 +830,9 @@ export function createTable({ materials, interaction, callbacks }) {
     setNumbers,
     setPicking,
     syncStats: (stats) => chalkboard.sync(stats),
+    syncLevels: (levels) => placard.sync(levels),
+    pulsePlacard: () => placard.pulse(),
+    placardWorldPosition: (out) => placard.worldPosition(out),
     chalkboardWorldPosition: (out) => chalkboard.worldPosition(out),
     setSelectedChip,
     drawLoupe,

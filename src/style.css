@@ -1810,6 +1810,29 @@ img.mark {
   cursor: pointer;
 }
 
+/* One line, for a bet level: every spot on the felt stays clear. */
+.hud-pick.slim {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 6px 2px 12px;
+  bottom: calc(4px + var(--safe-b));
+}
+
+.hud-pick.slim .pick-title {
+  font-size: 16px;
+}
+
+.hud-pick.slim .pick-prompt {
+  font-size: 12px;
+  margin: 0;
+  text-align: left;
+}
+
+.hud-pick.slim .pick-actions {
+  margin: 0;
+}
+
 /* A short screen: the bar on two lines, the title beside its prompt. */
 @media (max-height: 380px) {
   .hud-pick {

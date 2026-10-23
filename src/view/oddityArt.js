@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { getRecord } from '../core/content/index.js';
+import { paintChipFace } from '../ui/chipLook.js';
+import { SANS } from '../ui/fonts.js';
 import { mulberry32 } from './textures.js';
 
 // The Cabinet's oddities (doc 5.11, 6.7): a wheel-maker's odds and ends, each
@@ -119,7 +122,82 @@ function lacquer(ctx, paint) {
   ctx.restore();
 }
 
+/** A chip of this material, lying on the velvet, as the tray shows it. */
+function chip(ctx, material) {
+  const face = document.createElement('canvas');
+  face.width = face.height = 256;
+  paintChipFace(face.getContext('2d'), 256, material, '1');
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+  ctx.shadowBlur = 16;
+  ctx.beginPath();
+  ctx.arc(128, 132, 84, 0, Math.PI * 2);
+  ctx.fillStyle = '#000';
+  ctx.fill();
+  ctx.restore();
+  ctx.drawImage(face, 44, 48, 168, 168);
+}
+
 const PAINTERS = {
+  house_chip: (ctx) => chip(ctx, 'normal'),
+  clay_chip: (ctx) => chip(ctx, 'clay'),
+  bone_chip: (ctx) => chip(ctx, 'bone'),
+  glass_chip: (ctx) => chip(ctx, 'glass'),
+  gold_chip: (ctx) => chip(ctx, 'gold'),
+  odds_plate(ctx) {
+    // A brass plate stamped with new odds.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = lin(ctx, 40, 60, 216, 196, ['#f3d48a', '#c39a5c', '#7a5a28']);
+    ctx.beginPath();
+    ctx.roundRect(40, 66, 176, 124, 10);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#2a1a0c';
+    for (const [x, y] of [[54, 80], [202, 80], [54, 176], [202, 176]]) {
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `600 30px ${SANS}`;
+    ctx.fillText('ODDS', 128, 96);
+    ctx.font = `600 46px ${SANS}`;
+    ctx.fillText('36 → 45', 128, 148);
+    ctx.restore();
+  },
+  record_sleeve(ctx, record) {
+    // A record half out of its sleeve, its name on the sleeve.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#0c0b0b';
+    ctx.beginPath();
+    ctx.arc(150, 112, 78, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    for (let r = 30; r < 76; r += 6) {
+      ctx.beginPath();
+      ctx.arc(150, 112, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#a3161a';
+    ctx.beginPath();
+    ctx.arc(150, 112, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = lin(ctx, 30, 70, 170, 230, ['#d8c9a8', '#a8946e', '#6a5a3e']);
+    ctx.fillRect(28, 76, 150, 150);
+    ctx.fillStyle = '#2a1c10';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `600 20px ${SANS}`;
+    const words = (getRecord(record)?.name ?? 'A RECORD').toUpperCase().split(' ');
+    words.forEach((w, i) => ctx.fillText(w, 103, 140 + (i - (words.length - 1) / 2) * 24));
+    ctx.restore();
+  },
   gold_leaf(ctx) {
     // A booklet of gold leaf, three sheets fanned out of it.
     ctx.save();
@@ -322,14 +400,15 @@ const PAINTERS = {
   },
 };
 
-/** The painted face of an oddity, cached per id. */
+/** The painted face of an oddity, cached per id ("record_sleeve:nocturne" names its record). */
 export function oddityFaceTexture(id) {
   if (faces.has(id)) return faces.get(id);
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = PX;
   const ctx = canvas.getContext('2d');
+  const [base, extra] = id.split(':');
   ground(ctx, id.length * 97);
-  (PAINTERS[id] ?? PAINTERS.chisel)(ctx);
+  (PAINTERS[base] ?? PAINTERS.chisel)(ctx, extra);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;

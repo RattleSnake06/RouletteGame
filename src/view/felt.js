@@ -405,7 +405,7 @@ export class FeltCanvas {
     const u = (v) => this._u(v) * s;
     const px = this.px * s;
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
-    if (pick) {
+    if (pick && !pick.all) {
       // Choosing where wheel work goes: the felt sinks into the dark but for
       // the numbers it can act on; the ones already chosen wear a bone ring.
       ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';

@@ -5,7 +5,7 @@
 
 // Which room objects belong to which station's view.
 export const ROLES = {
-  table: ['night-card', 'end-card', 'board', 'chalkboard', 'bell', 'bell-tag', 'plaque', 'talisman-mesh'],
+  table: ['night-card', 'end-card', 'board', 'chalkboard', 'placard', 'bell', 'bell-tag', 'plaque', 'talisman-mesh'],
   felt: [],
   cage: ['cage-button', 'devil-counter'],
   cabinet: ['compartment', 'crank', 'chart'],
@@ -132,8 +132,10 @@ export async function measure({ view, roles, min }) {
   // Bet spots: points on the felt, sized by the gap to the nearest other spot.
   if ((view === 'table' || view === 'felt') && r.game.state.phase === 'betting' && !cards.length) {
     const { SPOTS } = await import('/src/view/felt.js');
-    // While wheel work is being placed only the numbers take a tap (doc 5.4).
-    const ids = [...SPOTS.keys()].filter((id) => !r.game.picking || id.startsWith('straight:'));
+    // While wheel work is being placed only the numbers take a tap (doc 5.4);
+    // a bet level takes any spot.
+    const level = r.game.picking && r.game.picking.works[0]?.on === 'bet';
+    const ids = [...SPOTS.keys()].filter((id) => !r.game.picking || level || id.startsWith('straight:'));
     const spots = ids.map((id) => ({ id, ...project(r.table.spotWorldPosition(id)) }));
     for (const s of spots) {
       let gap = Infinity;

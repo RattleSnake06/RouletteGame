@@ -77,6 +77,8 @@ async function init() {
       onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
       onHoverBoard: (on, ev) => game?.onHoverItem(on ? { kind: 'board' } : null, ev),
       onChalkboard: () => game.openChalkboard(),
+      onPlacard: () => game.openPlacard(),
+      onHoverPlacard: (on, ev) => game?.onHoverItem(on ? { kind: 'placard' } : null, ev),
       onHoverChalkboard: (on, ev) => game?.onHoverItem(on ? { kind: 'chalkboard' } : null, ev),
     },
   });

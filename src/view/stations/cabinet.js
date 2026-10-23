@@ -969,7 +969,8 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     const tagged = state === 'stock' || state === 'sold';
     s.tagAt.visible = tagged;
     s.string.visible = tagged;
-    setCharm(s, state === 'stock' ? (offer.kind === 'oddity' ? `oddity:${offer.id}` : offer.id) : null);
+    // A record's plaque names its record: one plaque per record.
+    setCharm(s, state === 'stock' ? (offer.kind === 'oddity' ? `oddity:${offer.id}${offer.record ? `:${offer.record.id}` : ''}` : offer.id) : null);
     s.charm?.userData.setEngraving?.(state === 'stock' ? (offer.engraving?.id ?? null) : null);
     if (!tagged) return;
     const info = {

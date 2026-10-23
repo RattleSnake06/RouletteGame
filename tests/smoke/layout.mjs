@@ -95,6 +95,16 @@ for (const size of SIZES) {
     g.offerSlot(3);
   });
   await at('choosing wheel work', 'felt', () => document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click());
+  // The Brass Odds Plate takes any spot on the felt: the bar packs onto one line.
+  await at('the Odds Plate card', 'cabinet', () => {
+    const g = window.__roulette.game;
+    g.endWork();
+    const s = g.state;
+    g.state = { ...s, cabinet: { ...s.cabinet, slots: [...s.cabinet.slots.slice(0, 3), { kind: 'oddity', id: 'odds_plate', sold: false }] } };
+    g.syncAll();
+    g.offerSlot(3);
+  });
+  await at('choosing a bet to raise', 'felt', () => document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click());
   await at('cage', 'cage');
   await at('Madame Zero', 'oracle');
   await at('Madame Zero, a deal', 'oracle', () => window.__roulette.game.pullLever());
@@ -111,6 +121,10 @@ for (const size of SIZES) {
     g.syncAll();
   });
   await at('the chalkboard', 'table', () => window.__roulette.game.openChalkboard());
+  await at('the payout placard', 'table', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    window.__roulette.game.openPlacard();
+  });
   await at('pause menu', 'table', () => {
     document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
     window.__roulette.game.toggleMenu();

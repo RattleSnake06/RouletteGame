@@ -7,10 +7,10 @@ Status: Phase 1 (the core loop), Phase 2 (talismans, the Curio Cabinet,
 tokens and the Bell), Phase 3 (Nudge, the Lean, pity, the Devil, cursed
 talismans) and Phase 4 (Madame Zero, records, engravings) are built, and so
 are touch and the phone layout (M1), the main menu and the starting chip sets
-(decision 26). Phase 5 is half built (decision 27): wheel work, pocket
-enhancements, the Cabinet's oddities and the stats chalkboard. Its second
-half (chips as oddities, Lead and Wax, bet levels and the payout placard)
-comes next.
+(decision 26). Phase 5 (building the wheel) is built, in two halves
+(decisions 27 and 28): wheel work, pocket enhancements, the Cabinet's
+oddities and the stats chalkboard; then bet levels with the payout placard,
+chips and records as oddities. Phase 6 (meta) comes next.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -300,6 +300,15 @@ is the risk, as with Clover Pit's spin cost.
 **Bet levels.** Some fortunes and oddities level up a bet type. Each level adds the
 base odds again (Straight up: 36 → 72 → 108). This is the slow, permanent scaling
 axis, the counterpart of upgrading pattern values.
+
+*As built (Phase 5, decision 28):* each of the 14 kinds of bet has its own
+level for the run. At the owner's word after the simulator, each level adds
+**a quarter** of the base odds, not the whole (straight-up 36 → 45 → 54, red
+2 → 2.5 → 3). Every bet of the kind pays at its level's odds, before Stake,
+the Odds mult and the rest (5.5), and the House rounds down as ever. Levels
+come from the Brass Odds Plate (6.7; tap a bet on the felt to raise its kind)
+and from two of Madame Zero's cards (6.2). The payout placard shows them
+(5.11), and a raised bet's note starts from its level.
 
 ### 5.4 The wheel: pockets you can build
 
@@ -628,7 +637,8 @@ oddities, found in the Vault, and occasionally given by fortunes. This puts the
 soundtrack inside the build. Drafts in 6.3.
 
 *As built (Phase 4):* records come only from the white card "Someone left a
-record." (it plays at once if nothing is playing). Swapping works in every
+record." (it plays at once if nothing is playing). *Phase 5:* the Cabinet's
+4th compartment also sells them (6.7), one not yet owned at a time. Swapping works in every
 phase but game over and costs nothing; the record acts before every other
 source, and keeps its own data between plays (Boogie-Woogie's streak). Two
 rules close the gaps free swapping would open: **Overture of Excess** doubles
@@ -649,7 +659,13 @@ record has its own synthesised loop (8.6); with nothing on, the hall hums.
   every pick is chosen, the work is done and paid for. The camera lifts to
   the wheel, its bulb lit as for a spin, while the pockets take the work, a
   line names what changed, and you are back where you were. Nothing is paid
-  until the work is done. Cancel, Back or a turn puts it down.
+  until the work is done. Cancel, Back or a turn puts it down. *Second half:*
+  the compartment also sells the Brass Odds Plate (a level: tap any bet, and
+  the bar packs onto one line so the whole felt stays clear), a chip of each
+  material, and a record. A chip or a record is bought from its card and
+  goes straight into the tray or the crate. A chip is never offered to a
+  full hand (six chips, the tray's six places), nor a record when every
+  record is owned.
 - **Boards in the room:**
   - **Results board:** a mechanical flip board showing the last 12 numbers with
     colours, spins left and the LEAN lamp. *As built (Phase 3):* the board at the
@@ -667,8 +683,11 @@ record has its own synthesised loop (8.6); with nothing on, the hall hums.
     has changed, by what was done to them. A tap opens its card, the same
     lines in plain words; with a mouse, hovering shows its note. Every bet's
     note now says how often it wins on the wheel as built, before Nudge.
-  - **Payout placard:** current odds per bet type, with levels. *Waits for bet
-    levels (Phase 5, second half).*
+  - **Payout placard:** current odds per bet type, with levels. *As built
+    (Phase 5):* an ivory card in a brass frame, standing at the felt's right
+    edge. It lists the 14 kinds of bet with what each pays now; a raised kind
+    is printed in gold with a tally of its level, and the frame flashes when a
+    level goes up. A tap opens its card; with a mouse, hovering shows its note.
 
 ---
 
@@ -806,18 +825,20 @@ at least one item at each rarity before content lock (Phase 7).
 ### 6.2 Fortunes
 
 *As built (Phase 4, decision 22):* the cards below work as written, with these
-exceptions. Waiting for their phase: "Outside bets are safe bets" and "Fortune
-favours the bold" (bet levels, Phase 5's second half), "Neighbours talk"
-(special bets). *Phase 5:* "Gold finds gold" is built (3 pockets gilded at
+exceptions. Waiting for its phase: "Neighbours talk" (special bets). *Phase 5:* "Gold finds gold" is built (3 pockets gilded at
 random from the fortunes stream; a gilded one turns platinum). "Feed the
 zero" casts a real second zero pocket beside the first (a save from before
 keeps its wide zero). A black card was added so cursed pockets have a source:
 **"Borrowed gold."** (uncommon), which gilds 4 pockets at random and curses 2
-plain others. The two chip cards, "Your stack
-grows heavy" and "A new chip in your pocket", wait for Phase 5's chip axis too.
-A run starts with three chips of value 1, so each was a third more stake for
-the rest of the run, by far the strongest card in the simulator. They will be
-tuned with chip materials. "Ask
+plain others. *Phase 5, second half (decision 28):* "Outside bets are safe
+bets" and "Fortune favours the bold" are built, each legendary and once a run
+(drafted uncommon, any number of times). A level lasts the run and raises
+the very bets a build leans on, and bots reroll her lever until they find
+one. The two chip cards, "Your stack grows heavy" and "A new chip in your
+pocket", are **left out** at the owner's word. A run starts with three chips
+of value 1, so either is a third more stake for the rest of the run: even
+legendary and once a run, the two together lifted the best bot's debt 3 from
+50% to 58%. Chips come from the Cabinet instead (6.7). "Ask
 the figures" gives its +1 Nudge; the figure leaving comes with the figures
 (Phase 6). Two black cards were added for decision 11, the cursed talismans'
 only source: **"Roll the bones."** (the Bone Dice hang on your rail, uncommon)
@@ -838,15 +859,15 @@ below give the tuned numbers.
 | Card | Effect | Rarity | Max picks |
 |---|---|---|---|
 | "A stranger tips well." | +2 tokens | Common | none |
-| "Your stack grows heavy." | All chips +1 value (waits for Phase 5) | Common | none |
+| ~~"Your stack grows heavy."~~ | All chips +1 value (left out, decision 28) | Common | none |
 | "The bell rings twice." | Recharge all Bell talismans | Common | none |
 | "The cabinet owes you." | Talismans cost 1 token less until the next restock | Common | none |
 | "The reds run warm tonight." | Widen every red pocket +0.15 | Common | none |
 | "The blacks run cold and deep." | Widen every black pocket +0.15 | Common | none |
-| "Outside bets are safe bets." | Dozen, column and even-money bets +1 level | Uncommon | none |
-| "Fortune favours the bold." | Straight-up +1 level | Uncommon | none |
+| "Outside bets are safe bets." | Dozen, column and even-money bets +1 level (built in Phase 5) | Legendary (drafted uncommon) | 1 |
+| "Fortune favours the bold." | Straight-up +1 level (built in Phase 5) | Legendary (drafted uncommon) | 1 |
 | "Another hook on the wall." | +1 talisman hook | Uncommon | 1 |
-| "A new chip in your pocket." | Gain a chip of a random material (waits for Phase 5) | Uncommon | none |
+| ~~"A new chip in your pocket."~~ | Gain a chip of a random material (left out, decision 28) | Uncommon | none |
 | "Gold finds gold." | Gild 3 random pockets (built in Phase 5) | Rare | none |
 | "Something carved in brass." | A random engraving on a random talisman | Rare | none |
 | "Neighbours talk." | Unlock the Neighbours bet this run | Rare | 1 |
@@ -959,8 +980,6 @@ Gold ×0.75 → ×0.6 (9.8).
 | Bone | 3 chips | Each pays ×1.15. Once placed, a chip stays where it lies until the night ends. |
 | Glass | 2 chips | Each pays ×1.65. |
 | Gold | 3 chips | Each pays ×0.6, and +1 token when one wins, up to 3 a night. |
-| Lead | (later) | Inside bets also pay ×0.33 when the ball lands on a wheel neighbour |
-| Wax | (later) | ×2 payout; loses 1 value every spin and melts at 0 |
 
 *As built:* a material's × is the first factor on each line its chip pays,
 shown at the chip during the payout, and the payout is floored once at the
@@ -968,21 +987,24 @@ end as before. So a value-1 chip on an even-money bet pays 1 in Clay or Gold,
 2 in Bone and 3 in Glass: the House rounds down, and the multipliers tell more
 on bigger bets and bigger chips (a straight-up pays 27, 41, 59 and 21). Gold's token comes once per winning chip per spin.
 A Bone chip may still be placed whenever it is in hand; after that it can be
-neither moved nor lifted until the next night begins. Lead and Wax wait for
-chips as oddities (Phase 5's second half).
+neither moved nor lifted until the next night begins. Lead (inside bets also
+pay ×0.33 on a wheel neighbour) and Wax (×2, losing 1 value a spin) were
+drafted here; the owner left them out (decision 28): the five materials are
+enough. *Phase 5:* the Cabinet sells one more chip of any of the five (6.7),
+six chips at most.
 
 ### 6.7 Oddities
 
-The Cabinet's 4th compartment (5.8, 5.11). *As built (Phase 5, first half):*
-wheel work only; chips, bet levels and records join in the second half. Each
-does its work when bought and is gone. The price is in coins, a number of
-the debt's spins (decision 27): Gold Leaf costs 36 coins at debt 1 and 180 at
-debt 4. Rarity uses the Cabinet's reroll weights. Tuned with the simulator
-(9.8): the lacquers paint 3 pockets (drafted 1) and the Chisel takes 2.
+The Cabinet's 4th compartment (5.8, 5.11). *As built (Phase 5):* wheel work,
+a bet level, chips and records. Each does its work when bought and is gone.
+The price is in coins, a number of the debt's spins (decision 27): Gold Leaf
+costs 40 coins at debt 1 and 200 at debt 4. Rarity uses the Cabinet's reroll
+weights. Tuned with the simulator (9.8): the lacquers paint 3 pockets
+(drafted 1) and the Chisel takes 2.
 
 | Oddity | Work | Rarity | Price (spins) |
 |---|---|---|---|
-| Gold Leaf | Gild 2 pockets (the same one twice: platinum) | Uncommon | 36 |
+| Gold Leaf | Gild 2 pockets (the same one twice: platinum) | Uncommon | 40 |
 | Brass Shim | Widen a number: every pocket with it +0.5 | Common | 20 |
 | Jeweller's File | Narrow a number: every pocket with it −0.5 (to 0.25) | Common | 10 |
 | Red Lacquer | Paint 3 pockets red | Common | 20 |
@@ -990,9 +1012,16 @@ debt 4. Rarity uses the Cabinet's reroll weights. Tuned with the simulator
 | Casting Mould | Cast a second pocket for a number, beside the first | Uncommon | 30 |
 | Chisel | Chisel 2 pockets out (no fewer than 18 stay) | Common | 20 |
 | Horseshoe Nail | Make a pocket Lucky | Uncommon | 20 |
-| Glass Pane | Make a pocket Glass | Rare | 40 |
+| Glass Pane | Make a pocket Glass | Rare | 50 |
 | Bone Inlay | Make a pocket Bone | Common | 10 |
 | Ember | Make a pocket Ember | Rare | 40 |
+| Brass Odds Plate | Raise the kind of bet you tap a level (+¼ of its base odds) | Rare | 80 |
+| House Chip | One more chip, Normal | Uncommon | 50 |
+| Clay Chip | One more chip, Clay | Common | 40 |
+| Bone Chip | One more chip, Bone | Uncommon | 50 |
+| Glass Chip | One more chip, Glass | Rare | 60 |
+| Gold Chip | One more chip, Gold (its tokens count toward the night's 3) | Rare | 50 |
+| A Record | A record not yet owned, for the crate (it plays if nothing does) | Rare | 50 |
 
 ---
 
@@ -1119,6 +1148,10 @@ backwards when it is spun.
   tag gives the price in coins.
 - **The stats chalkboard** stands on an easel at the table's left, across
   from the results board (5.11).
+- **The payout placard** stands at the felt's right edge, behind the chip
+  tray (5.11). The Cabinet's chip oddities show the chip's own face, the
+  Brass Odds Plate a stamped plate, and a record its sleeve with the record's
+  name.
 
 ### 8.2 Camera
 
@@ -1660,7 +1693,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **3. Luck and risk** (done) | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
 | **M1. Touch and the phone layout** (done, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; notes on a tap and cards with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` and `npm run touch` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
-| **5. Building the wheel** (first half done; decision 27) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
+| **5. Building the wheel** (done; decisions 27, 28) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
 | **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
@@ -1740,7 +1773,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 
 ### Phase 5 breakdown
 
-In two halves (decision 27). The first half is built:
+In two halves (decision 27), both built:
 
 1. Core: pockets with ids and an enhancement; wheel work (`wheelwork.js`);
    the enhancements' rules in the payout, the spin, Nudge and the Devil; the
@@ -1755,9 +1788,10 @@ In two halves (decision 27). The first half is built:
    work goes on the felt close-up; oddity plaques in the Cabinet; the stats
    chalkboard; checked by `npm run layout` and `npm run touch`.
 
-The second half: chips as oddities (new chips, Lead and Wax, the two chip
-cards), bet levels with the payout placard and the two bet-level cards, and
-records in the 4th compartment.
+4. Second half (decision 28): bet levels (a quarter of the base each), the
+   payout placard, the Brass Odds Plate and the two bet-level cards; a chip
+   of each material and a record in the 4th compartment, six chips at most;
+   save version 7. No Lead or Wax, and no chip cards (the owner's word).
 
 ---
 

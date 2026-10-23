@@ -8,11 +8,11 @@ import { baseFactors } from './core/payout.js';
 import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, hooksFor, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
-import { bellView, cabinetView, gramophoneView, luckView, numbersView, oracleView, pickView, previewBet, railView, statsView, wheelView } from './core/selectors.js';
+import { bellView, cabinetView, gramophoneView, levelsView, luckView, numbersView, oracleView, pickView, previewBet, railView, statsView, wheelView } from './core/selectors.js';
 import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
 import { showModal } from './ui/hud.js';
-import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
+import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, placardNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
 // Glue between the rules (core/run.js) and the room. Every player action goes
 // through dispatch(), which applies it to the run, saves, and returns the
@@ -73,7 +73,10 @@ const WORK_PROMPT = {
   duplicate: () => 'Tap a number to cast a second pocket for it.',
   remove: () => 'Tap a number to chisel its pocket out.',
   stamp: () => 'Tap a number: its pocket is re-stamped.',
+  level: () => 'Tap a bet: every bet of its kind goes up a level.',
 };
+// A kind of bet as the placard and the toasts name it.
+const BET_NAME = { straight: 'Straight-ups', split: 'Splits', street: 'Streets', corner: 'Corners', firstFour: 'First Fours', sixLine: 'Six Lines', dozen: 'Dozens', column: 'Columns', red: 'Red bets', black: 'Black bets', odd: 'Odd bets', even: 'Even bets', low: '1–18 bets', high: '19–36 bets' };
 const describePocket = (o) => `${o.color ?? 'blank'} · ${enhName(o.enh)}${o.width !== 1 ? ` · ${o.width} wide` : ''}`;
 function workLine(works) {
   const said = works.map((e) => {
@@ -315,6 +318,7 @@ export class Game {
     this.wheelSynced = this.runId;
     this.table.setNumbers(numbersView(this.state));
     this.table.syncStats(statsView(this.state));
+    this.table.syncLevels(levelsView(this.state));
     // The ball stays in the pocket it came to rest in while others come and go around it.
     if (!this.ball.flying && this.state.lastSpin?.pocketId) {
       const at = this.stage.wheel.indexOf(this.state.lastSpin.pocketId);
@@ -678,6 +682,8 @@ export class Game {
         return { spec: boardNote(s), world: this.table.boardWorldPosition() };
       case 'chalkboard':
         return { spec: chalkboardNote(s), world: this.table.chalkboardWorldPosition() };
+      case 'placard':
+        return { spec: placardNote(s), world: this.table.placardWorldPosition() };
       case 'devil':
         return { spec: devilNote(s), world: this.cage.devilWorldPosition() };
       case 'lever':
@@ -741,6 +747,7 @@ export class Game {
         { kind: 'plaque', plaque: 'odds' },
         { kind: 'board' },
         { kind: 'chalkboard' },
+        { kind: 'placard' },
         ...bets.map((betId) => ({ kind: 'bet', betId })),
       ];
     }
@@ -816,6 +823,7 @@ export class Game {
     else if (target.kind === 'card') this.takeFortune(target.card);
     else if (target.kind === 'gramophone') this.openCrate();
     else if (target.kind === 'chalkboard') this.openChalkboard();
+    else if (target.kind === 'placard') this.openPlacard();
     return true;
   }
 
@@ -1059,6 +1067,8 @@ export class Game {
     this.hud.toast(`“${def.text}”`, 2200);
     const summary = this.fortuneSummary(events);
     this.syncAll();
+    // A level card: the placard on the table flashes as its odds go up.
+    if (events.some((e) => e.type === 'betLevel')) this.table.pulsePlacard();
     for (const e of events) {
       if (e.type !== 'fortuneEffect') continue;
       if (e.effect === 'setCoins') {
@@ -1092,6 +1102,7 @@ export class Game {
       else if (e.effect === 'engraved') parts.push(`${getTalisman(this.state.rail.find((t) => t.uid === e.uid)?.id)?.name ?? 'a talisman'} is engraved`);
       else if (e.effect === 'offersEngraved') parts.push('the Cabinet’s talismans are engraved');
       else if (e.effect === 'hung') parts.push(`${getTalisman(e.talisman).name} hangs on the rail`);
+      else if (e.effect === 'levels') parts.push(`${e.kinds.length > 1 ? 'dozens, columns and even-money bets' : BET_NAME[e.kinds[0]].toLowerCase()} go up a level`);
     }
     // Wheel work a card did (Gold finds gold, Feed the zero): the pockets it changed.
     const works = events.filter((e) => e.type === 'wheelWork');
@@ -1327,19 +1338,28 @@ export class Game {
     showModal({ kicker: spec.status.replace(/\.$/, ''), title: 'The chalkboard', lines: spec.lines.map(escapeHtml), actions: [{ label: 'Done', primary: true }] });
   }
 
+  /** The payout placard's card: what each kind of bet pays now (doc 5.11). */
+  openPlacard() {
+    if (this.busy || this.menuClose || this.picking) return;
+    this.clearNote();
+    const spec = placardNote(this.state);
+    showModal({ kicker: spec.status.replace(/\.$/, ''), title: spec.title, lines: spec.lines.map(escapeHtml), actions: [{ label: 'Done', primary: true }] });
+  }
+
   /** An oddity: its card, with Buy, which then asks where on the wheel its work goes. */
   offerOddity(slot, v) {
     this.clearNote();
     const lines = [escapeHtml(v.text)];
-    if (!v.workable) lines.push('<i>There is nowhere on the wheel it could work now.</i>');
+    if (v.record) lines.push(`<b>${escapeHtml(v.record.name)}</b>: ${escapeHtml(v.record.rule)}`);
+    if (!v.workable) lines.push(v.chip ? '<i>Your pockets are full: six chips at most.</i>' : '<i>There is nowhere on the wheel it could work now.</i>');
     else if (!v.affordable) lines.push(`<i>${escapeHtml(format(v.short))} coins short.</i>`);
-    else lines.push('<i>You choose where it goes on the felt; it is paid for when its work is done.</i>');
+    else if (v.picks.length) lines.push(`<i>You choose ${v.picks[0].on === 'bet' ? 'the bet' : 'where it goes'} on the felt; it is paid for when its work is done.</i>`);
     const buy = () => {
       const now = cabinetView(this.state).slots[slot];
       if (!now?.affordable || !now.workable) {
         this.audio.deny();
         this.cabinet.deny({ kind: 'slot', slot });
-        this.hud.toast(!now?.workable ? 'There is nowhere on the wheel it could work now.' : 'Not enough coins.', 1800, 'deny');
+        this.hud.toast(!now?.workable ? (now?.chip ? 'Your pockets are full.' : 'There is nowhere on the wheel it could work now.') : 'Not enough coins.', 1800, 'deny');
         return;
       }
       // A chip or a record needs no place on the wheel: it is bought from the card.
@@ -1416,6 +1436,12 @@ export class Game {
     const step = count > 1 && !p.upTo ? ` (${p.chosen.length + 1} of ${count})` : p.upTo ? ` (${p.chosen.length} of ${count} so far)` : '';
     let valid;
     let prompt;
+    if (view.bets) {
+      // A level: every spot on the felt can take it, so nothing sinks into the dark.
+      this.table.setPicking({ valid: [], chosen: [], all: true });
+      this.hud.setPicking({ title: p.title, prompt: WORK_PROMPT.level(), actions: [{ label: 'Cancel', onClick: () => this.endWork() }], slim: true });
+      return;
+    }
     if (stamping && p.stamp) {
       const pocket = this.state.wheel.pockets.find((x) => x.id === p.stamp);
       valid = Array.from({ length: 37 }, (_, n) => n).filter((n) => n !== pocket.number);
@@ -1441,6 +1467,11 @@ export class Game {
   pickBet(betId) {
     const p = this.picking;
     const bet = getBet(betId);
+    if (pickView(this.state, p.works, p.chosen).bets) {
+      p.chosen.push(bet.kind);
+      this.afterPick();
+      return;
+    }
     if (bet.kind !== 'straight') {
       this.hud.toast('Tap a number.', 1400);
       return;
@@ -1552,6 +1583,13 @@ export class Game {
    */
   showWork(events, from) {
     const works = events.filter((e) => e.type === 'wheelWork');
+    // A level is shown on the payout placard, not the wheel.
+    const level = events.find((e) => e.type === 'betLevel');
+    if (level) {
+      this.audio.work(true);
+      this.table.pulsePlacard();
+      this.hud.toast(`${BET_NAME[level.kind]} go up to level ${level.level}: they pay ${format(level.odds)} now.`, 2800);
+    }
     if (!works.length) return this.returnTo(from);
     this.audio.work(works.some((e) => e.op === 'gild'));
     // The wheel's bulb comes up, as for a spin, so the work shows.

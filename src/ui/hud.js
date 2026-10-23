@@ -517,6 +517,8 @@ export function createHud(root = document.body) {
     hud.classList.toggle('picking', !!spec);
     const box = refs.pick;
     box.hidden = !spec;
+    // A bet level needs the whole felt: the bar packs onto one line under it.
+    box.classList.toggle('slim', !!spec?.slim);
     box.textContent = '';
     if (!spec) return;
     const title = document.createElement('div');
