@@ -8,22 +8,24 @@
 //   npm run sim -- --skip hamsa,mousetrap  bots never buy, take or play these (talismans,
 //                                       fortunes or records), to measure what they add
 //   npm run sim -- --no-oracle           bots never visit Madame Zero (no fortunes, no records)
+//   npm run sim -- --no-wheel            bots never buy oddities (wheel work) nor stamp pockets
 //   npm run sim -- --chips bone          the run's starting chip set (decision 26; default normal)
 //   npm run sim -- --tempo               one short night per debt in debts 1–2
 //   npm run sim -- --set nightTokens=0   override an ECONOMY number
 //   npm run sim -- --set luck.pityBase=3  override a LUCK (nudge.js) or devil.base number
 //   npm run sim -- --set debt.2=240       override what a debt owes
 
-import { MATERIALS, TALISMANS, contentName, getFortune, getMaterial, getRecord, getTalisman } from '../src/core/content/index.js';
+import { MATERIALS, TALISMANS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getTalisman } from '../src/core/content/index.js';
 import { DEVIL, devilLive } from '../src/core/devil.js';
 import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
 import { LUCK, nudgeFor, nudgeLandings } from '../src/core/nudge.js';
 import { add, format, gt, gte, lt, sub, toNumber } from '../src/core/num.js';
 import { evaluate } from '../src/core/payout.js';
-import { PHASE, act, canAfford, costOf, createRun, grantTalisman, hooksFor, isFinalNight, nextRestockCost, owed } from '../src/core/run.js';
+import { PHASE, act, canAfford, copyRun, costOf, createRun, grantTalisman, hooksFor, isFinalNight, nextRestockCost, owed, spinCost } from '../src/core/run.js';
 import { bellView, cabinetView, oracleView } from '../src/core/selectors.js';
-import { EUROPEAN_ORDER } from '../src/core/wheel.js';
-import { liveChances } from '../src/core/widths.js';
+import { EUROPEAN_ORDER, defaultColor } from '../src/core/wheel.js';
+import { doWork, workTargets } from '../src/core/wheelwork.js';
+import { liveChances, liveWheel } from '../src/core/widths.js';
 
 // --flag value pairs; a flag given more than once (--set) collects its values.
 const args = {};
@@ -40,8 +42,14 @@ const TEMPO = !!args.tempo;
 const LUCK_ITEMS = ['rabbits_foot', 'pocket_watch', 'salt_cellar', 'evil_eye', 'compass', 'lodestone', 'wind_up_key', 'hamsa', 'four_leaf_clover', 'dowsing_rod', 'weathervane', 'holy_water'];
 const NO_NEW = !!args['no-new'];
 const SKIP = typeof args.skip === 'string' ? args.skip.split(',') : [];
-for (const id of SKIP) if (!getTalisman(id) && !getFortune(id) && !getRecord(id)) throw new Error(`--skip: no talisman, fortune or record ${id}`);
+for (const id of SKIP) if (!getTalisman(id) && !getFortune(id) && !getRecord(id) && !getOddity(id)) throw new Error(`--skip: no talisman, fortune, record or oddity ${id}`);
 const NO_ORACLE = !!args['no-oracle'];
+const NO_WHEEL = !!args['no-wheel'];
+// What a token is worth to a bot weighing wheel work (Bone pockets pay
+// tokens), in spins' cost; and how much more than its price wheel work must
+// promise over the spins ahead before a bot pays for it.
+const TOKEN_SPINS = Number(args['token-spins'] ?? 2);
+const WHEEL_MARGIN = Number(args['wheel-margin'] ?? 1.5);
 const CHIPS = typeof args.chips === 'string' ? args.chips : 'normal';
 if (!MATERIALS.some((m) => m.id === CHIPS)) throw new Error(`--chips: no chip set ${CHIPS} (${MATERIALS.map((m) => m.id).join(', ')})`);
 // --set overrides are checked, so a typo fails loudly instead of quietly
@@ -78,14 +86,14 @@ for (const kv of args.set === undefined ? [] : [args.set].flat()) {
   }
 }
 
-// Phase 4 targets for the best bot (doc 9.8, decision 25): debt 1 ≥ 90%, debt
-// 2 65–80%, debt 3 30–45%, debt 4 10–20%. Chips and wheel work (Phase 5) carry
-// the later debts.
+// Phase 5 targets for the best bot (doc 9.8, decision 27), a step above
+// Phase 4's: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25%.
+// Wheel work carries the later debts.
 const TARGETS = [
   [1, 0.9, 1],
-  [2, 0.65, 0.8],
-  [3, 0.3, 0.45],
-  [4, 0.1, 0.2],
+  [2, 0.7, 0.85],
+  [3, 0.35, 0.5],
+  [4, 0.15, 0.25],
 ];
 
 // --- Where chips go ---------------------------------------------------------
@@ -154,9 +162,9 @@ const NEWER = ['tuning_fork', 'brass_scales', 'string_of_pearls', 'wind_up_key',
 const LISTS = {
   red: ['golden_ball', 'red_ribbon', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'magpie', 'beckoning_cat', 'rabbits_foot', 'ledger', 'black_cat', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'lucky_penny', 'lost_wallet'],
   even: ['golden_ball', 'string_of_pearls', 'brass_scales', 'tuning_fork', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'magpie', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'lucky_penny', 'lost_wallet'],
-  outside: ['golden_ball', 'abacus', 'seesaw', 'matchbook', 'domino', 'ledger', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'rabbits_foot', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny', 'lost_wallet'],
-  inside: ['ouroboros', 'golden_ball', 'croupiers_rake', 'horseshoe', 'lodestone', 'thirteen_ball', 'house_key', 'twin_mirrors', 'tuning_fork', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'dowsing_rod', 'weathervane', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'lost_wallet'],
-  luck: ['ouroboros', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'lost_wallet'],
+  outside: ['golden_ball', 'number_punches', 'abacus', 'seesaw', 'matchbook', 'domino', 'ledger', 'twin_mirrors', 'tuning_fork', 'glass_eye', 'rabbits_foot', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny', 'lost_wallet'],
+  inside: ['ouroboros', 'golden_ball', 'number_punches', 'croupiers_rake', 'horseshoe', 'lodestone', 'thirteen_ball', 'house_key', 'twin_mirrors', 'tuning_fork', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'dowsing_rod', 'weathervane', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'lost_wallet'],
+  luck: ['ouroboros', 'number_punches', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'lost_wallet'],
 };
 const OLD_LISTS = {
   red: ['red_ribbon', 'matchbook', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'lucky_penny'],
@@ -171,7 +179,7 @@ if (OLD_POOL) {
 }
 const TIER = OLD_POOL
   ? ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny']
-  : ['ouroboros', 'golden_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
+  : ['ouroboros', 'golden_ball', 'number_punches', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
 const FAMILY_OF = {
   red_ribbon: 'red',
   matchbook: 'red',
@@ -196,7 +204,7 @@ const SAFETY = OLD_POOL ? ['evil_eye', 'salt_cellar'] : ['holy_water', 'evil_eye
 const withSafety = (s, list) => (devilLive(s) ? [...SAFETY, ...list.filter((id) => !SAFETY.includes(id))] : list);
 
 const BOTS = {
-  'no items': { layout: 'red', wants: () => [] },
+  'no items': { layout: 'red', noWheel: true, wants: () => [] },
   'red builder': { layout: 'red', leans: true, wants: (s) => withSafety(s, LISTS.red) },
   'outside builder': { layout: 'outside', leans: true, wants: (s) => withSafety(s, LISTS.outside) },
   'inside builder': { layout: 'inside', leans: true, wants: (s) => withSafety(s, LISTS.inside) },
@@ -238,7 +246,8 @@ const placementsFor = (s, layout) => Object.fromEntries(s.chips.map((chip, i) =>
 
 /** Exact expected payout of a layout over every landing (by live width), with this Nudge. */
 function nudgedEv(s, layout, luck) {
-  const probe = { ...s, placements: placementsFor(s, layout) };
+  // A null layout keeps the chips where they are.
+  const probe = layout ? { ...s, placements: placementsFor(s, layout) } : s;
   const chances = liveChances(probe);
   let total = 0;
   for (let i = 0; i < probe.wheel.pockets.length; i++) {
@@ -293,6 +302,7 @@ function shop(s, bot, log) {
     let list = NO_NEW ? bot.wants(s).filter((id) => !LUCK_ITEMS.includes(id)) : bot.wants(s);
     if (OLD_POOL) list = list.filter((id) => !NEWER.includes(id));
     if (SKIP.length) list = list.filter((id) => !SKIP.includes(id));
+    if (NO_WHEEL) list = list.filter((id) => id !== 'number_punches');
     if (!list.length) return s;
     const view = cabinetView(s);
     const offers = view.slots.filter((o) => o.kind === 'talisman' && o.id && list.includes(o.id));
@@ -379,6 +389,9 @@ function bell(s, bot, log, { finalNight, spinsLeft }) {
     return l.lean === 0 && l.pity === 0;
   };
   if (rod && spinsLeft > 0 && ((finalNight && spinsLeft <= 2) || quiet())) s = step(s, { type: 'ringBell', uid: rod.uid }, log);
+  // The Number Punches, as soon as they have a charge.
+  const punches = !NO_WHEEL && s.rail.find((t) => t.id === 'number_punches' && t.charges > 0);
+  if (punches) s = punch(s, bot, log, punches);
   return s;
 }
 
@@ -392,11 +405,143 @@ function canMiss(s) {
   return false;
 }
 
+// --- Wheel work (Phase 5) ----------------------------------------------------
+
+/**
+ * What the bot's chips pay on each pocket with no Nudge (coins, and tokens
+ * at a bot's rate), with the live widths: { pay, w, total, ev }.
+ */
+function payVector(s, tokenCoins) {
+  const { pockets } = liveWheel(s);
+  const pay = s.wheel.pockets.map((_, i) => {
+    const plan = evaluate(s, [{ ball: 0, pocketIndex: i }]);
+    return toNumber(add(plan.chipTotal, plan.bonusCoins)) + plan.bonusTokens * tokenCoins;
+  });
+  const w = pockets.map((p) => p.width);
+  const total = w.reduce((a, b) => a + b, 0);
+  const ev = pay.reduce((t, x, i) => t + (x * w[i]) / total, 0);
+  return { pay, w, total, ev };
+}
+
+/** Spins the bot expects to play with what it buys now: the rest of this debt, and the next. */
+const spinsAhead = (s) => 7 * (4 - s.round) + 21;
+
+const multOf = (enh) => getEnhancement(enh)?.mult ?? 1;
+// A Glass pocket pays ×4 until it shatters; a bot counts it as less, for the
+// number it may lose.
+const GLASS_WORTH = 2.5;
+
+/** Each pocket's gain in expected coins per spin if this work acted there; the best target, or null. */
+function bestTarget(s, work, ctx) {
+  const { pay, w, total, ev } = payVector(s, ctx.tokenCoins);
+  const candidates = workTargets(s, work);
+  let best = null;
+  const consider = (target, gain) => {
+    if (gain > 1e-9 && (!best || gain > best.gain)) best = { target, gain };
+  };
+  const evWith = (wNew, payNew = pay) => payNew.reduce((t, x, i) => t + x * wNew[i], 0) / wNew.reduce((a, b) => a + b, 0);
+  if (work.on === 'number') {
+    const step = work.op === 'widen' ? 0.5 : -0.5;
+    for (const n of candidates) {
+      const wNew = w.map((x, i) => (s.wheel.pockets[i].number === n ? Math.max(0.25, x + step) : x));
+      consider(n, evWith(wNew) - ev);
+    }
+    return best;
+  }
+  const index = new Map(s.wheel.pockets.map((p, i) => [p.id, i]));
+  let nudge2 = null;
+  for (const id of candidates) {
+    const i = index.get(id);
+    const p = s.wheel.pockets[i];
+    const chance = w[i] / total;
+    if (work.op === 'gild') consider(id, chance * pay[i] * ((p.enh === 'gilded' ? 3 : 2) / multOf(p.enh) - 1));
+    else if (work.op === 'enhance') {
+      if (work.enh === 'glass') consider(id, chance * pay[i] * (GLASS_WORTH / multOf(p.enh) - 1));
+      else if (work.enh === 'bone') consider(id, chance * ctx.tokenCoins - chance * pay[i] * (1 - 1 / multOf(p.enh)));
+      else if (work.enh === 'lucky') {
+        nudge2 ??= nudgedEv(s, null, { total: 2, clockwise: false, straightOnly: false, anchors: [] }) - ev;
+        consider(id, chance * nudge2);
+      } else if (work.enh === 'ember' && pay[i] > 0) {
+        const plan = evaluate(s, [{ ball: 0, pocketIndex: i }]);
+        const value = s.chips.filter((c) => s.placements[c.id]).reduce((t, c) => t + c.value, 0) || 1;
+        consider(id, chance * plan.lines.length * (ev / value) * (ctx.horizon / 2));
+      }
+    } else if (work.op === 'paint') {
+      const probe = { ...s, wheel: { ...s.wheel, pockets: s.wheel.pockets.map((q) => (q.id === id ? { ...q, color: work.color } : q)) } };
+      const plan = evaluate(probe, [{ ball: 0, pocketIndex: i }]);
+      consider(id, chance * (toNumber(add(plan.chipTotal, plan.bonusCoins)) + plan.bonusTokens * ctx.tokenCoins - pay[i]));
+    } else if (work.op === 'duplicate') {
+      consider(id, (pay.reduce((t, x, j) => t + x * w[j], 0) + pay[i] / multOf(p.enh)) / (total + 1) - ev);
+    } else if (work.op === 'remove') {
+      consider(id, (pay.reduce((t, x, j) => t + x * w[j], 0) - pay[i] * w[i]) / (total - w[i]) - ev);
+    }
+  }
+  return best;
+}
+
+/**
+ * The oddity compartment (decision 27: priced in coins): the bot buys wheel
+ * work when what it adds to the expected payout of its usual layout, over the
+ * spins ahead, beats its price by half again, and it keeps the coins for the
+ * next long night. Each pick takes the best target on the wheel the picks
+ * before it left.
+ */
+function wheelShop(s, bot, log) {
+  if (NO_WHEEL || bot.noWheel || s.phase === PHASE.GAME_OVER) return s;
+  const offer = cabinetView(s).slots[3];
+  if (!offer || offer.sold || !offer.workable || !offer.affordable || SKIP.includes(offer.id)) return s;
+  const price = toNumber(offer.price);
+  if (lt(sub(s.coins, offer.price), costOf(s, 'long'))) return s;
+  const ctx = { tokenCoins: toNumber(spinCost(s)) * TOKEN_SPINS, horizon: spinsAhead(s) };
+  let probe = { ...copyRun(s), placements: placementsFor(s, layoutFor(s, bot.layout)) };
+  const targets = [];
+  let gain = 0;
+  for (const pick of offer.picks) {
+    const best = bestTarget(probe, pick, ctx);
+    if (!best) return s;
+    targets.push(best.target);
+    gain += best.gain;
+    doWork(probe, pick, best.target, () => {}, null);
+  }
+  if (gain * ctx.horizon < price * WHEEL_MARGIN) return s;
+  return step(s, { type: 'buyOddity', slot: 3, targets }, log);
+}
+
+/**
+ * The Number Punches: up to three pockets the bot's chips miss, stamped with
+ * whichever number pays it most there, the widest first.
+ */
+function punch(s, bot, log, inst) {
+  const tokenCoins = toNumber(spinCost(s)) * TOKEN_SPINS;
+  let probe = { ...copyRun(s), placements: placementsFor(s, layoutFor(s, bot.layout)) };
+  const targets = [];
+  for (let k = 0; k < 3; k++) {
+    const { pay, w } = payVector(probe, tokenCoins);
+    let best = null;
+    probe.wheel.pockets.forEach((p, i) => {
+      for (let n = 0; n <= 36; n++) {
+        if (n === p.number) continue;
+        const t = { pocket: p.id, number: n };
+        // The stamp on this one pocket, as wheelwork.js does it (a blank takes the number's colour).
+        const q = p.number === null ? { ...p, number: n, color: defaultColor(n), enh: null } : { ...p, number: n };
+        const stamped = { ...probe, wheel: { ...probe.wheel, pockets: probe.wheel.pockets.map((x) => (x === p ? q : x)) } };
+        const plan = evaluate(stamped, [{ ball: 0, pocketIndex: i }]);
+        const gain = w[i] * (toNumber(add(plan.chipTotal, plan.bonusCoins)) + plan.bonusTokens * tokenCoins - pay[i]);
+        if (gain > 1e-9 && (!best || gain > best.gain)) best = { t, gain };
+      }
+    });
+    if (!best) break;
+    targets.push(best.t);
+    doWork(probe, { op: 'stamp', on: 'pocket' }, best.t, () => {}, null);
+  }
+  return targets.length ? step(s, { type: 'ringBell', uid: inst.uid, targets }, log) : s;
+}
+
 // --- Madame Zero and the gramophone -------------------------------------------
 
 // Which card a bot takes: the first in its colour's list that was dealt.
-const WHITE_RANK = ['record_left', 'carved_in_brass', 'stranger_tips', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'bell_rings_twice'];
-const BLACK_RANK = ['feed_zero', 'ask_figures', 'shiny_things', 'burn_ledger', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
+const WHITE_RANK = ['record_left', 'carved_in_brass', 'gold_finds_gold', 'stranger_tips', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'bell_rings_twice'];
+const BLACK_RANK = ['feed_zero', 'borrowed_gold', 'ask_figures', 'shiny_things', 'burn_ledger', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
 // Which record a bot plays, by the bets it makes. None plays Waltz in Green:
 // nights at half again the price cost every bot more than its Nudge won back.
 const RECORD_RANK = {
@@ -467,11 +612,14 @@ function playRun(seed, bot, m, picks, firstPicks) {
       if (e.type === 'bellRung' && e.uid) m.bells += 1;
       if (e.type === 'offersRestocked' && e.paid) m.restocks += 1;
       if (e.type === 'fortuneTaken') picks[`fortune:${e.id}`] = (picks[`fortune:${e.id}`] ?? 0) + 1;
+      if (e.type === 'oddityBought') picks[`oddity:${e.id}`] = (picks[`oddity:${e.id}`] ?? 0) + 1;
+      if (e.type === 'pocketShattered') picks['shattered'] = (picks['shattered'] ?? 0) + 1;
     }
   };
   while (s.phase !== PHASE.GAME_OVER && s.debt <= MAX_DEBT) {
     s = visitOracle(s, bot, log);
     s = shop(s, bot, log);
+    s = wheelShop(s, bot, log);
     const tempo = TEMPO && s.debt <= 2 && s.round === 1;
     const pkg = !tempo && canAfford(s, 'long') ? 'long' : canAfford(s, 'short') ? 'short' : 'sitout';
     s = step(s, { type: 'choosePackage', packageId: pkg }, log);
@@ -482,9 +630,9 @@ function playRun(seed, bot, m, picks, firstPicks) {
       s = bell(s, bot, log, { finalNight, spinsLeft: s.spinsLeft });
       // A ring can change the spin's Nudge (the Dowsing Rod): weigh the layouts again.
       if (s !== beforeBell) s = placeChips(s, bot);
-      // Glass Eye: every chip goes on the foreseen number for one spin.
+      // Glass Eye: every chip goes on the foreseen number for one spin (a blank pocket has none).
       const seen = s.foreseen;
-      if (seen) {
+      if (seen && s.wheel.pockets[seen.pocketIndex].number !== null) {
         const n = s.wheel.pockets[seen.pocketIndex].number;
         for (const chip of s.chips) if (!s.fixed.includes(chip.id)) s = step(s, { type: 'placeChip', chipId: chip.id, betId: `straight:${n}` });
       }
@@ -509,6 +657,7 @@ function playRun(seed, bot, m, picks, firstPicks) {
     }
     s = bell(s, bot, log, { finalNight, spinsLeft: 0 });
     s = shop(s, bot, log);
+    s = wheelShop(s, bot, log);
     // Bank all but the next long night; on the final night, bank it all.
     const keep = finalNight ? 0 : costOf(s, 'long');
     if (gt(s.coins, keep)) s = step(s, { type: 'deposit', amount: sub(s.coins, keep) });
@@ -548,7 +697,7 @@ function runBot(name) {
 // --- Report -----------------------------------------------------------------
 
 const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
-console.log(`${RUNS} runs per bot · Phase 4 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings) · ${getMaterial(CHIPS).name} chips${TEMPO ? ' · tempo' : ''}\n`);
+console.log(`${RUNS} runs per bot · Phase 5 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings, wheel work) · ${getMaterial(CHIPS).name} chips${TEMPO ? ' · tempo' : ''}${NO_WHEEL ? ' · no wheel work' : ''}\n`);
 const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
 console.log(header.join(' '));
 const results = names.map(runBot);
@@ -574,7 +723,7 @@ for (const r of results) {
 // The targets are for the best bot (doc 9.8): at each debt, the best of the
 // bots that play the House's luck, whichever that is.
 const graded = results.filter((r) => botFor(r.name).leans);
-console.log('\nPhase 4 targets for the best bot at each debt:');
+console.log('\nPhase 5 targets for the best bot at each debt:');
 for (const [d, lo, hi] of TARGETS) {
   if (d > MAX_DEBT || !graded.length) continue;
   const best = graded.reduce((a, b) => (b.paid[d] > a.paid[d] ? b : a));
@@ -591,7 +740,7 @@ for (const r of results.filter((x) => Object.keys(x.picks).length)) {
     '  ' +
       Object.entries(r.picks)
         .sort((a, b) => b[1] - a[1])
-        .filter(([id]) => !id.startsWith('fortune:'))
+        .filter(([id]) => getTalisman(id))
         .map(([id, n]) => `${getTalisman(id).name} ${((100 * n) / RUNS).toFixed(0)}`)
         .join(' · '),
   );
@@ -604,6 +753,14 @@ for (const r of results.filter((x) => Object.keys(x.picks).length)) {
       .map(([id, n]) => `${contentName(id.slice(8))} ${((100 * n) / RUNS).toFixed(0)}`)
       .join(' · ');
     console.log(`  fortunes taken per 100 runs: ${text}`);
+  }
+  const oddities = Object.entries(r.picks).filter(([id]) => id.startsWith('oddity:'));
+  if (oddities.length) {
+    const text = oddities
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, n]) => `${getOddity(id.slice(7)).name} ${((100 * n) / RUNS).toFixed(0)}`)
+      .join(' · ');
+    console.log(`  oddities bought per 100 runs: ${text}${r.picks.shattered ? ` · glass shattered ${((100 * r.picks.shattered) / RUNS).toFixed(0)}` : ''}`);
   }
 }
 const set = getMaterial(CHIPS);

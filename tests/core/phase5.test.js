@@ -40,7 +40,7 @@ function landOn(s, id) {
   return play(s, { type: 'spin' });
 }
 /** The run with this oddity in the fourth compartment. */
-const offering = (s, id) => ({ ...s, tokens: 20, cabinet: { ...s.cabinet, slots: [...s.cabinet.slots.slice(0, 3), { kind: 'oddity', id, sold: false }] } });
+const offering = (s, id) => ({ ...s, coins: 100, cabinet: { ...s.cabinet, slots: [...s.cabinet.slots.slice(0, 3), { kind: 'oddity', id, sold: false }] } });
 const dealt = (state, id) => ({ ...state, oracle: { debt: state.debt, kind: FORTUNES.find((f) => f.id === id).kind, cards: [id], rerolls: 0, taken: null } });
 
 describe('the wheel as data', () => {
@@ -199,11 +199,14 @@ describe('oddities', () => {
     expect(counts.brass_shim).toBeGreaterThan(counts.glass_pane);
   });
 
-  it('buying one pays its tokens and does its work at once; each pick sees the one before', () => {
+  it('buying one pays its price in coins (its spins at the debt’s spin cost) and does its work at once; each pick sees the one before', () => {
     let s = offering(setup({ chips: { c1: 'straight:17' } }), 'gold_leaf');
     const id = idOf(s, 17);
     const r = play(s, { type: 'buyOddity', slot: 3, targets: [id, id] });
-    expect(r.state.tokens).toBe(16);
+    expect(r.state.coins).toBe(100 - 30);
+    expect(r.state.tokens).toBe(s.tokens);
+    // Debt 4's spins cost 5 coins: five times the price.
+    expect(cabinetView({ ...s, debt: 4 }).slots[3].price).toBe(150);
     expect(pocket(r.state, id).enh).toBe('platinum');
     expect(r.state.cabinet.slots[3]).toEqual({ kind: 'oddity', id: null, sold: true });
     expect(r.events.map((e) => e.type)).toEqual(['oddityBought', 'wheelWork', 'wheelWork']);
@@ -212,11 +215,13 @@ describe('oddities', () => {
 
   it('a pick that cannot act refuses the whole purchase, and so do the wrong number of picks', () => {
     let s = offering(setup(), 'red_lacquer');
-    expect(act(s, { type: 'buyOddity', slot: 3, targets: [idOf(s, 32)] }).events[0]).toMatchObject({ code: 'badTarget' });
+    // 32 is red already: nothing is painted, nothing is paid.
+    expect(act(s, { type: 'buyOddity', slot: 3, targets: [idOf(s, 2), idOf(s, 32), idOf(s, 4)] }).events[0]).toMatchObject({ code: 'badTarget' });
     expect(act(s, { type: 'buyOddity', slot: 3, targets: [] }).events[0]).toMatchObject({ code: 'targets' });
-    expect(act({ ...s, tokens: 1 }, { type: 'buyOddity', slot: 3, targets: [idOf(s, 2)] }).events[0]).toMatchObject({ code: 'noTokens' });
-    const r = play(s, { type: 'buyOddity', slot: 3, targets: [idOf(s, 2)] });
-    expect(pocket(r.state, idOf(s, 2)).color).toBe('red');
+    const three = [idOf(s, 2), idOf(s, 4), idOf(s, 6)];
+    expect(act({ ...s, coins: 19 }, { type: 'buyOddity', slot: 3, targets: three }).events[0]).toMatchObject({ code: 'noCoins' });
+    const r = play(s, { type: 'buyOddity', slot: 3, targets: three });
+    expect(three.map((id) => pocket(r.state, id).color)).toEqual(['red', 'red', 'red']);
   });
 
   it('number work takes a number; the shim widens every pocket with it', () => {
@@ -228,7 +233,7 @@ describe('oddities', () => {
 
   it('the offer says what it costs and whether it can work; pickView shows where each pick can go', () => {
     let s = offering(setup(), 'gold_leaf');
-    expect(cabinetView(s).slots[3]).toMatchObject({ kind: 'oddity', id: 'gold_leaf', price: 4, affordable: true, workable: true });
+    expect(cabinetView(s).slots[3]).toMatchObject({ kind: 'oddity', id: 'gold_leaf', price: 30, currency: 'coins', affordable: true, workable: true });
     const id = idOf(s, 17);
     s = work(work(s, GILD, id).state, GILD, id).state;
     // Platinum takes no more gilding: 17 has nowhere left for Gold Leaf.

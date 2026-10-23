@@ -7,10 +7,10 @@ import { copyTarget, echoTarget, sources } from './effects.js';
 import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
 import { TALISMANS } from './content/index.js';
-import { copyRun, costOf, freeRestockBy, hooksFor, offerPrice, owed, restockPrice } from './run.js';
+import { copyRun, costOf, freeRestockBy, hooksFor, oddityPrice, offerPrice, owed, restockPrice } from './run.js';
 import { canTake, dealOf, rerollCost } from './oracle.js';
 import { restockCost } from './economy.js';
-import { gte } from './num.js';
+import { gte, max, sub } from './num.js';
 import { liveWheel } from './widths.js';
 import { tableCell } from './bets.js';
 import { createEuropeanWheel, isBlank } from './wheel.js';
@@ -108,10 +108,11 @@ export function cabinetView(state) {
   };
 }
 
-/** The oddity compartment: what is in it, its price, and whether it could do its work now. */
+/** The oddity compartment: what is in it, its price in coins, and whether it could do its work now. */
 function oddityOffer(state, slot, offer) {
   const def = offer.id && !offer.sold ? getOddity(offer.id) : null;
   if (!def) return { slot, kind: 'oddity', sold: true };
+  const price = oddityPrice(state, def);
   return {
     slot,
     kind: 'oddity',
@@ -119,11 +120,12 @@ function oddityOffer(state, slot, offer) {
     name: def.name,
     rarity: def.rarity,
     text: def.text,
-    price: def.price,
-    listPrice: def.price,
+    price,
+    currency: 'coins',
+    spins: def.spins,
     sold: false,
-    affordable: state.tokens >= def.price,
-    short: Math.max(0, def.price - state.tokens),
+    affordable: gte(state.coins, price),
+    short: max(0, sub(price, state.coins)),
     picks: def.picks,
     // Its first pick needs somewhere to act; a later one can always take the same pocket again or another.
     workable: workTargets(state, def.picks[0]).length > 0,

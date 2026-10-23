@@ -141,6 +141,8 @@ export const hooksFor = (state) => state.railHooks + ((state.playing && getRecor
 export const offerPrice = (state, def) => (state.cabinet.freeBuys > 0 ? 0 : Math.max(0, priceOf(def.rarity) - state.cabinet.discount));
 /** A Restless talisman whose free restock this debt is unused, or null. */
 export const freeRestockBy = (state) => state.rail.find((t) => getEngraving(t.engraving)?.freeRestock && t.data.restlessDebt !== state.debt) ?? null;
+/** What an oddity costs, in coins: its spins at this debt's spin cost (decision 27). */
+export const oddityPrice = (state, def) => mul(spinCostFor(state.debt), def.spins);
 /** What the next restock costs: nothing while a Restless engraving has one to give. */
 export const restockPrice = (state) => (freeRestockBy(state) ? 0 : restockCost(state.debt, state.cabinet.paidRestocks));
 export const canAfford = (state, packageId) => gte(state.coins, costOf(state, packageId));
@@ -498,18 +500,18 @@ const HANDLERS = {
     if (!offer) throw new Error(`Unknown compartment: ${slot}`);
     const def = offer.kind === 'oddity' && !offer.sold ? getOddity(offer.id) : null;
     if (!def) return reject(state, 'That compartment is empty.', 'soldOut');
-    if (state.tokens < def.price) return reject(state, 'Not enough tokens.', 'noTokens');
+    const price = oddityPrice(state, def);
+    if (!gte(state.coins, price)) return reject(state, 'Not enough coins.', 'noCoins');
     if (targets.length !== def.picks.length) return reject(state, def.picks.length === 1 ? 'Choose where it goes.' : `Choose ${def.picks.length} places for it.`, 'targets');
     const s = copyRun(state);
-    const events = [{ type: 'oddityBought', slot, id: def.id, price: def.price, targets }];
+    const events = [{ type: 'oddityBought', slot, id: def.id, price, targets }];
     const by = { kind: 'oddity', id: def.id };
     for (let i = 0; i < def.picks.length; i++) {
       const why = workRefusal(s, def.picks[i], targets[i]);
       if (why) return reject(state, why, 'badTarget');
       doWork(s, def.picks[i], targets[i], (e) => events.push(e), by);
     }
-    s.tokens -= def.price;
-    s.stats.tokensSpent += def.price;
+    s.coins = sub(s.coins, price);
     s.stats.odditiesBought += 1;
     s.cabinet.slots[slot] = { kind: 'oddity', id: null, sold: true };
     return { state: s, events };
