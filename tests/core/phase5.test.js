@@ -203,10 +203,10 @@ describe('oddities', () => {
     let s = offering(setup({ chips: { c1: 'straight:17' } }), 'gold_leaf');
     const id = idOf(s, 17);
     const r = play(s, { type: 'buyOddity', slot: 3, targets: [id, id] });
-    expect(r.state.coins).toBe(100 - 30);
+    expect(r.state.coins).toBe(100 - 36);
     expect(r.state.tokens).toBe(s.tokens);
     // Debt 4's spins cost 5 coins: five times the price.
-    expect(cabinetView({ ...s, debt: 4 }).slots[3].price).toBe(150);
+    expect(cabinetView({ ...s, debt: 4 }).slots[3].price).toBe(180);
     expect(pocket(r.state, id).enh).toBe('platinum');
     expect(r.state.cabinet.slots[3]).toEqual({ kind: 'oddity', id: null, sold: true });
     expect(r.events.map((e) => e.type)).toEqual(['oddityBought', 'wheelWork', 'wheelWork']);
@@ -233,7 +233,7 @@ describe('oddities', () => {
 
   it('the offer says what it costs and whether it can work; pickView shows where each pick can go', () => {
     let s = offering(setup(), 'gold_leaf');
-    expect(cabinetView(s).slots[3]).toMatchObject({ kind: 'oddity', id: 'gold_leaf', price: 30, currency: 'coins', affordable: true, workable: true });
+    expect(cabinetView(s).slots[3]).toMatchObject({ kind: 'oddity', id: 'gold_leaf', price: 36, currency: 'coins', affordable: true, workable: true });
     const id = idOf(s, 17);
     s = work(work(s, GILD, id).state, GILD, id).state;
     // Platinum takes no more gilding: 17 has nowhere left for Gold Leaf.
