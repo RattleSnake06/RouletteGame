@@ -485,7 +485,8 @@ export class Game {
     const gramophone = gramophoneView(s);
     this.oracle.sync({ oracle: oracleView(s), gramophone });
     // The music follows the record on the platter, whatever put it there.
-    this.audio.playRecord(gramophone.playing?.tune ?? null);
+    // Two slots play together; the horn plays the first one's tune.
+    this.audio.playRecord((gramophone.playing ?? gramophone.second)?.tune ?? null);
     this.table.setMarks({ foreseen: s.foreseen ? s.wheel.pockets[s.foreseen.pocketIndex].number : null });
     this.hud.setTokens(s.tokens);
     // A focused talisman that was sold or smashed takes the focus with it.
@@ -792,6 +793,8 @@ export class Game {
         return { spec: chalkboardNote(s), world: this.table.chalkboardWorldPosition() };
       case 'placard':
         return { spec: placardNote(s), world: this.table.placardWorldPosition() };
+      case 'almanac':
+        return { spec: { title: 'The Almanac', lines: ['What you have seen, the feats you have done, the figures in the dark and the ledger of every run.'], status: 'Click to open it.' }, world: this.table.almanacWorldPosition() };
       case 'devil':
         return { spec: devilNote(s), world: this.cage.devilWorldPosition() };
       case 'lever':
@@ -2022,7 +2025,7 @@ export class Game {
       1300,
     );
     // Carousel (doc 6.3): the wheel turns backwards while it plays.
-    this.spin.boost(3.4, gramophoneView(this.state).playing?.reverse ? -1 : 0);
+    this.spin.boost(3.4, gramophoneView(this.state).reverse ? -1 : 0);
     this.hud.setView('table');
     if (!fast) {
       this.view = 'table';

@@ -72,14 +72,25 @@ Odds Plate, a chip of each material, a record), the Number Punches stamp
 pockets (44 talismans), a stats chalkboard stands at the table's left and a
 payout placard at the felt's right. Each kind of bet has a level; a level adds
 a quarter of the base odds. No Lead or Wax, and no chip cards (owner). Wheel
-work and levels are placed on the felt close-up (`game.beginWork`). Next is
-Phase 6 (meta). The best simulator bot at each debt pays debts 1–4 in about
-97%, 72%, 50% and 16% of runs, inside the Phase 5 targets (decision 27), with
-debt 2 near its floor and debt 3 at its ceiling. Debts 2 and 4 owe 400 and 2,664. See `npm run sim`, which grades
+work and levels are placed on the felt close-up (`game.beginWork`). Phase 6
+(meta) is done (decision 29): a run's goal is debt 4 + the Vault's open
+locks, and past it the player may step out of the light; each lock opens a
+starting wheel (American with a real 00 as number 37, Gilded, Bone, Mirror in
+the felt's order), and lock 2 a second gramophone slot; reaching the goal
+opens the next House Edge level (1–5, stacking; level 1 is the House's
+green pocket with no number). `core/meta.js` keeps the profile (version 2):
+locks, edge, figures (the newest twelve stand in the room), what was seen,
+feats and the lifetime ledger; `core/house.js` reads a run's wheel and edge.
+The Almanac is a book on the table and on both menus. Next is Phase 7
+(content and balance). The best simulator bot at each debt pays debts 1–4 in
+about 97%, 72%, 49% and 16% of runs on the European wheel, inside the Phase 5
+targets (decision 27), with debt 2 near its floor and debt 3 at its ceiling;
+the other wheels sit within a few points of it. Debts 2 and 4 owe 400 and 2,664. See `npm run sim`, which grades
 the best Lean-playing bot at each debt; `--no-oracle` keeps the bots away from
 Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
 off talismans, fortunes or records, and `--bot solo:a,b` hangs talismans from
-the first spin, and `--no-wheel` keeps them off wheel work. One point of Nudge is worth a lot (a straight-up's return grows
+the first spin, and `--no-wheel` keeps them off wheel work; `--wheel`, `--edge`,
+`--locks` and `--figures` set a run's setup. One point of Nudge is worth a lot (a straight-up's return grows
 with 2N + 1). A Stake point doubles a line, and a multiplier on one number pays
 a whole debt in a hit. Re-run the sim after any luck, jackpot or fortune
 change.
@@ -158,7 +169,10 @@ change.
   carry `userData.role` (`night-card`, `end-card`, `cage-button`,
   `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
   `talisman-mesh`, `board`, `devil-counter`, `lever`, `fortune-card`,
-  `gramophone`, `chalkboard`, `placard`). The views are `oracle`, `cage`, `table` and `cabinet`.
+  `gramophone`, `chalkboard`, `placard`, `almanac`). The views are `oracle`, `cage`, `table` and `cabinet`.
+  `vault` and `figures` are the Vault door and the figures; `game.profile`
+  is the meta profile, `game.openAlmanac()`, `game.chooseWheel()`,
+  `game.chooseEdge()` and `game.stepOut()` drive Phase 6's screens.
   `game.picking` is set while wheel work is being placed; `game.pickBet(betId)`
   stands for a tap on the felt then, and `cabinet.slotWorldPosition(3)` is the
   oddity. `table.boardWorldPosition()` and

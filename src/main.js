@@ -80,6 +80,8 @@ async function init() {
       onHoverBoard: (on, ev) => game?.onHoverItem(on ? { kind: 'board' } : null, ev),
       onChalkboard: () => game.openChalkboard(),
       onPlacard: () => game.openPlacard(),
+      onAlmanac: () => game.openAlmanac(),
+      onHoverAlmanac: (on, ev) => game?.onHoverItem(on ? { kind: 'almanac' } : null, ev),
       onHoverPlacard: (on, ev) => game?.onHoverItem(on ? { kind: 'placard' } : null, ev),
       onHoverChalkboard: (on, ev) => game?.onHoverItem(on ? { kind: 'chalkboard' } : null, ev),
     },

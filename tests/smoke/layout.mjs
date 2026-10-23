@@ -134,15 +134,31 @@ for (const size of SIZES) {
     r.game.toggleMenu();
     r.game.openTalisman(r.game.state.rail[0].uid);
   });
+  // Phase 6 (doc 7): the Almanac, the goal's card and stepping out.
+  await at('the Almanac', 'table', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    window.__roulette.game.openAlmanac();
+  });
+  await at('the Almanac, the figures', 'table', () => document.querySelector('.alm-tab[data-page="figures"]')?.click());
+  await at('the goal card', 'table', () => {
+    const g = window.__roulette.game;
+    g.almanac?.close();
+    const s = g.state;
+    g.state = { ...s, debt: 4, round: 3, phase: 'nightOver', deposited: 1e6, stats: { ...s.stats, debtsPaid: 3 } };
+    g.endNight();
+  });
+  await at('stepped out', 'table', () => [...document.querySelectorAll('.modal-backdrop.show button')].find((b) => /Step out/.test(b.textContent))?.click());
   await at('main menu', 'menu', () => {
     document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
     window.__roulette.game.showMainMenu({ cut: true });
   });
   await at('chip select', 'menu', () => {
     const g = window.__roulette.game;
-    g.profile = { v: 1, unlocked: ['normal', 'clay', 'bone'], best: { normal: 4 } };
+    // Two locks and a House Edge open: the wheel and the edge can be chosen.
+    g.profile = { ...g.profile, unlocked: ['normal', 'clay', 'bone'], best: { normal: 4 }, locks: 2, edge: 2 };
     g.openChipSelect();
   });
+  await at('choosing the wheel', 'menu', () => window.__roulette.game.chooseWheel());
   await ctx.close();
 }
 

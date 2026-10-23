@@ -327,6 +327,28 @@ try {
   check(s.debt === 1 && s.phase === 'roundStart' && s.coins === 10, 'a new run begins');
   check(await page.evaluate(() => !window.__roulette.game.atMenu && window.__roulette.game.state.chipSet === 'normal'), 'with Normal chips, back at the table');
 
+  // Phase 6 (doc 7): the lost run left its figure in the dark; paying the
+  // goal opens the Vault's first lock, and stepping out wins the run.
+  const meta = await game(() => {
+    const r = window.__roulette;
+    return { figures: r.game.profile.figures.length, standing: r.figures.count };
+  });
+  check(meta.figures === 2 && meta.standing === 2, `the lost run left its figure in the dark (${meta.standing} standing)`);
+  await game(() => {
+    const g = window.__roulette.game;
+    const s = g.state;
+    g.state = { ...s, debt: 4, round: 3, phase: 'nightOver', deposited: 1e6, stats: { ...s.stats, debtsPaid: 3 } };
+    g.syncAll();
+    g.endNight();
+  });
+  await page.waitForSelector('.modal-backdrop.show button:has-text("Step out")', { timeout: 10000 });
+  check(await game(() => window.__roulette.game.profile.locks === 1), 'paying the goal opened the Vault’s first lock');
+  await page.click('.modal-backdrop.show button:has-text("Step out")');
+  await page.waitForTimeout(400);
+  s = await state();
+  const won = await game(() => ({ outcome: window.__roulette.game.state.outcome?.reason, figures: window.__roulette.game.profile.figures.length, edge: window.__roulette.game.profile.edge }));
+  check(s.phase === 'gameOver' && won.outcome === 'left' && won.figures === 2 && won.edge === 1, 'stepping out of the light won the run, left no figure and opened House Edge 1');
+
   check(problems.length === 0, `no page or console errors${problems.length ? `: ${problems.join('; ')}` : ''}`);
   console.log('Smoke test passed.');
 } catch (e) {

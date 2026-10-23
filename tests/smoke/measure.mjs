@@ -5,7 +5,7 @@
 
 // Which room objects belong to which station's view.
 export const ROLES = {
-  table: ['night-card', 'end-card', 'board', 'chalkboard', 'placard', 'bell', 'bell-tag', 'plaque', 'talisman-mesh'],
+  table: ['night-card', 'end-card', 'board', 'chalkboard', 'placard', 'almanac', 'bell', 'bell-tag', 'plaque', 'talisman-mesh'],
   felt: [],
   cage: ['cage-button', 'devil-counter'],
   cabinet: ['compartment', 'crank', 'chart'],

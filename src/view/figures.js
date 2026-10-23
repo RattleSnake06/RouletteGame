@@ -21,7 +21,7 @@ export function createFigures() {
   // One soot material per age, so older figures fade without a material each.
   const soot = Array.from({ length: SLOTS.length }, (_, i) => new THREE.MeshStandardMaterial({
     color: 0x2b2724,
-    emissive: 0x1a1511,
+    emissive: 0x2e2822,
     roughness: 0.92,
     transparent: true,
     opacity: Math.max(0.35, 1 - i * 0.055),

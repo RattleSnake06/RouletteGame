@@ -10,7 +10,10 @@ are touch and the phone layout (M1), the main menu and the starting chip sets
 (decision 26). Phase 5 (building the wheel) is built, in two halves
 (decisions 27 and 28): wheel work, pocket enhancements, the Cabinet's
 oddities and the stats chalkboard; then bet levels with the payout placard,
-chips and records as oddities. Phase 6 (meta) comes next.
+chips and records as oddities. Phase 6 (meta) is built (decision 29): the
+Vault's locks and the moving goal, stepping out of the light, the starting
+wheels and House Edge levels, the figures in the dark and the Almanac.
+Phase 7 (content and balance) comes next.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -630,7 +633,7 @@ costs coins: the debt number + the number of rerolls already made.
 
 ### 5.10 Records
 
-A gramophone holds **one record** (two after a vault unlock). A record changes
+A gramophone holds **one record** (two once the Vault's second lock is open). A record changes
 **the music and one global rule** for as long as it plays. You can swap
 records freely, but only the one playing has any effect. Records are sold as
 oddities, found in the Vault, and occasionally given by fortunes. This puts the
@@ -645,6 +648,10 @@ rules close the gaps free swapping would open: **Overture of Excess** doubles
 the debt of any debt it plays during, even if it stops before the Cage collects,
 and **Static** cannot stop while a talisman hangs on the hook it adds. Each
 record has its own synthesised loop (8.6); with nothing on, the hall hums.
+*Phase 6:* a run begun with the Vault's second lock open has a **second
+slot** on the gramophone: both records act, the first slot's first, and the
+first slot's tune plays. A record given by a card or bought plays at once in
+a free slot. Danse Macabre is built (6.3).
 
 ### 5.11 Chips, oddities and the room's boards
 
@@ -884,10 +891,15 @@ below give the tuned numbers.
 | "Shiny things." | Engrave every Cabinet item; one of your talismans gets the Cursed engraving | Rare |
 | "Ask the figures." | The oldest figure in the dark disappears; +1 Nudge for the rest of the run | Rare |
 
+*Phase 6:* "Ask the figures" now sends the oldest standing figure away: the
+run counts one fewer for Danse Macabre, and the profile keeps it in the
+Almanac's ledger as "Sent away by Madame Zero".
+
 ### 6.3 Records
 
-*As built (Phase 4):* all but Danse Macabre, which waits for the figures
-(Phase 6). Red Light Tango reads the colour of the number that lands, for every
+*As built (Phase 4):* all but Danse Macabre, which waited for the figures
+and came with Phase 6: it counts the figures standing when the run began
+(twelve at most), less any Madame Zero sent away. Red Light Tango reads the colour of the number that lands, for every
 bet. Waltz in Green rounds a night's price up. Carousel's "1 pocket further"
 is +1 to any Nudge a spin already has (a Lean, pity, a talisman): a spin with
 none stays put, which keeps it apart from Waltz in Green. Overture of Excess
@@ -1027,49 +1039,107 @@ weights. Tuned with the simulator (9.8): the lacquers paint 3 pockets
 
 ## 7. Meta progression
 
+*As built (Phase 6, decision 29).* What carries over between runs lives in a
+profile saved apart from the run (`core/meta.js`, through `src/platform/`):
+the chip sets, the Vault's locks, the House Edge levels open, the figures,
+the Almanac's discoveries, feats and lifetime ledger. The run reads what it
+needs when it begins (the goal, the gramophone's slots, the figures standing)
+and keeps it, so a run never changes under the player.
+
 ### 7.1 The Vault
 
-At the back of the hall stands a vault door with **four padlocks**. Lock *k*
-opens the first time you pay debt 3 + *k* with locks 1 to *k*−1 already open.
+At the back of the hall, behind the wheel, an iron door stands in a brick
+pier with **four brass padlocks** on a bar across it, under its own small
+lamp (`view/vault.js`). It shows in the wide shot during a spin, and faintly
+over the wheel from the table. Lock *k* opens the first time you pay debt
+3 + *k* with locks 1 to *k*−1 already open; an open padlock hangs off its
+hasp.
 
-- **The goal moves.** A run's goal is debt 4 + (locks opened). Reaching the goal,
-  the Cage asks whether you want to leave. **Step out of the light** to win and end
-  the run, or keep playing for score. Leaving adds no figure.
-- **Each lock adds to the pools:** new talismans, a sector-bet family, a record,
-  a second gramophone slot, new starting wheels.
-- **All four locks open:** the Vault opens after debt 8 or later, under conditions
-  to design, and the ending plays. Endless mode unlocks afterwards.
+- **The goal moves.** A run's goal is debt 4 + the locks open when it began.
+  Paying the goal debt, the Cage's card asks: **Step out of the light** (the
+  run is won and ends) or **Keep playing**, as far as the debts allow. Past
+  the goal the pause menu also offers Step out of the light. Stepping out
+  adds no figure; a run that plays on and is collected later leaves one.
+- **Each lock opens a starting wheel** (7.2): lock 1 the American, lock 2 the
+  Gilded and the gramophone's second slot (5.10), lock 3 the Bone, lock 4
+  the Mirror. New talismans, the sector-bet family and a new record are
+  Phase 7's content; they will be what the locks and the Almanac's feats
+  open, so today's pool stays whole (decision 29).
+- **All four locks open:** paying debt 8 or later opens the Vault, once. For
+  now the ending is a card: behind the door a small room, one chair, a wheel
+  no bigger than a plate, and on the wall "ZERO IS NOT EMPTY. SHE WAS A
+  PLAYER ONCE." The door stands ajar in the room from then on, and the House
+  lets the run play on. Endless mode proper is Phase 7.
 
 ### 7.2 Starting wheels and House Edge
 
-- **Starting wheels**, unlocked through the Vault: European (default); American
-  (adds 00, +2 tokens per round); Gilded (6 gilded pockets, debts ×1.5); Bone (all
-  black pockets are bone, Devil live from debt 1); Mirror (reversed wheel order).
-- **House Edge levels**, unlocked by winning, stack: +1 zero pocket; Devil from
-  debt 2; −1 token per round; debts ×1.25; Leans weaker...
+Both are chosen on the chip select (7.5), each from a list that shows the
+locked ones and what opens them; the choosers appear once more than one is
+open. Each starting wheel was tuned with the simulator to sit near the
+European for the best bot (9.8); the doc's first drafts are noted.
+
+| Wheel | Opens with | Upside | Downside |
+|---|---|---|---|
+| European | — | One zero: 37 pockets | — |
+| American | lock 1 | +2 tokens each time a debt is paid (drafted +2 a night) | A real **00** (green, in no outside bet, with its own straight-up and splits with 0, 2 and 3): 38 pockets |
+| Gilded | lock 2 | 6 pockets start gilded, drawn from the run's seed | Debts ×1.25 (drafted ×1.5) |
+| Bone | lock 3 | Every third black pocket is Bone, six in all (drafted every black one) | The Devil is live from debt 1 |
+| Mirror | lock 4 | The numbers run 0 to 36 round the rim, as on the felt: a pocket's neighbours are its felt neighbours, so Nudge works along streets and splits | Red and black no longer take turns, so Nudge seldom changes a colour |
+
+The Mirror was drafted as "reversed wheel order", which changes nothing (a
+reversed wheel keeps every pocket's neighbours, and Nudge hops both ways);
+the owner chose the felt's order instead. On the American wheel the felt's
+zero cell splits, 00 beside 3 and 0 beside 1, with 2 between them.
+
+**House Edge levels** open by reaching the goal at the level before them
+(reaching it at level 0 opens level 1, and so on), and stack:
+
+1. **The House's pocket:** a green pocket with no number joins the wheel,
+   across from the zero. Every bet loses there, and no tool touches it. (The
+   draft's "+1 zero pocket" would have made a straight-up on 0 pay out twice
+   as often.)
+2. **The Devil wakes early:** live from debt 2.
+3. **A thin purse:** a paid debt gives a token less (drafted as a token less
+   each night, which cost the best bot half its debt 3).
+4. **Heavier debts:** every debt owes a quarter more.
+5. **A cold House:** every Lean is 1 weaker, but never gone.
 
 ### 7.3 The figures in the dark
 
-Every lost run leaves its figure standing at the edge of the light, facing the
-wheel. Hovering over one shows its run: the debt reached, best spin, final build
-and cause ("Collected at debt 4", "Taken by the Devil"). Older figures fade
-further into the dark. They are the run history, the lore and the mood at once,
-and some content refers to them (Danse Macabre, "Ask the figures").
+Every run that ends without stepping out of the light (collected by the
+Cage, or given up for a new one) leaves its figure: soot-grey silhouettes
+standing at the edge of the light on the far side of the wheel, facing it,
+out of the wide shot's line to the wheel (`view/figures.js`). The newest
+twelve stand there, older ones further out and fainter; on the first run a
+stranger already stands there. The Almanac's ledger gives each one's run:
+the debt, the chips, the wheel, the best spin, the rail and the cause
+("Collected at debt 4", "Gave up at debt 2"). Danse Macabre counts them, and
+"Ask the figures" sends the oldest away.
 
 ### 7.4 The Almanac
 
-A leather book on the table: discovered talismans, fortunes, records and
-enhancements, plus stats. Undiscovered entries are silhouettes. Achievement
-unlocks go here, for example "Hit the same number three times in one round"
-unlocks Ouroboros.
+A leather book on the table's near edge, between the Bell and the chip tray
+(`view/almanacBook.js`), also on the main menu and the pause menu. It opens
+over the room (`ui/almanac.js`) with a page for each of talismans, fortunes,
+records, pocket enhancements, oddities and engravings, unseen entries as
+silhouettes; the feats; the figures' ledger; and the lifetime ledger (runs,
+goals, best spin, the Vault and House Edge). Anything the run shows (a
+Cabinet offer, a card dealt, a record, a pocket's enhancement) is seen.
+Twelve feats are kept, among them "Same Again" (one number three times in a
+night), "Paid in Spite" (pay a debt the Devil fired in), "Bare Hands" (pay
+debt 3 with a bare rail) and "The House at Its Worst" (the goal at House
+Edge 5). They unlock nothing yet: Phase 7's new talismans and records will
+be what they open (decision 29), and Steam's achievements map onto them.
 
 ### 7.5 The main menu and chip sets
 
 *Decision 26, pulled forward from this phase at the owner's request.* The
 game opens on a main menu: the hall in near darkness, the wheel's bulb
 flickering, Madame Zero's green eyes in the dark, the title in blood-red
-brush. It offers Continue (when a run is saved), Play and Settings. Play
-leads to the chip select, where the player chooses the run's chip set (6.6).
+brush. It offers Continue (when a run is saved), Play, Almanac (7.4) and
+Settings. Play leads to the chip select, where the player chooses the run's
+chip set (6.6), and, once the Vault or a goal has opened more than one, the
+starting wheel and the House Edge (7.2). It names the run's goal.
 
 - **Normal** is open from the start. Paying debt 4 with a set unlocks the
   next, in the order Normal, Clay, Bone, Glass, Gold, for later runs. The
@@ -1152,6 +1222,18 @@ backwards when it is spun.
   tray (5.11). The Cabinet's chip oddities show the chip's own face, the
   Brass Odds Plate a stamped plate, and a record its sleeve with the record's
   name.
+
+*As built (Phase 6):*
+- **The Vault** stands behind the wheel at the back of the hall, its iron
+  door in a brick pier under a small lamp, four padlocks on a bar across it
+  (7.1). It reads in the wide shot and faintly beyond the wheel from the
+  table.
+- **The figures** stand on the far side of the wheel at the edge of the
+  light, soot grey, the newest nearest (7.3).
+- **The Almanac** lies on the table's near edge (7.4).
+- **The wheel** shows 00 on the American wheel, and the House's pocket as a
+  green cell with Madame Zero's eye on it and a green floor; the results
+  board shows a landing there as a green dash.
 
 ### 8.2 Camera
 
@@ -1609,6 +1691,17 @@ play back strictly left to right. Every hook that changes something emits a
     Pane, the record and Gold Leaf were raised to 50, 50 and 40 spins to
     keep it there. Kept for comparison: with the two chip cards once a run
     the best bot reached 77/58/22% (500 runs).
+  - *Phase 6 (decision 29):* `--wheel`, `--edge`, `--locks` and `--figures`
+    set a run's setup; bots fill the gramophone's second slot and lay their
+    spread of straight-ups round the run's own wheel. The European wheel at
+    House Edge 0 is as before: 97.2/71.7/49.2/16.3% (2,000 runs), with debt 5
+    at 2.5% and debt 6 at 0.5%: the locks past the first wait for Phase 7's
+    balance. Each starting wheel was tuned to sit near it (600 runs, ±2
+    points): American 72/53/23%, Gilded 71/52/19%, Bone 71/54/16%, Mirror
+    70/50/17% at debts 2–4. As drafted they ran far from it: the American at
+    +2 tokens a night 42% at debt 4, the Bone with every black pocket Bone
+    26%, the Gilded at ×1.5 12%. House Edge, at debts 2/3/4: level 1
+    69/47/16%, 2 64/41/12%, 3 60/35/9%, 4 41/20/6%, 5 34/15/4%.
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1616,6 +1709,10 @@ play back strictly left to right. Every hook that changes something emits a
 
 - **Saves:** localStorage, versioned JSON with migrations. Meta progression (locks,
   figures, Almanac, stats) is stored separately from the current run.
+  *As built:* the run saves as version 8 (Phase 6 added the starting wheel,
+  House Edge, goal, locks and figures counted, the gramophone's second slot
+  and tonight's numbers); the profile as version 2, and a version 1 profile
+  opens the locks its furthest debt would have.
 - **Performance:**
   - Procedural textures currently take 1–2 s at load. Move generation to a Web
     Worker with OffscreenCanvas and cache the results.
@@ -1709,7 +1806,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **M1. Touch and the phone layout** (done, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; notes on a tap and cards with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` and `npm run touch` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** (done; decisions 27, 28) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
-| **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
+| **6. Meta** (done; decision 29) | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
 | **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
 | **9. Store releases** | Capacitor builds for iOS and Android (M3: native saves, pause and resume, haptics, the orientation lock, the audio session); Game Center and Play Games (M4, optional); App Store and Play Store listings, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset) | The game installs from TestFlight and a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
@@ -1808,6 +1905,25 @@ In two halves (decision 27), both built:
    of each material and a record in the 4th compartment, six chips at most;
    save version 7. No Lead or Wax, and no chip cards (the owner's word).
 
+### Phase 6 breakdown
+
+Built (decision 29):
+
+1. Core: the goal (debt 4 + the locks open), the locks and the Vault as
+   events of a paid debt, and `leave`; starting wheels and House Edge
+   (`core/house.js`, `content/wheels.js`, `content/edges.js`), with a real
+   00 (number 37) and the House's pocket; the gramophone's second slot;
+   Danse Macabre; "Ask the figures" sending a figure away; the profile
+   (`core/meta.js`, version 2) with figures, discoveries, feats and the
+   lifetime ledger; save version 8. One test per rule.
+2. Simulator: a run's wheel, House Edge, locks and figures as flags; the
+   starting wheels tuned to sit near the European (9.8).
+3. View: the chip select's wheel and House Edge; the goal on the HUD; the
+   goal's card, stepping out, the Vault's card; the Vault door, the figures
+   and the Almanac's book in the room; the Almanac; 00 and the House's
+   pocket on the felt, the wheel, the board and the chalkboard; checked by
+   `npm run layout`, `npm run touch` and `npm run smoke`.
+
 ---
 
 ## 11. Risks
@@ -1856,3 +1972,4 @@ In two halves (decision 27), both built:
 | 26 | Chip sets and the main menu | **A main menu, and a chip set chosen for each run.** Normal (3 chips), Clay (4, ×0.75), Bone (3, ×1.15, fixed once placed until the night ends), Glass (2, ×1.65), Gold (3, ×0.6, +1 token per win, up to 3 a night); Bone, Glass and Gold tuned with the simulator from the owner's ×1.25, ×1.5 and ×0.75, at the owner's word. Paying debt 4 with a set unlocks the next. One rule per material, found or starting (6.6 rewritten); built now, ahead of Phase 5, though unlocks are Phase 6's. (6.6, 7.5) |
 | 27 | Phase 5 | **Built in two halves**: first the wheel work, pocket enhancements, the 4th compartment's wheel-work oddities and the stats chalkboard; then chips, bet levels and records. Pockets are picked on the felt's number grid in the close-up; the chalkboard stands at the table, seen from the table view. **Oddities cost coins**, a number of the debt's spins (the owner chose this after the simulator showed token-priced wheel work losing to talismans). Targets raised a step: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25% for the best bot. Outcome: 97/70/50/18%. (5.4, 5.11, 6.7, 9.8) |
 | 28 | Phase 5, second half | **No Lead or Wax chips**: the five materials are enough. **The two chip cards ("Your stack grows heavy", "A new chip in your pocket") are left out**: chips come from the Cabinet's chip oddities. **A bet level adds a quarter of the base odds** (straight-up 36 → 45 → 54), not the whole; the two level cards are legendary and once a run. All chosen by the owner after the simulator. Outcome: 97/72/50/16% for the best bot. (5.3, 6.2, 6.6, 6.7, 9.8) |
+| 29 | Phase 6 | **The Mirror wheel mirrors the felt**: the numbers run 0 to 36 round the rim, since a reversed wheel keeps every pocket's neighbours. **Locks open starting wheels now, items later**: lock 1 the American, lock 2 the Gilded and the gramophone's second slot, lock 3 the Bone, lock 4 the Mirror; reaching the goal opens the next House Edge level; the Almanac's feats are kept but unlock nothing until Phase 7's new talismans and records, so today's pool and balance stay as they are. Both chosen by the owner. Tuned with the simulator to sit near the European wheel: the American gives +2 tokens per paid debt (not a night), the Gilded owes ×1.25, the Bone has six Bone pockets, House Edge 3 is a token less per paid debt; House Edge 1's "+1 zero" is a green pocket with no number, so a straight-up on 0 gains nothing from it. (7, 9.8) |

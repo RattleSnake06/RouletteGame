@@ -8,6 +8,7 @@ import { rng } from '../../ui/marks.js';
 import { CHIP, createChipMesh } from '../chips.js';
 import { createChalkboard } from '../chalkboard.js';
 import { createPlacard } from '../placard.js';
+import { createAlmanacBook } from '../almanacBook.js';
 import { FeltCanvas, LAYOUT_H, LAYOUT_W, SPOTS, betAt, numbersFor } from '../felt.js';
 import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from '../ink.js';
 
@@ -319,6 +320,17 @@ export function createTable({ materials, interaction, callbacks }) {
   placard.group.position.set(0.66, TOP_Y + 0.09, 0.08);
   placard.group.rotation.set(-0.35, -0.55, 0, 'YXZ');
   group.add(placard.group);
+
+  // The Almanac lies at the near edge, between the Bell and the chip tray (doc 7.4).
+  const almanac = createAlmanacBook({
+    interaction,
+    enabled: () => !locked,
+    onOpen: () => callbacks.onAlmanac?.(),
+    onHover: (on, ev) => callbacks.onHoverAlmanac?.(on, ev),
+  });
+  almanac.group.position.set(-0.13, TOP_Y, 0.235);
+  almanac.group.rotation.y = 0.32;
+  group.add(almanac.group);
 
   board.userData.role = 'board';
   interaction.add(board, {
@@ -835,6 +847,7 @@ export function createTable({ materials, interaction, callbacks }) {
     syncLevels: (levels) => placard.sync(levels),
     pulsePlacard: () => placard.pulse(),
     placardWorldPosition: (out) => placard.worldPosition(out),
+    almanacWorldPosition: (out) => almanac.worldPosition(out),
     chalkboardWorldPosition: (out) => chalkboard.worldPosition(out),
     setSelectedChip,
     drawLoupe,
