@@ -6,8 +6,11 @@ Decisions made so far are listed under [Decisions](#12-decisions).
 Status: Phase 1 (the core loop), Phase 2 (talismans, the Curio Cabinet,
 tokens and the Bell), Phase 3 (Nudge, the Lean, pity, the Devil, cursed
 talismans) and Phase 4 (Madame Zero, records, engravings) are built, and so
-are touch and the phone layout (M1). The main menu and starting chip sets
-(decision 26) come next, then Phase 5.
+are touch and the phone layout (M1), the main menu and the starting chip sets
+(decision 26). Phase 5 is half built (decision 27): wheel work, pocket
+enhancements, the Cabinet's oddities and the stats chalkboard. Its second
+half (chips as oddities, Lead and Wax, bet levels and the payout placard)
+comes next.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -322,14 +325,34 @@ Wheel-building actions, from items, fortunes and oddities:
 
 Bets follow **number labels**: a straight-up on 17 covers every pocket labelled 17.
 
-*As built (before Phase 5):* the wheel is already drawn from live widths.
-Talismans can lean on the widths while they hang (Brass Scales doubles every
-even pocket) through pure `widths` hooks (`core/widths.js`); the spin and the
-Glass Eye draw from the live wheel, and the rotor's number ring and frets
-stretch to match, easing into a change over a moment. The stored wheel stays
-European until Phase 5's wheel work changes it. Number Punches (re-stamp 3
-pockets with any numbers, a Bell active) waits for Phase 5, with the other
-renumbering tools.
+*As built (Phase 5, first half; decision 27):* each pocket is
+`{ id, number, color, width, enh }` (`core/wheel.js`). The id stays with a
+pocket while others come and go, so a Glass Eye's foreseen landing stays on
+its pocket. Wheel work lives in `core/wheelwork.js`; every piece names what
+it acts on:
+- **Gild**: gilded, or platinum if already gilded.
+- **Enhance**: puts an enhancement on the pocket, replacing what it had.
+- **Widen** and **Narrow**: ±0.5 on every pocket with a number (the felt
+  picks a number, and duplicates share it).
+- **Paint**: red or black.
+- **Duplicate**: a plain copy, width 1, cast right after the pocket
+  (clockwise).
+- **Remove**: never below 18 pockets, and never the pocket the Glass Eye
+  foresaw.
+- **Stamp**: a new number. The pocket keeps its paint; a blank one takes
+  the number's colour.
+
+The wheel holds 60 pockets at most. Talismans still lean on the widths while
+they hang (Brass Scales) through pure `widths` hooks (`core/widths.js`). The
+view draws every pocket at its live width: a new pocket grows in from
+nothing, a chiselled one shrinks away, and each pocket's paint and
+enhancement show on its number cell and its floor (8.1). Wheel work comes
+from three places:
+- the Cabinet's oddities (5.11, 6.7);
+- three of Madame Zero's cards (6.2);
+- the **Number Punches** (legendary, a Bell active once a debt): up to 3
+  pockets re-stamped with any numbers. It answers only a ring at its tag,
+  because you choose what it stamps.
 
 A stats board in the room (5.11) shows the live chance of every number, colour,
 dozen and column, so a heavily built wheel stays readable.
@@ -371,7 +394,10 @@ payout = chip value × Stake × odds × Odds mult × pocket mult × (each × tal
 - **Stake** starts at 1. Bonuses add to it ("+1 Stake").
 - **Odds** is the bet's base odds × its level.
 - **Odds mult** starts at 1. Bonuses add to it ("+1 Odds").
-- **Pocket mult** is the product of the landed pocket's enhancements.
+- **Pocket mult** is the enhancement of the pocket that pays (gilded ×2,
+  platinum ×3, glass ×4; a pocket has one enhancement, 6.5). It acts after
+  the chip's material and before the rail. A blank pocket pays nothing,
+  whatever covers it.
 - **× talismans** multiply one after another.
 - A secondary hit (Croupier's Rake's neighbours) multiplies by its own factor
   (×¼). Each chip's payout is rounded down once, at the end.
@@ -494,8 +520,10 @@ traded in for a purchase: once hung, they keep their hook for the rest of the
 run (owner's decision, 12).
 
 **The Curio Cabinet** is a low glass counter with 4 lit compartments: 3 talismans
-and 1 **oddity** (a chip, a piece of wheel work, a record or a bet level). Until
-oddities exist (Phase 5), the 4th compartment is boarded up: "not yet".
+and 1 **oddity** (a chip, a piece of wheel work, a record or a bet level).
+*As built (Phase 5, decision 27):* the 4th compartment opens with wheel work
+(6.7). It restocks with the others, by the same rarity reroll, and is priced
+in coins, a number of the debt's spins.
 
 | Rarity | Price (tokens) | Relative weight | Chance, first compartment (41 in the pool) |
 |---|---|---|---|
@@ -612,7 +640,16 @@ record has its own synthesised loop (8.6); with nothing on, the hall hums.
 
 - **Chip materials** (6.6) are the per-chip enhancement axis.
 - **Oddities** (the 4th compartment): new chips, wheel work (gild 2 pockets, widen
-  a number, repaint a pocket), bet levels, records.
+  a number, repaint a pocket), bet levels, records. *As built (Phase 5, first
+  half):* wheel work only (6.7), paid in coins (decision 27). Buying one opens
+  the felt close-up with the numbers its work can act on lit and the rest in
+  the dark. A bar over the felt's foot names the work and what to tap, with
+  Cancel. Each tap is one pick; a number whose pockets differ asks which one.
+  A blank pocket, having no number, has a button of its own in the bar. When
+  every pick is chosen, the work is done and paid for. The camera lifts to
+  the wheel, its bulb lit as for a spin, while the pockets take the work, a
+  line names what changed, and you are back where you were. Nothing is paid
+  until the work is done. Cancel, Back or a turn puts it down.
 - **Boards in the room:**
   - **Results board:** a mechanical flip board showing the last 12 numbers with
     colours, spins left and the LEAN lamp. *As built (Phase 3):* the board at the
@@ -621,7 +658,17 @@ record has its own synthesised loop (8.6); with nothing on, the hall hums.
     cold blue when it is building, and the last 8 numbers, a Devil's spin as a
     green 666. The spins left are on the HUD's tally.
   - **Stats chalkboard:** the live chance of each number, colour, dozen and column.
-  - **Payout placard:** current odds per bet type, with levels.
+    *As built (Phase 5):* a slate on an easel at the table's left, across from
+    the results board, lit a little from within. It chalks every number's
+    chance, laid out as on the felt (bright and underlined above the fair
+    chance of 1 in 37, dim below; ×2 for a number with two pockets; a dot for
+    each enhanced pocket; struck out when no pocket reads it). Below that it
+    gives the colours, dozens, columns and halves, and the pockets wheel work
+    has changed, by what was done to them. A tap opens its card, the same
+    lines in plain words; with a mouse, hovering shows its note. Every bet's
+    note now says how often it wins on the wheel as built, before Nudge.
+  - **Payout placard:** current odds per bet type, with levels. *Waits for bet
+    levels (Phase 5, second half).*
 
 ---
 
@@ -629,7 +676,7 @@ record has its own synthesised loop (8.6); with nothing on, the hall hums.
 
 A first pool to build from. Names and numbers are drafts.
 
-### 6.1 Talismans (43 built)
+### 6.1 Talismans (44 built)
 
 **Built in Phase 2 (15):** Red Ribbon, Horseshoe, Matchbook, Lucky Penny, Crumpled
 Receipt, Pawn Ticket (common); Brass Knuckles, Croupier's Rake, Ledger, Abacus
@@ -744,8 +791,9 @@ most 75% of runs.
 | Ouroboros | Legendary | The same number twice in a row: chips ×2 | jackpot |
 | Golden Ball | Legendary | Chips pay ×3; the Devil's chance +3% | risk |
 
-Number Punches (legendary, Bell, once a debt: re-stamp 3 pockets with any
-numbers) is designed and waits for Phase 5's wheel work.
+**Number Punches** (legendary, Bell, once a debt: re-stamp up to 3 pockets
+with any numbers) is built with Phase 5's wheel work (5.4). It is the
+44th talisman.
 
 The draft rows in the first table that share a name with a talisman here
 (Black Cat, Thirteen Ball, Ouroboros, Golden Ball) are superseded by this table.
@@ -759,13 +807,17 @@ at least one item at each rarity before content lock (Phase 7).
 
 *As built (Phase 4, decision 22):* the cards below work as written, with these
 exceptions. Waiting for their phase: "Outside bets are safe bets" and "Fortune
-favours the bold" (bet levels, Phase 5), "Gold finds gold" (gilded pockets,
-Phase 5), "Neighbours talk" (special bets). The two chip cards, "Your stack
+favours the bold" (bet levels, Phase 5's second half), "Neighbours talk"
+(special bets). *Phase 5:* "Gold finds gold" is built (3 pockets gilded at
+random from the fortunes stream; a gilded one turns platinum). "Feed the
+zero" casts a real second zero pocket beside the first (a save from before
+keeps its wide zero). A black card was added so cursed pockets have a source:
+**"Borrowed gold."** (uncommon), which gilds 4 pockets at random and curses 2
+plain others. The two chip cards, "Your stack
 grows heavy" and "A new chip in your pocket", wait for Phase 5's chip axis too.
 A run starts with three chips of value 1, so each was a third more stake for
 the rest of the run, by far the strongest card in the simulator. They will be
-tuned with chip materials. "Feed the zero" makes zero's pocket
-twice as wide (the second zero pocket comes with Phase 5's wheel work). "Ask
+tuned with chip materials. "Ask
 the figures" gives its +1 Nudge; the figure leaving comes with the figures
 (Phase 6). Two black cards were added for decision 11, the cursed talismans'
 only source: **"Roll the bones."** (the Bone Dice hang on your rail, uncommon)
@@ -795,7 +847,7 @@ below give the tuned numbers.
 | "Fortune favours the bold." | Straight-up +1 level | Uncommon | none |
 | "Another hook on the wall." | +1 talisman hook | Uncommon | 1 |
 | "A new chip in your pocket." | Gain a chip of a random material (waits for Phase 5) | Uncommon | none |
-| "Gold finds gold." | Gild 3 random pockets | Rare | none |
+| "Gold finds gold." | Gild 3 random pockets (built in Phase 5) | Rare | none |
 | "Something carved in brass." | A random engraving on a random talisman | Rare | none |
 | "Neighbours talk." | Unlock the Neighbours bet this run | Rare | 1 |
 
@@ -807,6 +859,7 @@ below give the tuned numbers.
 | "Give it all back." | Double coins in hand; tokens → 0 | Common |
 | "Bargain at the cabinet." | Two Cabinet items become free; tokens → 0 | Common |
 | "Feed the zero." | Add a second zero pocket; all payouts ×2 for the rest of the run | Uncommon |
+| "Borrowed gold." | Gild 4 random pockets; curse 2 plain others (Phase 5) | Uncommon |
 | "Shiny things." | Engrave every Cabinet item; one of your talismans gets the Cursed engraving | Rare |
 | "Ask the figures." | The oldest figure in the dark disappears; +1 Nudge for the rest of the run | Rare |
 
@@ -872,6 +925,23 @@ restock of each debt free, without raising the next one's price.
 | Cursed | Devil chance +1% for the rest of the round |
 | Blank | No number. Nothing wins. (Created by shattering and some curses.) |
 
+*As built (Phase 5, first half):* a pocket has at most one enhancement; a new
+one replaces the old, and gilding a gilded pocket makes it platinum. Gilded,
+platinum and glass multiply the lines the pocket pays (5.5), shown at the chip
+as "×2 gilded". Bone's token comes on every landing there, whatever was bet. A
+Lucky pocket's +2 Nudge is for the next spin only, brass like a charm's, and
+lost if that spin has no Nudge at all (a Black Cat crossing). An Ember chip
+grows by 1 value once a spin, for the rest of the run. A Cursed landing adds
+1% to the Devil's chance until the next night begins (it counts only once the
+Devil is live). Glass rolls its 1 in 4 after the spin is paid, on a stream of
+its own (`pockets`), at most once a spin per pocket. A shattered pocket
+becomes a blank: no number, no colour, and nothing pays or is tallied there
+(the board shows a dash). A Devil's spin burns the number, and the pocket
+does nothing. Enhancements come from oddities (6.7) and cards (6.2); Cursed
+only from "Borrowed gold", and Blank only from shattering. Each shows on the
+wheel (a frame and lettering on its number cell, its colour on the pocket
+floor) and as a dot on the felt and the chalkboard.
+
 ### 6.6 Chip materials
 
 A chip's material is its one rule, wherever the chip came from (decision 26).
@@ -899,7 +969,30 @@ end as before. So a value-1 chip on an even-money bet pays 1 in Clay or Gold,
 on bigger bets and bigger chips (a straight-up pays 27, 41, 59 and 21). Gold's token comes once per winning chip per spin.
 A Bone chip may still be placed whenever it is in hand; after that it can be
 neither moved nor lifted until the next night begins. Lead and Wax wait for
-Phase 5's oddities.
+chips as oddities (Phase 5's second half).
+
+### 6.7 Oddities
+
+The Cabinet's 4th compartment (5.8, 5.11). *As built (Phase 5, first half):*
+wheel work only; chips, bet levels and records join in the second half. Each
+does its work when bought and is gone. The price is in coins, a number of
+the debt's spins (decision 27): Gold Leaf costs 36 coins at debt 1 and 180 at
+debt 4. Rarity uses the Cabinet's reroll weights. Tuned with the simulator
+(9.8): the lacquers paint 3 pockets (drafted 1) and the Chisel takes 2.
+
+| Oddity | Work | Rarity | Price (spins) |
+|---|---|---|---|
+| Gold Leaf | Gild 2 pockets (the same one twice: platinum) | Uncommon | 36 |
+| Brass Shim | Widen a number: every pocket with it +0.5 | Common | 20 |
+| Jeweller's File | Narrow a number: every pocket with it −0.5 (to 0.25) | Common | 10 |
+| Red Lacquer | Paint 3 pockets red | Common | 20 |
+| Black Lacquer | Paint 3 pockets black | Common | 20 |
+| Casting Mould | Cast a second pocket for a number, beside the first | Uncommon | 30 |
+| Chisel | Chisel 2 pockets out (no fewer than 18 stay) | Common | 20 |
+| Horseshoe Nail | Make a pocket Lucky | Uncommon | 20 |
+| Glass Pane | Make a pocket Glass | Rare | 40 |
+| Bone Inlay | Make a pocket Bone | Common | 10 |
+| Ember | Make a pocket Ember | Rare | 40 |
 
 ---
 
@@ -1009,6 +1102,23 @@ round its bezel, on the rail and in the Cabinet, and the Cabinet's tag names
 it after the rarity. The rail shows up to eight hooks, closer together when
 there are more than six. While Carousel plays, the wheel always turns
 backwards when it is spun.
+
+*As built (Phase 5, first half):*
+- **The wheel** draws whatever pockets the run has (`view/wheel.js`). A
+  number cell keeps its paint and wears its enhancement as a frame and
+  lettering: gold for gilded, white for platinum, icy streaks for glass, a
+  bone band, an ember glow, a horseshoe for lucky, a sickly green for cursed.
+  A blank is grey and scored. Enhanced pockets' floors take the same colour,
+  lit a little from within, so a built wheel reads from the wide shot.
+- **The felt** follows the wheel. A number's badge takes its pocket's paint
+  (split when its pockets differ), with "×2" when two pockets read it and a
+  dot for each enhanced pocket. A number no pocket reads is a struck ghost.
+  Red and Black light the numbers painted their colour.
+- **The Cabinet's 4th compartment** holds a brass-framed plaque with the
+  oddity painted on it (`view/oddityArt.js`), where a charm would hang. Its
+  tag gives the price in coins.
+- **The stats chalkboard** stands on an easel at the table's left, across
+  from the results board (5.11).
 
 ### 8.2 Camera
 
@@ -1212,15 +1322,19 @@ src/
     cabinet.js      offers and restocks
     bell.js         the Bell queue and rings
     tally.js        what has landed this night and this debt (streak items)
+    wheelwork.js    wheel work: gild, enhance, widen, narrow, paint, cast, chisel, stamp
+    meta.js         what carries over between runs (chip sets unlocked)
     selectors.js    read models for the view and the sim (rail, Cabinet, bet previews)
     save.js
     content/
-      talismans.js  fortunes.js  records.js  engravings.js  enhancements.js  chips.js
+      talismans.js  fortunes.js  records.js  engravings.js  materials.js
+      pockets.js (enhancements)  oddities.js
   view/
     room.js         (current room.js)
     wheel/          wheel built from pocket data (refactor of current wheel.js)
     ball.js         choreographed ball
     rail.js  bell.js  talismanArt.js   the talisman rail, the Bell, charm faces
+    oddityArt.js  chalkboard.js        the Cabinet's oddity plaques, the stats chalkboard
     stations/       table, cage, cabinet, oracle, gramophone, boards, vault, figures
     camera.js       anchors and transitions
     fx/             postfx (current), payout popups, sparks
@@ -1423,6 +1537,30 @@ play back strictly left to right. Every hook that changes something emits a
   Bone is still the strongest at debts 2–3 for straight-up play (above the
   Phase 4 ceiling at debt 3), and Gold the slowest start (its tokens pay off
   later). Also tried: Gold capped at 2 tokens a night (54/20%).
+- **Phase 5 targets** (decision 27), a step above Phase 4's: debt 1 ≥ 90%,
+  debt 2 70–85%, debt 3 35–50%, debt 4 15–25% for the best bot. Bots buy wheel
+  work from the oddity compartment for the layout they usually play. Each pick
+  takes the target that adds most to its expected payout per spin, worked out
+  from what every pocket pays: gilding scales a pocket's pay, widening and
+  casting change the shares, and a Lucky pocket is worth its chance times
+  what +2 Nudge adds. They buy when the gain over the spins ahead (the rest of
+  the debt and the next) beats the price by half again, keeping the coins
+  for the next long night. They ring the Number Punches as soon as a charge
+  is there, stamping the pockets their chips miss with the numbers that pay
+  them most. They take "Gold finds gold" and "Borrowed gold" when dealt.
+  `--no-wheel` keeps them off wheel work; `--wheel-margin` and
+  `--token-spins` change how they weigh it.
+  - *First try, oddities priced in tokens (2–4) like talismans:* the bots
+    bought under one oddity a run and the best bot ended about where Phase 4
+    left it (98/67/43/12%): wheel work lost every time to the talismans the
+    tokens could buy. So, at the owner's word, oddities cost coins (decision
+    27). At 8 spins per drafted token the best bot reached 98/71/52/22%; the
+    tuned prices (6.7) bring debt 3 inside its ceiling.
+  - *Results (2,000 runs):* debts 1–4 paid in 97.2/70.2/49.6/17.6% by the best
+    bot (adaptive at debt 1, the inside builder after), all four inside the
+    targets. Without wheel work: 97.5/67.3/43.5/11.7%. The inside builder buys
+    about one oddity a run (Gold Leaf, Brass Shim, Glass Pane and Casting
+    Mould most); the red builder buys lacquer and Ember, and gains little.
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1522,7 +1660,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **3. Luck and risk** (done) | Nudge and hops; telegraphed Leans; pity; the Devil; cursed items | You can plan around a Lean, and the Devil is feared |
 | **M1. Touch and the phone layout** (done, before Phase 4; decision 21) | Swipe to turn and edge tabs; a SPIN button; tap a chip then a bet, the felt close-up and a magnifier; notes on a tap and cards with action buttons; a menu button and the Android back button; touch hints; a compact HUD, safe areas, cameras fitted to the screen, a night-card close-up; `npm run layout` and `npm run touch` (9.10) | A full debt plays by touch alone in landscape on a phone-sized screen, with nothing covered |
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
-| **5. Building the wheel** | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
+| **5. Building the wheel** (first half done; decision 27) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
 | **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
@@ -1600,6 +1738,27 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
    touch`.
 4. Audio: a synthesised loop for each record (decision 23).
 
+### Phase 5 breakdown
+
+In two halves (decision 27). The first half is built:
+
+1. Core: pockets with ids and an enhancement; wheel work (`wheelwork.js`);
+   the enhancements' rules in the payout, the spin, Nudge and the Devil; the
+   Cabinet's 4th compartment with wheel-work oddities priced in coins
+   (`buyOddity` with its targets); "Gold finds gold", "Borrowed gold" and
+   Feed the zero's real pocket; the Number Punches; save version 6. One test
+   per rule.
+2. Simulator: bots buy wheel work by expected value and stamp pockets;
+   tuning to the Phase 5 targets.
+3. View: the wheel drawn from pocket data, with enhancements on the number
+   ring and the floors; the felt follows the wheel; choosing where wheel
+   work goes on the felt close-up; oddity plaques in the Cabinet; the stats
+   chalkboard; checked by `npm run layout` and `npm run touch`.
+
+The second half: chips as oddities (new chips, Lead and Wax, the two chip
+cards), bet levels with the payout placard and the two bet-level cards, and
+records in the 4th compartment.
+
 ---
 
 ## 11. Risks
@@ -1628,7 +1787,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 6 | Platform | **Phones first, Steam second** (revised by 18; first decided as Steam only). Developed in the browser; one web build ships as a Capacitor app on phones and an Electron app on Steam. (9.10) |
 | 7 | Token income | **+1 token at the end of every night**, and the debt reward goes from +1 to +2 tokens. Short nights (+1) and sitting out (+3 per night) stay. (5.1, 5.2) |
 | 8 | Wheel of Fortune | **Ring before the spin to arm it.** If that spin pays nothing, the ball is thrown again; the charge is spent even when the spin pays. (5.8) |
-| 9 | The Cabinet's 4th compartment | **Boarded up until oddities exist (Phase 5).** (5.8) |
+| 9 | The Cabinet's 4th compartment | **Boarded up until oddities exist (Phase 5).** Opened in Phase 5 with wheel work (decision 27). (5.8) |
 | 10 | The Bell | **One talisman per ring, the leftmost that can answer.** A talisman's tag rings for that one; the Piggy Bank answers only its own tag. (5.8) |
 | 11 | Where cursed talismans come from | **Black cards only (Phase 4).** Bone Dice and Black Candle are built in Phase 3 but never offered; until black cards exist, only the debug helper hangs them. (5.8, 6.1) |
 | 12 | Selling a cursed talisman | **It cannot be sold or traded in.** It keeps its hook for the rest of the run. (5.8) |
@@ -1636,7 +1795,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 14 | Phase 3 tuning | **Tune the Phase 3 numbers first; change the debt table only if that is not enough; debt 3 stays 666.** Targets for the best bot: debt 1 ≥ 90%, debt 2 60–75%, debt 3 25–40%, debt 4 5–15%. Outcome: debt 2 owes 333 and debt 4 1,332. (5.2, 9.8) |
 | 15 | Twenty more talismans before Phase 4 | **Built now, at the owner's request, from systems that exist.** Content for Phase 7 pulled forward; tuned back inside the Phase 3 targets for the best bot at every debt. After review the Beckoning Cat pays once a night (3 nights' interest), the Mousetrap stops at +2 Stake and a Tuning Fork does not repeat the Dowsing Rod (owner's go-ahead on the review fixes). (6.1) |
 | 16 | Brass Scales ("more Even") | **Real pocket widths, drawn to scale.** The live-width wheel is pulled forward from Phase 5; widths come from talismans until Phase 5's wheel work. (5.4) |
-| 17 | Number Punches (renumber 3 pockets) | **Waits for Phase 5**, with the other wheel-building tools. (5.4, 6.1) |
+| 17 | Number Punches (renumber 3 pockets) | **Waits for Phase 5**, with the other wheel-building tools. Built in Phase 5. (5.4, 6.1) |
 | 18 | Main platform | **Phones (App Store and Play Store) are the main target; Steam stays as a second platform**, since the same web build serves both for little extra: Capacitor for phones, Electron for Steam. (9.10) |
 | 19 | Phones | **Landscape only.** Every control is reachable by touch, and no control covers another clickable. (9.10) |
 | 20 | Price | **A one-time price**: premium, no ads, no in-app purchases. (9.10) |
@@ -1646,3 +1805,4 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | 24 | Madame Zero's place | **One new station left of the Cage**: her glass booth, the gramophone on a stool beside it. Turning order: Madame Zero, Cage, Table, Cabinet. (8.1) |
 | 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. Outcome: debt 2 owes 400 and debt 4 2,664, and the two chip cards wait for Phase 5. (9.8) |
 | 26 | Chip sets and the main menu | **A main menu, and a chip set chosen for each run.** Normal (3 chips), Clay (4, ×0.75), Bone (3, ×1.15, fixed once placed until the night ends), Glass (2, ×1.65), Gold (3, ×0.6, +1 token per win, up to 3 a night); Bone, Glass and Gold tuned with the simulator from the owner's ×1.25, ×1.5 and ×0.75, at the owner's word. Paying debt 4 with a set unlocks the next. One rule per material, found or starting (6.6 rewritten); built now, ahead of Phase 5, though unlocks are Phase 6's. (6.6, 7.5) |
+| 27 | Phase 5 | **Built in two halves**: first the wheel work, pocket enhancements, the 4th compartment's wheel-work oddities and the stats chalkboard; then chips, bet levels and records. Pockets are picked on the felt's number grid in the close-up; the chalkboard stands at the table, seen from the table view. **Oddities cost coins**, a number of the debt's spins (the owner chose this after the simulator showed token-priced wheel work losing to talismans). Targets raised a step: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25% for the best bot. Outcome: 97/70/50/18%. (5.4, 5.11, 6.7, 9.8) |

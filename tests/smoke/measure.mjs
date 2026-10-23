@@ -132,7 +132,9 @@ export async function measure({ view, roles, min }) {
   // Bet spots: points on the felt, sized by the gap to the nearest other spot.
   if ((view === 'table' || view === 'felt') && r.game.state.phase === 'betting' && !cards.length) {
     const { SPOTS } = await import('/src/view/felt.js');
-    const spots = [...SPOTS.keys()].map((id) => ({ id, ...project(r.table.spotWorldPosition(id)) }));
+    // While wheel work is being placed only the numbers take a tap (doc 5.4).
+    const ids = [...SPOTS.keys()].filter((id) => !r.game.picking || id.startsWith('straight:'));
+    const spots = ids.map((id) => ({ id, ...project(r.table.spotWorldPosition(id)) }));
     for (const s of spots) {
       let gap = Infinity;
       for (const o of spots) if (o !== s) gap = Math.min(gap, Math.hypot(o.x - s.x, o.y - s.y));

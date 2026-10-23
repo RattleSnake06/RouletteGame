@@ -54,7 +54,7 @@ roadmap.
 Phases 1 (core loop), 2 (talismans, the Curio Cabinet, tokens and the Bell)
 and 3 (Nudge, telegraphed Leans, pity, the Devil, cursed talismans) are done,
 plus twenty more talismans built ahead of Phase 4 at the owner's request
-(43 in all; doc 6.1, decisions 15–17), with pocket widths drawn live.
+(43 then; doc 6.1, decisions 15–17), with pocket widths drawn live.
 M1, touch and the phone layout (doc 9.10, 10), is done: `npm run touch` plays
 debt 1 by touch alone on a landscape phone with nothing covered. Phase 4 (the
 House) is done, built touch-first (decision 21). Madame Zero deals white and
@@ -64,15 +64,20 @@ with its own synthesised loop (doc 5.9, 5.10, 6.2–6.4, 8.1, 8.6; the two chip
 cards wait for Phase 5). The game now opens on a main menu, and each run
 starts with a chip set chosen there: Normal, Clay, Bone, Glass and Gold, each
 unlocked by paying debt 4 with the one before (decision 26, doc 6.6, 7.5;
-`core/meta.js` keeps the profile). Next is Phase 5: building the wheel. The best
-simulator bot at each debt pays debts 1–4 in about 97%, 68%, 44% and 14% of
-runs. That is inside the Phase 4
-targets (decision 25), but debt 2 is near its floor and debt 3 near its
-ceiling. Debts 2 and 4 now owe 400 and 2,664. See `npm run sim`, which grades
+`core/meta.js` keeps the profile). Phase 5 (building the wheel) is half built
+(decision 27): pockets carry ids and enhancements, `core/wheelwork.js` does the
+wheel work, the Cabinet's 4th compartment sells wheel-work oddities priced in
+coins (a number of the debt's spins), the Number Punches stamp pockets (44
+talismans), and a stats chalkboard stands at the table's left. Wheel work is
+placed on the felt close-up (`game.beginWork`). Next is Phase 5's second half:
+chips as oddities, Lead and Wax, bet levels and the payout placard. The best
+simulator bot at each debt pays debts 1–4 in about 97%, 70%, 50% and 18% of
+runs, inside the Phase 5 targets (decision 27), with debt 2 at its floor and
+debt 3 at its ceiling. Debts 2 and 4 owe 400 and 2,664. See `npm run sim`, which grades
 the best Lean-playing bot at each debt; `--no-oracle` keeps the bots away from
 Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
 off talismans, fortunes or records, and `--bot solo:a,b` hangs talismans from
-the first spin. One point of Nudge is worth a lot (a straight-up's return grows
+the first spin, and `--no-wheel` keeps them off wheel work. One point of Nudge is worth a lot (a straight-up's return grows
 with 2N + 1). A Stake point doubles a line, and a multiplier on one number pays
 a whole debt in a hit. Re-run the sim after any luck, jackpot or fortune
 change.
@@ -97,7 +102,9 @@ change.
 - In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`,
   `grant(id)` (hang a talisman for free, cursed ones included), `lean(n)` (a
   Lean on the next spin), `misses(n)` (to try pity), and `devil()` / `calm()`
-  (the Devil fires on every throw, or goes back to normal) for testing.
+  (the Devil fires on every throw, or goes back to normal), and `work(op, n,
+  extra)` (wheel work on the pocket with number n: `work('gild', 17)`,
+  `work('enhance', 9, { enh: 'glass' })`, `work('duplicate', 0)`) for testing.
 
 ## Conventions
 
@@ -149,7 +156,10 @@ change.
   carry `userData.role` (`night-card`, `end-card`, `cage-button`,
   `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
   `talisman-mesh`, `board`, `devil-counter`, `lever`, `fortune-card`,
-  `gramophone`). The views are `oracle`, `cage`, `table` and `cabinet`. `table.boardWorldPosition()` and
+  `gramophone`, `chalkboard`). The views are `oracle`, `cage`, `table` and `cabinet`.
+  `game.picking` is set while wheel work is being placed; `game.pickBet(betId)`
+  stands for a tap on the felt then, and `cabinet.slotWorldPosition(3)` is the
+  oddity. `table.boardWorldPosition()` and
   `cage.devilWorldPosition()` anchor their notes; `lighting.lean` says whether
   the LEAN lamp is lit.
   `debug.grant(id)` hangs a talisman and marks its Cabinet offer sold.

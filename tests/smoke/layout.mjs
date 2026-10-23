@@ -79,6 +79,22 @@ for (const size of SIZES) {
   });
   await at('felt close-up', 'felt');
   await at('cabinet', 'cabinet');
+  // Wheel work (doc 5.4): an oddity's card, then choosing where it goes on
+  // the felt, with a blank pocket on the wheel so its button shows too.
+  await at('an oddity card', 'cabinet', () => {
+    const g = window.__roulette.game;
+    const s = g.state;
+    const blank = s.wheel.pockets.find((p) => p.number === 9);
+    g.state = {
+      ...s,
+      coins: 500,
+      wheel: { ...s.wheel, pockets: s.wheel.pockets.map((p) => (p === blank ? { ...p, number: null, color: null, enh: 'blank' } : p)) },
+      cabinet: { ...s.cabinet, slots: [...s.cabinet.slots.slice(0, 3), { kind: 'oddity', id: 'chisel', sold: false }] },
+    };
+    g.syncAll();
+    g.offerSlot(3);
+  });
+  await at('choosing wheel work', 'felt', () => document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click());
   await at('cage', 'cage');
   await at('Madame Zero', 'oracle');
   await at('Madame Zero, a deal', 'oracle', () => window.__roulette.game.pullLever());
@@ -94,7 +110,11 @@ for (const size of SIZES) {
     g.state = { ...g.state, spinsLeft: 0, phase: 'nightOver' };
     g.syncAll();
   });
-  await at('pause menu', 'table', () => window.__roulette.game.toggleMenu());
+  await at('the chalkboard', 'table', () => window.__roulette.game.openChalkboard());
+  await at('pause menu', 'table', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    window.__roulette.game.toggleMenu();
+  });
   await at('a talisman card', 'table', () => {
     const r = window.__roulette;
     r.game.toggleMenu();

@@ -303,6 +303,33 @@ try {
   await frames(6);
   const fresh = await state();
   check(fresh.debt === 1 && fresh.round === 1 && !(await game(() => window.__roulette.game.atMenu)), 'Begin starts a new run, back at the table');
+
+  // Wheel work by touch (doc 5.4): the oddity's card, Buy, then two taps on
+  // the felt for Gold Leaf's two gildings (the same number twice: platinum).
+  await game(() => {
+    const g = window.__roulette.game;
+    const s = g.state;
+    g.state = { ...s, coins: 200, cabinet: { ...s.cabinet, slots: [...s.cabinet.slots.slice(0, 3), { kind: 'oddity', id: 'gold_leaf', sold: false }] } };
+    g.syncAll();
+  });
+  await tapElement('.hud-nav-right');
+  await still();
+  const oddPos = await game(() => window.__roulette.game.screenPosition(window.__roulette.cabinet.slotWorldPosition(3)));
+  await tap(oddPos, 'the oddity compartment');
+  check(await game(() => !!document.querySelector('.modal-backdrop.show')), 'a tap on the oddity opens its card');
+  await cardButton('Buy');
+  await still();
+  check(await game(() => !!window.__roulette.game.picking), 'Buy opens the felt to choose where the gilding goes');
+  await layout('felt', 'choosing where wheel work goes');
+  const coinsBefore = await game(() => window.__roulette.game.state.coins);
+  await tap(await spot('straight:17'), 'number 17');
+  await tap(await spot('straight:17'), 'number 17 again');
+  await frames(3);
+  const after = await game(() => {
+    const s = window.__roulette.game.state;
+    return { enh: s.wheel.pockets.find((p) => p.number === 17).enh, coins: s.coins, picking: !!window.__roulette.game.picking };
+  });
+  check(after.enh === 'platinum' && after.coins === coinsBefore - 36 && !after.picking, 'two taps on 17 gild it twice: platinum, for 36 coins');
   check(!problems.length, 'no page or console errors');
   console.log('\nTouch playthrough passed.');
 } catch (e) {

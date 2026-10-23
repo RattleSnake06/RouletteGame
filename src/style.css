@@ -1810,6 +1810,28 @@ img.mark {
   cursor: pointer;
 }
 
+/* A short screen: the bar on two lines, the title beside its prompt. */
+@media (max-height: 380px) {
+  .hud-pick {
+    padding: 4px 10px 6px;
+  }
+
+  .hud-pick .pick-title {
+    display: inline;
+    font-size: 17px;
+    margin-right: 8px;
+  }
+
+  .hud-pick .pick-prompt {
+    display: inline;
+    font-size: 13px;
+  }
+
+  .hud-pick .pick-actions {
+    margin-top: 4px;
+  }
+}
+
 .hud-pick .pick-btn.primary {
   border-color: rgba(196, 154, 82, 0.9);
   color: #f3dfb0;
