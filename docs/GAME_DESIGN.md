@@ -1594,6 +1594,21 @@ play back strictly left to right. Every hook that changes something emits a
     targets. Without wheel work: 97.5/67.3/43.5/11.7%. The inside builder buys
     about one oddity a run (Gold Leaf, Brass Shim, Glass Pane and Casting
     Mould most); the red builder buys lacquer and Ember, and gains little.
+  - *Second half (decision 28):* bots buy the Brass Odds Plate for the kind of
+    bet their chips most stand on, a chip when one more of its material adds
+    enough to the layout they play, and a record they would rather play than
+    what they have. They take the level card that suits their bets. As
+    drafted (a level adds the whole base again, all four cards at their
+    drafted rarities) the best bot paid debts 2–4 in 92/89/76%: "Fortune
+    favours the bold" alone, found by rerolling her lever, was worth 25
+    points at debt 4. With a level adding a quarter of the base and the two
+    chip cards left out (the owner's word), the level cards legendary and
+    once a run and the plate rare at 80 spins: *2,000 runs:* 97.3/71.9/50.3/
+    16.3% (the inside builder at debts 2–3, adaptive at 1 and 4), debt 3 at
+    its ceiling (within the simulator's noise of about ±1 point). Glass
+    Pane, the record and Gold Leaf were raised to 50, 50 and 40 spins to
+    keep it there. Kept for comparison: with the two chip cards once a run
+    the best bot reached 77/58/22% (500 runs).
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1840,3 +1855,4 @@ In two halves (decision 27), both built:
 | 25 | Phase 4 targets | **Raised a step**: debt 1 ≥ 90%, debt 2 65–80%, debt 3 30–45%, debt 4 10–20% for the best bot. Outcome: debt 2 owes 400 and debt 4 2,664, and the two chip cards wait for Phase 5. (9.8) |
 | 26 | Chip sets and the main menu | **A main menu, and a chip set chosen for each run.** Normal (3 chips), Clay (4, ×0.75), Bone (3, ×1.15, fixed once placed until the night ends), Glass (2, ×1.65), Gold (3, ×0.6, +1 token per win, up to 3 a night); Bone, Glass and Gold tuned with the simulator from the owner's ×1.25, ×1.5 and ×0.75, at the owner's word. Paying debt 4 with a set unlocks the next. One rule per material, found or starting (6.6 rewritten); built now, ahead of Phase 5, though unlocks are Phase 6's. (6.6, 7.5) |
 | 27 | Phase 5 | **Built in two halves**: first the wheel work, pocket enhancements, the 4th compartment's wheel-work oddities and the stats chalkboard; then chips, bet levels and records. Pockets are picked on the felt's number grid in the close-up; the chalkboard stands at the table, seen from the table view. **Oddities cost coins**, a number of the debt's spins (the owner chose this after the simulator showed token-priced wheel work losing to talismans). Targets raised a step: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25% for the best bot. Outcome: 97/70/50/18%. (5.4, 5.11, 6.7, 9.8) |
+| 28 | Phase 5, second half | **No Lead or Wax chips**: the five materials are enough. **The two chip cards ("Your stack grows heavy", "A new chip in your pocket") are left out**: chips come from the Cabinet's chip oddities. **A bet level adds a quarter of the base odds** (straight-up 36 → 45 → 54), not the whole; the two level cards are legendary and once a run. All chosen by the owner after the simulator. Outcome: 97/72/50/16% for the best bot. (5.3, 6.2, 6.6, 6.7, 9.8) |

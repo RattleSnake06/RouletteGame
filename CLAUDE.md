@@ -64,16 +64,18 @@ with its own synthesised loop (doc 5.9, 5.10, 6.2–6.4, 8.1, 8.6; the two chip
 cards wait for Phase 5). The game now opens on a main menu, and each run
 starts with a chip set chosen there: Normal, Clay, Bone, Glass and Gold, each
 unlocked by paying debt 4 with the one before (decision 26, doc 6.6, 7.5;
-`core/meta.js` keeps the profile). Phase 5 (building the wheel) is half built
-(decision 27): pockets carry ids and enhancements, `core/wheelwork.js` does the
-wheel work, the Cabinet's 4th compartment sells wheel-work oddities priced in
-coins (a number of the debt's spins), the Number Punches stamp pockets (44
-talismans), and a stats chalkboard stands at the table's left. Wheel work is
-placed on the felt close-up (`game.beginWork`). Next is Phase 5's second half:
-chips as oddities, Lead and Wax, bet levels and the payout placard. The best
-simulator bot at each debt pays debts 1–4 in about 97%, 70%, 50% and 18% of
-runs, inside the Phase 5 targets (decision 27), with debt 2 at its floor and
-debt 3 at its ceiling. Debts 2 and 4 owe 400 and 2,664. See `npm run sim`, which grades
+`core/meta.js` keeps the profile). Phase 5 (building the wheel) is done, in
+two halves (decisions 27 and 28): pockets carry ids and enhancements,
+`core/wheelwork.js` does the wheel work, the Cabinet's 4th compartment sells
+oddities priced in coins (a number of the debt's spins: wheel work, the Brass
+Odds Plate, a chip of each material, a record), the Number Punches stamp
+pockets (44 talismans), a stats chalkboard stands at the table's left and a
+payout placard at the felt's right. Each kind of bet has a level; a level adds
+a quarter of the base odds. No Lead or Wax, and no chip cards (owner). Wheel
+work and levels are placed on the felt close-up (`game.beginWork`). Next is
+Phase 6 (meta). The best simulator bot at each debt pays debts 1–4 in about
+97%, 72%, 50% and 16% of runs, inside the Phase 5 targets (decision 27), with
+debt 2 near its floor and debt 3 at its ceiling. Debts 2 and 4 owe 400 and 2,664. See `npm run sim`, which grades
 the best Lean-playing bot at each debt; `--no-oracle` keeps the bots away from
 Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
 off talismans, fortunes or records, and `--bot solo:a,b` hangs talismans from
@@ -156,7 +158,7 @@ change.
   carry `userData.role` (`night-card`, `end-card`, `cage-button`,
   `compartment`, `crank`, `chart`, `bell`, `bell-tag`, `plaque`,
   `talisman-mesh`, `board`, `devil-counter`, `lever`, `fortune-card`,
-  `gramophone`, `chalkboard`). The views are `oracle`, `cage`, `table` and `cabinet`.
+  `gramophone`, `chalkboard`, `placard`). The views are `oracle`, `cage`, `table` and `cabinet`.
   `game.picking` is set while wheel work is being placed; `game.pickBet(betId)`
   stands for a tap on the felt then, and `cabinet.slotWorldPosition(3)` is the
   oddity. `table.boardWorldPosition()` and

@@ -1827,6 +1827,11 @@ img.mark {
   font-size: 12px;
   margin: 0;
   text-align: left;
+  white-space: nowrap;
+}
+
+.hud-pick.slim .pick-title {
+  white-space: nowrap;
 }
 
 .hud-pick.slim .pick-actions {

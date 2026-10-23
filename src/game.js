@@ -73,7 +73,7 @@ const WORK_PROMPT = {
   duplicate: () => 'Tap a number to cast a second pocket for it.',
   remove: () => 'Tap a number to chisel its pocket out.',
   stamp: () => 'Tap a number: its pocket is re-stamped.',
-  level: () => 'Tap a bet: every bet of its kind goes up a level.',
+  level: () => 'Tap a bet: its kind goes up a level.',
 };
 // A kind of bet as the placard and the toasts name it.
 const BET_NAME = { straight: 'Straight-ups', split: 'Splits', street: 'Streets', corner: 'Corners', firstFour: 'First Fours', sixLine: 'Six Lines', dozen: 'Dozens', column: 'Columns', red: 'Red bets', black: 'Black bets', odd: 'Odd bets', even: 'Even bets', low: '1–18 bets', high: '19–36 bets' };
