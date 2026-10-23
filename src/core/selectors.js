@@ -46,6 +46,8 @@ export function railView(state) {
       dim: !acts,
       active: !!def?.bell,
       targetOnly: !!def?.bell?.targetOnly,
+      // Wheel work its ring does (the Number Punches): you choose where.
+      work: def?.bell?.work ?? null,
       usable: canAnswer(state, inst),
       data: inst.data,
       engraving: engraving && { id: engraving.id, name: engraving.name, text: engraving.text, cursed: !!engraving.cursed },
@@ -296,6 +298,19 @@ export function previewBet(state, betId, value = 1) {
     worst = { odds: f.odds, stake: f.stake, oddsMult: f.oddsMult, mult: f.mult, amount: line.amount, pays, sources };
   });
   return worst && { ...worst, paysMax: best };
+}
+
+/** How often this bet wins on the live wheel, before Nudge (doc 5.4: the felt says what the wheel does). */
+export function betChance(state, betId) {
+  const bet = getBet(betId);
+  const { pockets } = liveWheel(state);
+  let total = 0;
+  let hit = 0;
+  for (const p of pockets) {
+    total += p.width;
+    if (betCovers(bet, p)) hit += p.width;
+  }
+  return hit / total;
 }
 
 /**

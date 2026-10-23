@@ -1750,3 +1750,67 @@ img.mark {
 .ts-back .label {
   font-size: calc(32 * var(--u));
 }
+
+/* Choosing where wheel work goes (doc 5.4): the felt close-up, the numbers
+   it can act on lit, and this bar over the felt's foot (the outside bets,
+   which take no wheel work). */
+.hud.picking .hud-back,
+.hud.picking .hud-spin {
+  display: none;
+}
+
+.hud-pick {
+  position: absolute;
+  left: 50%;
+  bottom: calc(8px + var(--safe-b));
+  transform: translateX(-50%);
+  max-width: min(94vw, 620px);
+  padding: 6px 14px 8px;
+  background: rgba(8, 5, 4, 0.82);
+  border: 1px solid rgba(237, 229, 211, 0.28);
+  border-radius: 12px;
+  text-align: center;
+  color: var(--bone);
+  pointer-events: auto;
+}
+
+.hud-pick[hidden] {
+  display: none;
+}
+
+.hud-pick .pick-title {
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.hud-pick .pick-prompt {
+  font-size: 14px;
+  line-height: 1.3;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.hud-pick .pick-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.hud-pick .pick-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(237, 229, 211, 0.4);
+  border-radius: 22px;
+  color: var(--bone);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.hud-pick .pick-btn.primary {
+  border-color: rgba(196, 154, 82, 0.9);
+  color: #f3dfb0;
+}

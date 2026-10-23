@@ -221,7 +221,7 @@ export const TALISMAN_LIST = [
       const f = state.foreseen;
       if (!f || f.by !== inst.uid) return null;
       const p = state.wheel.pockets[f.pocketIndex];
-      return `sees ${p.number} ${p.color}`;
+      return p.number === null ? 'sees a blank pocket' : `sees ${p.number} ${p.color}`;
     },
     bell: {
       usable: (ctx) => ctx.charges > 0 && !ctx.state.foreseen,

@@ -10,7 +10,8 @@ import { createHud } from './ui/hud.js';
 import { createMainMenu } from './ui/menu.js';
 import { deserializeProfile } from './core/meta.js';
 import { add } from './core/num.js';
-import { grantTalisman } from './core/run.js';
+import { copyRun, grantTalisman } from './core/run.js';
+import { doWork, workRefusal } from './core/wheelwork.js';
 import { BallAnimator } from './view/ball.js';
 import { createBell } from './view/bell.js';
 import { CameraDirector } from './view/camera.js';
@@ -24,6 +25,7 @@ import { createOracle } from './view/stations/oracle.js';
 import { createSparks } from './view/fx/sparks.js';
 import { DEVIL } from './core/devil.js';
 import { createTable } from './view/stations/table.js';
+import { buildOddityMesh } from './view/oddityArt.js';
 import { buildTalismanMesh } from './view/talismanArt.js';
 import { DIM, SLICE, pocketAngle } from './view/wheel.js';
 import { SpinController } from './view/wheelSpin.js';
@@ -74,6 +76,8 @@ async function init() {
       onEndNight: () => game.requestEndNight(),
       onHoverBet: (betId, ev) => game.onHoverBet(betId, ev),
       onHoverBoard: (on, ev) => game?.onHoverItem(on ? { kind: 'board' } : null, ev),
+      onChalkboard: () => game.openChalkboard(),
+      onHoverChalkboard: (on, ev) => game?.onHoverItem(on ? { kind: 'chalkboard' } : null, ev),
     },
   });
   table.group.position.copy(layout.tablePos);
@@ -97,6 +101,7 @@ async function init() {
   // Talismans: the rail and the Bell live on the table; the Cabinet stands
   // on the player's right.
   const makeCharm = (id) => buildTalismanMesh(id, { brass: wheel.materials.brass });
+  const makeOddity = (id) => buildOddityMesh(id, { brass: wheel.materials.brass });
   const onHoverItem = (target, ev) => game?.onHoverItem(target, ev);
   const rail = createRail({
     materials: wheel.materials,
@@ -122,6 +127,7 @@ async function init() {
     materials: wheel.materials,
     interaction,
     makeCharm,
+    makeOddity,
     callbacks: {
       onBuy: (slot) => (game.touch ? game.offerSlot(slot) : game.buy(slot)),
       onRestock: () => (game.touch ? game.offerRestock() : game.restock()),
@@ -410,6 +416,25 @@ async function init() {
       },
       calm() {
         Object.assign(DEVIL, tunedDevil);
+        game.syncAll();
+      },
+      /**
+       * Wheel work for nothing, on the pocket(s) with number `n` (the first
+       * one it can act on): work('gild', 17), work('enhance', 9, { enh: 'glass' }),
+       * work('paint', 2, { color: 'red' }), work('duplicate', 0), work('remove', 5),
+       * work('widen', 17) (every pocket with it), work('stamp', 32, { number: 17 }).
+       */
+      work(op, n, extra = {}) {
+        const s = copyRun(game.state);
+        const on = op === 'widen' || op === 'narrow' ? 'number' : 'pocket';
+        const w = { op, on, ...extra };
+        const pocket = s.wheel.pockets.find((p) => p.number === n && (on === 'number' || !workRefusal(s, w, op === 'stamp' ? { pocket: p.id, number: extra.number } : p.id)));
+        const target = on === 'number' ? n : op === 'stamp' ? { pocket: pocket?.id, number: extra.number } : pocket?.id;
+        const why = workRefusal(s, w, target);
+        if (why) return console.warn(why);
+        doWork(s, w, target, () => {}, { kind: 'debug' });
+        game.state = s;
+        game.save();
         game.syncAll();
       },
     };

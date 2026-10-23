@@ -274,8 +274,10 @@ function drawPriceTag(t, info, seed) {
   const priceY = h * 0.37;
   ctx.save();
   ctx.globalAlpha = dim;
-  scrawlText(ctx, info.price, priceX, priceY, 196, info.affordable || sold ? INK.bone : INK.boneDim);
-  paintHex(ctx, w * 0.73, h * 0.36, 118, seed + 20);
+  // Long coin prices are set smaller so they keep clear of the coins.
+  scrawlText(ctx, info.price, priceX, priceY, info.price.length > 3 ? 150 : 196, info.affordable || sold ? INK.bone : INK.boneDim);
+  if (info.coins) paintCoins(ctx, w * 0.75, h * 0.36, 118, seed + 20);
+  else paintHex(ctx, w * 0.73, h * 0.36, 118, seed + 20);
   ctx.restore();
 
   // The rarity, as a prisoner counts it, and its name; when the price is out
@@ -496,7 +498,7 @@ function box(w, h, d, material, x, y, z) {
 
 // ---- The station ---------------------------------------------------------------
 
-export function createCabinet({ materials, interaction, callbacks = {}, makeCharm }) {
+export function createCabinet({ materials, interaction, callbacks = {}, makeCharm, makeOddity }) {
   const group = new THREE.Group();
   group.name = 'cabinet';
   const wood = materials.mahogany;
@@ -915,7 +917,8 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     pool.set(id, list);
     let obj = list.find((o) => !o.parent);
     if (!obj) {
-      obj = makeCharm?.(id);
+      // The fourth compartment's oddities are plaques, not charms (doc 5.11).
+      obj = id.startsWith('oddity:') ? makeOddity?.(id.slice(7)) : makeCharm?.(id);
       if (!obj) return null;
       list.push(obj);
     }
@@ -958,7 +961,7 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
 
   function syncSlot(s, offer) {
     let state = 'empty';
-    if (offer?.kind === 'talisman') state = offer.sold || !offer.id ? 'sold' : 'stock';
+    if (offer?.kind === 'talisman' || (offer?.kind === 'oddity' && !offer.shut)) state = offer.sold || !offer.id ? 'sold' : 'stock';
     else if (offer?.shut) state = 'shut';
     s.state = state;
     if (s.boards) s.boards.visible = state === 'shut';
@@ -966,7 +969,7 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
     const tagged = state === 'stock' || state === 'sold';
     s.tagAt.visible = tagged;
     s.string.visible = tagged;
-    setCharm(s, state === 'stock' ? offer.id : null);
+    setCharm(s, state === 'stock' ? (offer.kind === 'oddity' ? `oddity:${offer.id}` : offer.id) : null);
     s.charm?.userData.setEngraving?.(state === 'stock' ? (offer.engraving?.id ?? null) : null);
     if (!tagged) return;
     const info = {
@@ -975,7 +978,9 @@ export function createCabinet({ materials, interaction, callbacks = {}, makeChar
       rarity: state === 'stock' ? offer.rarity : s.lastRarity ?? '',
       marks: 0,
       affordable: state === 'stock' ? offer.affordable !== false : true,
-      short: offer.short ?? 0,
+      short: state === 'stock' && offer.short ? format(offer.short) : 0,
+      // An oddity costs coins (decision 27); a talisman, tokens.
+      coins: offer?.kind === 'oddity',
       engraving: state === 'stock' ? (offer.engraving?.name ?? null) : null,
     };
     // A sold tag keeps what it said, struck off.

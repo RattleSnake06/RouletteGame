@@ -5,6 +5,7 @@ import { canAfford, costOf } from '../../core/run.js';
 import { SANS } from '../../ui/fonts.js';
 import { rng } from '../../ui/marks.js';
 import { CHIP, createChipMesh } from '../chips.js';
+import { createChalkboard } from '../chalkboard.js';
 import { FeltCanvas, LAYOUT_H, LAYOUT_W, SPOTS, betAt, numbersFor } from '../felt.js';
 import { INK, paintLoop, paintScratch, paintSwipe, scrawlText, typedFont } from '../ink.js';
 
@@ -187,14 +188,16 @@ function drawMarquee(ctx, history, luck, w, h) {
   recent.forEach((r, i) => {
     const size = i === 0 ? 76 : 50;
     const devil = !!r.devil;
-    const x = devil || r.color === 'green' ? w / 2 : r.color === 'red' ? w * 0.72 : w * 0.28;
-    const color = devil || r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
+    // A blank pocket's landing shows as a dash, dim, in the middle.
+    const blank = !devil && r.number === null;
+    const x = devil || blank || r.color === 'green' ? w / 2 : r.color === 'red' ? w * 0.72 : w * 0.28;
+    const color = blank ? '#6d655a' : devil || r.color === 'green' ? '#45c27a' : r.color === 'red' ? '#e2393f' : '#ece5d6';
     ctx.font = `600 ${size}px ${SANS}`;
     ctx.fillStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = i === 0 ? 18 : 8;
     ctx.globalAlpha = i === 0 ? 1 : Math.max(0.35, 0.9 - i * 0.06);
-    ctx.fillText(devil ? '666' : String(r.number), x, y);
+    ctx.fillText(devil ? '666' : blank ? '—' : String(r.number), x, y);
     y += i === 0 ? 86 : 58;
   });
   ctx.globalAlpha = 1;
@@ -290,6 +293,18 @@ export function createTable({ materials, interaction, callbacks }) {
   const marqueeLight = new THREE.PointLight(0xff5040, 0.25, 0.9, 2);
   marqueeLight.position.set(0.76, 1.14, -0.4);
   group.add(marqueeLight);
+  // The stats chalkboard, across from the results board (doc 5.11).
+  const chalkboard = createChalkboard({
+    materials,
+    interaction,
+    enabled: () => !locked,
+    onOpen: () => callbacks.onChalkboard?.(),
+    onHover: (on, ev) => callbacks.onHoverChalkboard?.(on, ev),
+  });
+  chalkboard.group.position.set(-0.86, 1.16, -0.5);
+  chalkboard.group.rotation.y = 0.62;
+  group.add(chalkboard.group);
+
   board.userData.role = 'board';
   interaction.add(board, {
     enabled: () => !locked,
@@ -387,15 +402,30 @@ export function createTable({ materials, interaction, callbacks }) {
   let resultNumber = null;
   let resultTimer = 0;
   let foreseen = null;
+  // Choosing where wheel work goes: { valid, chosen } numbers, or null.
+  let pick = null;
+  // The wheel's numbers as the felt shows them (paint, duplicates, enhancements).
+  let wheelNumbers = null;
   function redrawHighlight() {
     felt.highlight({
-      numbers: hoverBet ? numbersFor(hoverBet) : [],
+      numbers: hoverBet ? numbersFor(hoverBet, wheelNumbers) : [],
       spotId: hoverBet,
       result: resultNumber,
       foreseen,
+      pick,
     });
   }
   /** Marks on the felt that outlast a hover: the number the Glass Eye foresaw. */
+  function setPicking(next) {
+    pick = next;
+    redrawHighlight();
+  }
+
+  function setNumbers(view) {
+    wheelNumbers = view?.numbers ?? null;
+    felt.setNumbers(wheelNumbers);
+  }
+
   function setMarks(marks = {}) {
     const next = marks.foreseen ?? null;
     if (next === foreseen) return;
@@ -783,6 +813,10 @@ export function createTable({ materials, interaction, callbacks }) {
     setLocked,
     setLampLevel,
     setMarks,
+    setNumbers,
+    setPicking,
+    syncStats: (stats) => chalkboard.sync(stats),
+    chalkboardWorldPosition: (out) => chalkboard.worldPosition(out),
     setSelectedChip,
     drawLoupe,
     feltFrame,

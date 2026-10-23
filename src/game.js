@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { getBet } from './core/bets.js';
-import { getFortune, getMaterial, getRecord, getTalisman } from './core/content/index.js';
+import { getEnhancement, getFortune, getMaterial, getOddity, getRecord, getTalisman } from './core/content/index.js';
 import { chipSets, isUnlocked, recordDebtPaid, serializeProfile } from './core/meta.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
@@ -8,10 +8,11 @@ import { baseFactors } from './core/payout.js';
 import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, hooksFor, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
-import { bellView, cabinetView, gramophoneView, luckView, oracleView, previewBet, railView, wheelView } from './core/selectors.js';
+import { bellView, cabinetView, gramophoneView, luckView, numbersView, oracleView, pickView, previewBet, railView, statsView, wheelView } from './core/selectors.js';
+import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
 import { showModal } from './ui/hud.js';
-import { bellNote, betNote, boardNote, cardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
+import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
 // Glue between the rules (core/run.js) and the room. Every player action goes
 // through dispatch(), which applies it to the run, saves, and returns the
@@ -59,6 +60,46 @@ const TOUCH_HINTS = {
 /** A stable name for a focusable object, so focus survives the list changing. */
 const focusKey = (t) => `${t.kind}:${t.uid ?? t.betId ?? t.slot ?? t.card ?? t.plaque ?? ''}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+// Wheel work (doc 5.4): what the bar over the felt asks for, how a pocket is
+// told apart from its twins, and the line that names what was done.
+const enhName = (id) => getEnhancement(id)?.name.toLowerCase() ?? 'plain';
+const WORK_PROMPT = {
+  gild: () => 'Tap a number to gild its pocket (gilded twice, it turns platinum).',
+  enhance: (w) => `Tap a number to make its pocket ${enhName(w.enh)}.`,
+  widen: () => 'Tap a number to widen every pocket with it.',
+  narrow: () => 'Tap a number to narrow every pocket with it.',
+  paint: (w) => `Tap a number to paint its pocket ${w.color}.`,
+  duplicate: () => 'Tap a number to cast a second pocket for it.',
+  remove: () => 'Tap a number to chisel its pocket out.',
+  stamp: () => 'Tap a number: its pocket is re-stamped.',
+};
+const describePocket = (o) => `${o.color ?? 'blank'} · ${enhName(o.enh)}${o.width !== 1 ? ` · ${o.width} wide` : ''}`;
+function workLine(works) {
+  const said = works.map((e) => {
+    const n = e.number === null ? 'a blank' : e.number;
+    switch (e.op) {
+      case 'gild':
+        return `${n} ${e.enh === 'platinum' ? 'platinum' : 'gilded'}`;
+      case 'enhance':
+        return `${n} ${enhName(e.enh)}`;
+      case 'widen':
+        return `${n} wider`;
+      case 'narrow':
+        return `${n} narrower`;
+      case 'paint':
+        return `${n} painted ${e.color}`;
+      case 'duplicate':
+        return `a second ${n}`;
+      case 'remove':
+        return `${n} chiselled out`;
+      default:
+        return `a pocket stamped ${n}`;
+    }
+  });
+  const line = said.join(', ');
+  return `${line[0].toUpperCase()}${line.slice(1)}.`;
+}
 
 export class Game {
   constructor(deps) {
@@ -243,13 +284,14 @@ export class Game {
   syncAll() {
     const s = this.state;
     // The close-up is for betting: a night that ends or a new run leaves it.
-    if (this.feltZoom && ((s.phase !== PHASE.BETTING && s.phase !== PHASE.ROUND_START) || this.view !== 'table')) this.zoomFelt(false);
+    if (this.feltZoom && !this.picking && ((s.phase !== PHASE.BETTING && s.phase !== PHASE.ROUND_START) || this.view !== 'table')) this.zoomFelt(false);
     this.table.syncChips(s);
     this.table.updateMarquee(s.history);
     this.hud.setCoins(s.coins);
     this.syncItems();
     this.syncSpins();
-    if (s.phase === PHASE.ROUND_START && !this.busy) this.table.showPackages(s);
+    // The night cards stand on the felt: they step aside while wheel work is placed.
+    if (s.phase === PHASE.ROUND_START && !this.busy && !this.picking) this.table.showPackages(s);
     else this.table.hidePackages();
     if (s.phase === PHASE.NIGHT_OVER && !this.busy) this.table.showEndCard(this.endCardLine());
     else this.table.hideEndCard();
@@ -264,10 +306,20 @@ export class Game {
    * sync of a run draws them at once.
    */
   syncWheel() {
-    const widths = wheelView(this.state).map((p) => p.width);
     const animate = this.wheelSynced === this.runId;
-    if (this.stage.wheel.setWidths(widths, { animate }) && animate) this.audio.widen();
+    const before = this.wheelWidths;
+    const pockets = wheelView(this.state);
+    this.wheelWidths = pockets.map((p) => `${p.id}:${p.width}`).join();
+    // The wheel groans when its pockets change size or come and go.
+    if (this.stage.wheel.setPockets(pockets, { animate }) && animate && before !== this.wheelWidths) this.audio.widen();
     this.wheelSynced = this.runId;
+    this.table.setNumbers(numbersView(this.state));
+    this.table.syncStats(statsView(this.state));
+    // The ball stays in the pocket it came to rest in while others come and go around it.
+    if (!this.ball.flying && this.state.lastSpin?.pocketId) {
+      const at = this.stage.wheel.indexOf(this.state.lastSpin.pocketId);
+      if (at >= 0 && at !== this.ball.pocket) this.ball.restAt(at);
+    }
   }
 
   /**
@@ -432,6 +484,8 @@ export class Game {
 
   turnTo(view) {
     if (this.busy && view !== 'table') return;
+    // Turning away puts down the wheel work being placed.
+    if (this.picking) this.cancelPick();
     if (view === this.view && this.director.current === view) return;
     this.leaveFelt();
     this.clearFocus();
@@ -439,7 +493,8 @@ export class Game {
     this.clearNote();
     this.hud.setView(view);
     // The Cabinet is a longer turn than the Cage.
-    this.director.goTo(view, { duration: view === 'cabinet' || this.director.current === 'cabinet' ? 0.75 : 0.6 });
+    // Every station is seen through your eyes: your figure fades (after the wheel-work shot from above).
+    this.director.goTo(view, { duration: view === 'cabinet' || this.director.current === 'cabinet' ? 0.75 : 0.6, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
     if (!this.busy) this.lighting.set(view);
     if (view === 'cabinet') this.seen.add('cabinet');
     this.updateHint();
@@ -456,6 +511,10 @@ export class Game {
 
   onClickBet(betId) {
     if (this.busy) return;
+    if (this.picking) {
+      this.pickBet(betId);
+      return;
+    }
     // On a phone the felt is small from the chair: a tap leans in first.
     if (this.touch && !this.feltZoom) {
       this.zoomFelt(true);
@@ -478,7 +537,7 @@ export class Game {
 
   /** A tap on a chip: off the felt (mouse), or picked up to put down elsewhere (touch). */
   onChipTapped(chipId) {
-    if (this.busy) return;
+    if (this.busy || this.picking) return;
     if (!this.touch) {
       if (this.state.placements[chipId]) this.removeChip(chipId);
       return;
@@ -534,6 +593,10 @@ export class Game {
     // At the main menu: the chip select steps back to the menu; the menu holds.
     if (this.atMenu) {
       this.menuBack();
+      return true;
+    }
+    if (this.picking) {
+      this.endWork();
       return true;
     }
     if (!this.feltZoom) return false;
@@ -613,6 +676,8 @@ export class Game {
         return { spec: betNote(s, target.betId), world: this.table.spotWorldPosition(target.betId) };
       case 'board':
         return { spec: boardNote(s), world: this.table.boardWorldPosition() };
+      case 'chalkboard':
+        return { spec: chalkboardNote(s), world: this.table.chalkboardWorldPosition() };
       case 'devil':
         return { spec: devilNote(s), world: this.cage.devilWorldPosition() };
       case 'lever':
@@ -675,6 +740,7 @@ export class Game {
         { kind: 'plaque', plaque: 'stake' },
         { kind: 'plaque', plaque: 'odds' },
         { kind: 'board' },
+        { kind: 'chalkboard' },
         ...bets.map((betId) => ({ kind: 'bet', betId })),
       ];
     }
@@ -749,6 +815,7 @@ export class Game {
     else if (target.kind === 'lever') this.pullLever();
     else if (target.kind === 'card') this.takeFortune(target.card);
     else if (target.kind === 'gramophone') this.openCrate();
+    else if (target.kind === 'chalkboard') this.openChalkboard();
     return true;
   }
 
@@ -1026,6 +1093,9 @@ export class Game {
       else if (e.effect === 'offersEngraved') parts.push('the Cabinet’s talismans are engraved');
       else if (e.effect === 'hung') parts.push(`${getTalisman(e.talisman).name} hangs on the rail`);
     }
+    // Wheel work a card did (Gold finds gold, Feed the zero): the pockets it changed.
+    const works = events.filter((e) => e.type === 'wheelWork');
+    if (works.length) parts.push(workLine(works).slice(0, -1));
     if (!parts.length) return '';
     const text = parts.join('; ');
     return `${text[0].toUpperCase()}${text.slice(1)}.`;
@@ -1104,6 +1174,11 @@ export class Game {
     const s = this.state;
     const offer = cabinetView(s).slots[slot];
     if (!offer) return;
+    // An oddity's work needs a place on the wheel: its card asks first.
+    if (offer.kind === 'oddity') {
+      this.offerSlot(slot);
+      return;
+    }
     if (offer.id && !offer.hookFree) {
       const best = Math.max(0, ...railView(s).map((v) => v.sellValue ?? 0));
       if (s.tokens + best >= offer.price) {
@@ -1200,7 +1275,7 @@ export class Game {
     if (v.status) lines.push(`<i>${escapeHtml(v.status)}</i>`);
     if (v.cursed) lines.push('<i>Cursed. It will not come off the hook.</i>');
     const actions = [{ label: 'Keep', primary: true, onClick: done() }];
-    if (v.active && v.usable) actions.push({ label: v.targetOnly ? 'Smash it' : 'Ring for it', onClick: done(() => this.ringBell(uid)) });
+    if (v.active && v.usable) actions.push({ label: v.work ? 'Stamp pockets' : v.targetOnly ? 'Smash it' : 'Ring for it', onClick: done(() => this.ringBell(uid)) });
     // Order matters (doc 5.8): move it along the rail without a drag.
     if (this.state.rail.length > 1) {
       const step = (dir) => () => {
@@ -1224,6 +1299,10 @@ export class Game {
       this.showNote({ kind: 'slot', slot });
       return;
     }
+    if (v.kind === 'oddity') {
+      this.offerOddity(slot, v);
+      return;
+    }
     this.clearNote();
     const spec = slotNote(this.state, slot);
     const lines = [escapeHtml(v.text)];
@@ -1238,6 +1317,233 @@ export class Game {
         { label: 'Not now' },
       ],
     });
+  }
+
+  /** The chalkboard's card: the wheel's chances in plain lines (doc 5.11). */
+  openChalkboard() {
+    if (this.busy || this.menuClose || this.picking) return;
+    this.clearNote();
+    const spec = chalkboardNote(this.state);
+    showModal({ kicker: spec.status.replace(/\.$/, ''), title: 'The chalkboard', lines: spec.lines.map(escapeHtml), actions: [{ label: 'Done', primary: true }] });
+  }
+
+  /** An oddity: its card, with Buy, which then asks where on the wheel its work goes. */
+  offerOddity(slot, v) {
+    this.clearNote();
+    const lines = [escapeHtml(v.text)];
+    if (!v.workable) lines.push('<i>There is nowhere on the wheel it could work now.</i>');
+    else if (!v.affordable) lines.push(`<i>${escapeHtml(format(v.short))} coins short.</i>`);
+    else lines.push('<i>You choose where it goes on the felt; it is paid for when its work is done.</i>');
+    const buy = () => {
+      const now = cabinetView(this.state).slots[slot];
+      if (!now?.affordable || !now.workable) {
+        this.audio.deny();
+        this.cabinet.deny({ kind: 'slot', slot });
+        this.hud.toast(!now?.workable ? 'There is nowhere on the wheel it could work now.' : 'Not enough coins.', 1800, 'deny');
+        return;
+      }
+      this.beginWork({
+        title: now.name,
+        works: now.picks,
+        done: (targets) => this.dispatch({ type: 'buyOddity', slot, targets }),
+        after: () => {
+          this.audio.buy();
+          this.cabinet.pulse(slot);
+        },
+      });
+    };
+    showModal({
+      kicker: `Curio Cabinet · oddity · ${v.rarity}`,
+      title: v.name,
+      lines,
+      actions: [{ label: `Buy · ${format(v.price)} coins`, primary: true, onClick: buy }, { label: 'Not now' }],
+    });
+  }
+
+  // ---- Wheel work (doc 5.4, 5.11): oddities and the Number Punches ------------
+
+  /**
+   * Choosing where wheel work goes: the felt close-up, with the numbers the
+   * work can act on lit and a bar saying what to tap. `job`: { title, works
+   * (its picks, in order), upTo (it may stop early: the Number Punches),
+   * done(targets) (dispatches; returns the events or null), after(events) }.
+   */
+  beginWork(job) {
+    if (this.busy || this.menuClose) return;
+    this.clearNote();
+    this.leaveFelt();
+    this.clearFocus();
+    this.picking = { ...job, chosen: [], stamp: null, from: this.view };
+    this.view = 'table';
+    this.hud.setView('table');
+    this.feltZoom = true;
+    this.hud.setZoomed(true);
+    this.lighting.set('table');
+    this.table.hidePackages();
+    this.table.hideEndCard();
+    this.director.goTo('felt', { duration: 0.6 });
+    this.updateNav();
+    this.showPick();
+  }
+
+  /** What the bar and the felt show for the next pick. */
+  showPick() {
+    const p = this.picking;
+    const view = pickView(this.state, p.works, p.chosen);
+    const stamping = view.work.op === 'stamp';
+    const count = p.works.length;
+    const step = count > 1 && !p.upTo ? ` (${p.chosen.length + 1} of ${count})` : p.upTo ? ` (${p.chosen.length} of ${count} so far)` : '';
+    let valid;
+    let prompt;
+    if (stamping && p.stamp) {
+      const pocket = this.state.wheel.pockets.find((x) => x.id === p.stamp);
+      valid = Array.from({ length: 37 }, (_, n) => n).filter((n) => n !== pocket.number);
+      prompt = `Stamp it with which number?`;
+    } else {
+      valid = Array.from({ length: 37 }, (_, n) => n).filter((n) => (view.work.on === 'number' ? view.numbers[n] : view.numbers[n].length));
+      prompt = `${WORK_PROMPT[view.work.op](view.work)}${step}`;
+    }
+    const chosenNumbers = p.chosen.map((t) => (typeof t === 'number' ? t : this.numberOfPocket(typeof t === 'object' ? t.pocket : t))).filter((n) => n !== null);
+    this.table.setPicking({ valid, chosen: chosenNumbers });
+    const actions = [{ label: 'Cancel', onClick: () => this.endWork() }];
+    // Blank pockets have no number on the felt: a button stands for them.
+    if (view.blanks.length && !(stamping && p.stamp)) actions.push({ label: 'A blank pocket', onClick: () => this.pickPocket(view.blanks[0].id) });
+    if (p.upTo && p.chosen.length && !p.stamp) actions.push({ label: 'Done', primary: true, onClick: () => this.finishWork() });
+    this.hud.setPicking({ title: p.title, prompt, actions });
+  }
+
+  numberOfPocket(id) {
+    return this.state.wheel.pockets.find((x) => x.id === id)?.number ?? null;
+  }
+
+  /** A tap on the felt while choosing: the number under it. */
+  pickBet(betId) {
+    const p = this.picking;
+    const bet = getBet(betId);
+    if (bet.kind !== 'straight') {
+      this.hud.toast('Tap a number.', 1400);
+      return;
+    }
+    const n = bet.numbers[0];
+    const view = pickView(this.state, p.works, p.chosen);
+    if (view.work.op === 'stamp' && p.stamp) {
+      if (this.numberOfPocket(p.stamp) === n) return this.denyPick(`It reads ${n} already.`);
+      p.chosen.push({ pocket: p.stamp, number: n });
+      p.stamp = null;
+      this.afterPick();
+      return;
+    }
+    if (view.work.on === 'number') {
+      if (!view.numbers[n]) return this.denyPick(workRefusal(this.state, view.work, n) ?? 'Not there.');
+      p.chosen.push(n);
+      this.afterPick();
+      return;
+    }
+    const options = view.numbers[n];
+    if (!options.length) {
+      const any = this.state.wheel.pockets.find((x) => x.number === n);
+      return this.denyPick(any ? (workRefusal(this.state, view.work, view.work.op === 'stamp' ? { pocket: any.id, number: 0 } : any.id) ?? 'Not there.') : `No pocket reads ${n}.`);
+    }
+    // Pockets that look alike work alike: the first will do. Otherwise, which one?
+    const looks = new Map(options.map((o) => [`${o.color}|${o.enh}|${o.width}`, o]));
+    if (looks.size === 1) {
+      this.pickPocket(options[0].id);
+      return;
+    }
+    showModal({
+      kicker: p.title,
+      title: `Which ${n}?`,
+      lines: [`${options.length} pockets read ${n}.`],
+      actions: [...looks.values()].map((o) => ({ label: describePocket(o), onClick: () => this.pickPocket(o.id) })).concat({ label: 'Neither' }),
+    });
+  }
+
+  denyPick(reason) {
+    this.audio.deny();
+    this.hud.toast(reason, 1600, 'deny');
+  }
+
+  pickPocket(id) {
+    const p = this.picking;
+    if (!p) return;
+    const view = pickView(this.state, p.works, p.chosen);
+    if (view.work.op === 'stamp') {
+      p.stamp = id;
+      this.audio.chip();
+      this.showPick();
+      return;
+    }
+    p.chosen.push(id);
+    this.afterPick();
+  }
+
+  afterPick() {
+    const p = this.picking;
+    this.audio.chip();
+    if (p.chosen.length >= p.works.length) this.finishWork();
+    else this.showPick();
+  }
+
+  /** Every pick chosen (or Done): the work is done, paid for, and shown on the wheel. */
+  finishWork() {
+    const p = this.picking;
+    const events = p.done(p.chosen);
+    const from = p.from;
+    this.cancelPick();
+    if (!events) {
+      this.returnTo(from);
+      return;
+    }
+    p.after?.(events);
+    this.syncAll();
+    this.showWork(events, from);
+  }
+
+  /** Puts the work down: the bar goes, the felt lights again, the night cards stand back up. */
+  cancelPick() {
+    if (!this.picking) return;
+    this.picking = null;
+    this.hud.setPicking(null);
+    this.table.setPicking(null);
+    this.leaveFelt();
+    this.syncAll();
+  }
+
+  /** Cancel: back to where the work was picked up. */
+  endWork() {
+    const from = this.picking?.from ?? 'table';
+    this.cancelPick();
+    this.returnTo(from);
+  }
+
+  returnTo(view) {
+    this.view = view;
+    this.hud.setView(view);
+    this.lighting.set(view);
+    this.director.goTo(view, { duration: 0.6, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
+    this.updateHint();
+    this.updateNav();
+  }
+
+  /**
+   * The wheel, from above, while it takes the work: pockets swell, take their
+   * gilt or paint, come and go. A line says what changed; then back.
+   */
+  showWork(events, from) {
+    const works = events.filter((e) => e.type === 'wheelWork');
+    if (!works.length) return this.returnTo(from);
+    this.audio.work(works.some((e) => e.op === 'gild'));
+    // The wheel's bulb comes up, as for a spin, so the work shows.
+    if (this.lighting.set('spin')) this.audio.clunk();
+    // From above you see yourself at the table, as in a spin.
+    this.director.goTo('wide', { duration: 0.6, onProgress: (e) => e > 0.3 && this.stage.setFigureGhost(false) });
+    this.hud.flavor([[workLine(works), 'bone']], 2200);
+    const id = this.runId;
+    clearTimeout(this.workTimer);
+    this.workTimer = setTimeout(() => {
+      if (id !== this.runId || this.busy || this.picking || this.director.current !== 'wide') return;
+      this.returnTo(from);
+    }, 2400);
   }
 
   /** The crank: a card, with Restock and its price. */
@@ -1316,20 +1622,36 @@ export class Game {
     return true;
   }
 
-  /** The Bell: the next talisman in line, or the one whose tag was clicked. */
-  ringBell(uid) {
+  /**
+   * The Bell: the next talisman in line, or the one whose tag was clicked. A
+   * talisman that works on the wheel (the Number Punches) first asks where:
+   * its ring carries the `targets` chosen on the felt.
+   */
+  ringBell(uid, targets) {
     if (this.busy || this.menuClose || (uid && !this.onRail(uid))) return;
-    const events = this.dispatch(uid ? { type: 'ringBell', uid } : { type: 'ringBell' });
+    const v = uid ? railView(this.state).find((x) => x.uid === uid) : null;
+    if (v?.work && !targets) {
+      if (!v.usable) {
+        this.bell.ring(false);
+        this.audio.bell('dull');
+        this.hud.toast('It does not answer.');
+        return;
+      }
+      const works = Array.from({ length: v.work.picks }, () => v.work);
+      this.beginWork({ title: v.name, works, upTo: true, done: (chosen) => this.ringBell(uid, chosen) });
+      return;
+    }
+    const events = this.dispatch(uid ? { type: 'ringBell', uid, ...(targets ? { targets } : {}) } : { type: 'ringBell' });
     if (!events) {
       this.bell.ring(false);
-      return;
+      return null;
     }
     const rung = events.find((e) => e.type === 'bellRung');
     this.bell.ring(!!rung.uid);
     if (!rung.uid) {
       this.audio.bell('dull');
       this.hud.toast('Nothing answers.');
-      return;
+      return events;
     }
     this.audio.bell('ding');
     const name = getTalisman(rung.id).name;
@@ -1351,8 +1673,12 @@ export class Game {
         this.hud.flavor(
           [
             ['The eye sees ', 'dim'],
-            [`${e.number} `, e.color === 'red' ? 'blood' : e.color === 'green' ? 'green' : 'bone'],
-            [e.color, 'dim'],
+            ...(e.number === null
+              ? [['a blank pocket', 'bone']]
+              : [
+                  [`${e.number} `, e.color === 'red' ? 'blood' : e.color === 'green' ? 'green' : 'bone'],
+                  [e.color, 'dim'],
+                ]),
           ],
           2400,
         );
@@ -1383,7 +1709,7 @@ export class Game {
   /** From Space or a flung wheel. Returns true if a spin started. */
   requestSpin() {
     const s = this.state;
-    if (this.busy || this.menuClose || this.ball.flying) return false;
+    if (this.busy || this.menuClose || this.ball.flying || this.picking) return false;
     if (s.phase === PHASE.ROUND_START) {
       this.hud.toast('Choose how to spend the night first.');
       return false;
@@ -1497,7 +1823,7 @@ export class Game {
       this.table.flashResult(first.number);
       this.hud.flavor(
         [
-          [`${first.number} `, colorTone(first.color)],
+          [first.number === null ? 'A blank ' : `${first.number} `, colorTone(first.color)],
           // Nudge can move the ball off the foreseen pocket.
           [result.foreseen && !result.firstHops.length ? 'as foreseen, pays nothing...' : 'pays nothing...', 'dim'],
         ],
@@ -1534,9 +1860,10 @@ export class Game {
       this.table.flashResult(result.number);
       this.hud.flavor(
         [
-          [`${result.number} `, colorTone(result.color)],
+          // A blank pocket has no number and no colour: nothing wins there.
+          [result.number === null ? 'Blank. ' : `${result.number} `, colorTone(result.color)],
           // After a re-throw the Eye's landing was thrown away: this one was not foreseen.
-          [result.foreseen && !first && !result.hops.length ? `${result.color}, as foreseen` : result.color, 'dim'],
+          [result.number === null ? 'Nothing wins there.' : result.foreseen && !first && !result.hops.length ? `${result.color}, as foreseen` : result.color, 'dim'],
         ],
         1300,
       );
@@ -1569,7 +1896,11 @@ export class Game {
     }
     this.hud.setCoins(this.state.coins, { animate: !isBig(this.state.coins) });
     const gone = this.announceGone(detail);
-    if (gone) this.hud.toast(gone, 2600);
+    // A Glass pocket that broke under the ball (doc 6.5).
+    const shattered = detail.find((e) => e.type === 'pocketShattered');
+    if (shattered) this.audio.shatter();
+    const said = [shattered && `The glass pocket shatters: ${shattered.number} is a blank now.`, gone].filter(Boolean).join(' ');
+    if (said) this.hud.toast(said, 2800);
 
     this.busy = false;
     this.setLocked(false);

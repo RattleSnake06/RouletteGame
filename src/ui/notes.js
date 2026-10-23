@@ -1,8 +1,8 @@
 import { BET_KINDS, getBet } from '../core/bets.js';
-import { contentName, getTalisman } from '../core/content/index.js';
+import { contentName, getEnhancement, getTalisman } from '../core/content/index.js';
 import { RARITY } from '../core/economy.js';
 import { gte } from '../core/num.js';
-import { bellView, cabinetView, gramophoneView, luckView, oracleView, previewBet, railView, rarityOdds } from '../core/selectors.js';
+import { betChance, bellView, cabinetView, gramophoneView, luckView, oracleView, previewBet, railView, rarityOdds, statsView } from '../core/selectors.js';
 
 // What each object's note says (design doc 8.4): plain specs for hud.note,
 // read from the run's state. Nothing here changes the run.
@@ -32,6 +32,8 @@ export function effectText(step) {
       return 'counts';
     case 'chipValue':
       return `+${n} value`;
+    case 'chipBase':
+      return `+${n} value, for good`;
     case 'coins':
       return `+${n}`;
     case 'tokens':
@@ -74,12 +76,14 @@ export function betNote(state, betId) {
   const bet = getBet(betId);
   const base = BET_KINDS[bet.kind].odds;
   const preview = previewBet(state, betId);
-  if (!preview) return { title: bet.label, pays: { odds: base } };
+  // How often it wins on the wheel as built (doc 5.4); nothing, if no pocket carries it.
+  const status = `Wins ${pct1(betChance(state, betId))} of spins on this wheel, before Nudge.`;
+  if (!preview) return { title: bet.label, pays: { odds: base }, status };
   const sources = preview.sources
     .filter((s) => ['stake', 'odds', 'oddsMult', 'mult'].includes(s.effect))
     .map((s) => [s.as !== s.id ? `${nameOf(s.id)} (${nameOf(s.as)})` : nameOf(s.id), effectText(s)]);
   if (preview.paysMax > preview.pays) sources.push(['on some numbers', `up to ${preview.paysMax}×`]);
-  return { title: bet.label, pays: { odds: preview.pays, base, sources } };
+  return { title: bet.label, pays: { odds: preview.pays, base, sources }, status };
 }
 
 export function talismanNote(state, uid, { tag = false } = {}) {
@@ -113,8 +117,16 @@ export function talismanNote(state, uid, { tag = false } = {}) {
 export function slotNote(state, slot) {
   const view = cabinetView(state).slots[slot];
   if (!view) return null;
-  if (view.kind !== 'talisman') return { title: 'Not yet', lines: ['This compartment is boarded up. Oddities come later.'] };
   if (view.sold) return { title: 'Sold', lines: ['Restocked at the start of each night, or with the crank.'] };
+  if (view.kind === 'oddity') {
+    return {
+      title: view.name,
+      rarity: view.rarity,
+      lines: [view.text],
+      status: view.workable ? 'Wheel work: you choose where it goes on the felt.' : 'There is nowhere on the wheel it could work now.',
+      price: { amount: view.price, unit: 'coins', ok: view.affordable, short: view.affordable ? '' : `${view.short} short` },
+    };
+  }
   const lines = [view.text];
   if (view.engraving) lines.push(`Engraved ${view.engraving.name}: ${view.engraving.text}`);
   return {
@@ -130,7 +142,7 @@ export function crankNote(state) {
   const view = cabinetView(state);
   return {
     title: 'Restock',
-    lines: ['New talismans in every compartment. Free at the start of each night.'],
+    lines: ['New talismans and a new oddity in the compartments. Free at the start of each night.'],
     status: `Then ${view.nextRestockCost}. The price resets each debt.`,
     price: { label: 'costs', amount: view.restockCost, unit: 'coins', ok: gte(state.coins, view.restockCost) },
   };
@@ -152,8 +164,37 @@ export function bellNote(state) {
   const lines = names.length
     ? [`Rings the next talisman in line: ${names.join(', then ')}.`]
     : ['Nothing would answer it now.'];
-  if (state.rail.some((t) => getTalisman(t.id)?.bell?.targetOnly)) lines.push('The Piggy Bank answers only a ring at its tag.');
+  const own = state.rail.filter((t) => getTalisman(t.id)?.bell?.targetOnly).map((t) => nameOf(t.id));
+  if (own.length) lines.push(`${[...new Set(own)].join(' and ')} answer${own.length === 1 ? 's' : ''} only a ring at ${own.length === 1 ? 'its' : 'their'} tag.`);
   return { title: 'The Bell', lines, status: 'B rings it.' };
+}
+
+const pct1 = (p) => `${Math.round(p * 1000) / 10}%`;
+
+/**
+ * The stats chalkboard (doc 5.11): the wheel in a few lines. The numbers
+ * most above their fair chance, the colours, dozens and columns, and what
+ * wheel work has done to which pockets.
+ */
+export function chalkboardNote(state) {
+  const v = statsView(state);
+  const lines = [];
+  const c = v.colors;
+  lines.push(`Red ${pct1(c.red)}, black ${pct1(c.black)}, zero ${pct1(c.green)}${v.blanks ? `, blank ${pct1(c.blank)}` : ''}.`);
+  lines.push(`Dozens ${v.dozens.map(pct1).join(', ')}. Columns ${v.columns.map(pct1).join(', ')}.`);
+  const up = v.numbers.filter((n) => n.chance > v.fair * 1.02).sort((a, b) => b.chance - a.chance);
+  if (up.length) lines.push(`Above the fair ${pct1(v.fair)}: ${up.slice(0, 6).map((n) => `${n.number} (${pct1(n.chance)})`).join(', ')}${up.length > 6 ? '…' : ''}.`);
+  const gone = v.numbers.filter((n) => !n.count).map((n) => n.number);
+  if (gone.length) lines.push(`No pocket reads ${gone.join(', ')}.`);
+  const groups = new Map();
+  for (const e of v.enhanced) if (e.enh !== 'blank') groups.set(e.name, [...(groups.get(e.name) ?? []), e.number]);
+  for (const [name, ns] of groups) lines.push(`${name}: ${ns.join(', ')}. ${getEnhancement(v.enhanced.find((e) => e.name === name).enh).text}`);
+  if (v.blanks) lines.push(`${plural(v.blanks, 'blank pocket')}: nothing wins there.`);
+  return {
+    title: 'The chalkboard',
+    lines,
+    status: v.pockets === v.plainPockets ? `${v.pockets} pockets.` : `${v.pockets} pockets, of the House's ${v.plainPockets}.`,
+  };
 }
 
 /** The results board: the LEAN lamp, the next spin's Nudge, and pity. */

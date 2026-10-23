@@ -1,4 +1,4 @@
-import { contentName, getTalisman } from './core/content/index.js';
+import { contentName, getEnhancement, getTalisman } from './core/content/index.js';
 import { add, format } from './core/num.js';
 import { baseFactors } from './core/payout.js';
 import { effectText } from './ui/notes.js';
@@ -10,7 +10,7 @@ import { effectText } from './ui/notes.js';
 
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 
-const PAYOUT_HOOKS = new Set(['hits', 'ballLanded', 'covers', 'chipStake', 'chipOdds', 'chipMult', 'chipPaid', 'chipLost', 'spinPaid']);
+const PAYOUT_HOOKS = new Set(['hits', 'ballLanded', 'covers', 'chipStake', 'chipOdds', 'chipMult', 'pocketMult', 'chipPaid', 'chipLost', 'spinPaid']);
 // Luck acts before the payout and is shown where it acts: Nudge during the
 // hops, the Devil's chance and the wheel's widths as the ball is thrown.
 const SHOWN_BEFORE = new Set(['nudge', 'devilChance', 'widths']);
@@ -67,11 +67,14 @@ export async function playPayout(deps, events, { fast, coinsBefore, alive = () =
         // talisman. A record or a lasting fortune hangs nowhere: it pops over
         // the board, named, and so is an engraving, at its talisman.
         // A chip's material pops at the chip, unnamed: the chip is what acts.
+        // A pocket's enhancement pops at the chip it pays, named (×2 gilded),
+        // or over the board when it pays whatever was bet (a Bone pocket).
         const onRail = rail.talismanWorldPosition(e.src.uid);
-        const atChip = (e.effect === 'coins' || e.src.chip) && e.chipId;
+        const atChip = (e.effect === 'coins' || e.src.chip || e.src.pocket) && e.chipId;
         const at = atChip ? table.chipWorldPosition(e.chipId) : (onRail ?? table.boardWorldPosition());
         let name = e.src.as !== e.src.id ? ` (${contentName(e.src.as)})` : '';
         if (!getTalisman(e.src.id)) name = e.src.chip ? '' : ` ${contentName(e.src.id)}`;
+        if (e.src.pocket) name = ` ${getEnhancement(e.src.id)?.name.toLowerCase() ?? ''}${e.chipId ? '' : ' pocket'}`;
         popAt(at, `${label}${name}`, e.effect === 'tokens' ? 'tok' : 'trigger');
       }
       audio.trigger(k);

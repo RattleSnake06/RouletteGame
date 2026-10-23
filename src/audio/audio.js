@@ -310,6 +310,20 @@ export class WheelAudio {
     this._tone({ freq: 96, to: 88, gain: 0.05, decay: 0.8, type: 'triangle', at: 0.05 });
   }
 
+  /** A Glass pocket shatters: a hard crack and a spill of shards. */
+  shatter() {
+    this._burst({ freq: 4200, q: 1.1, gain: 0.3, decay: 0.1 });
+    this._burst({ freq: 1200, q: 0.8, gain: 0.18, decay: 0.18, type: 'lowpass' });
+    for (let i = 0; i < 12; i++) this._tone({ freq: 2400 + Math.random() * 3200, gain: 0.03, decay: 0.12, type: 'triangle', at: 0.04 + i * 0.035 });
+  }
+
+  /** Wheel work done: a jeweller's tap on brass, and a bright ring for gilt. */
+  work(bright = false) {
+    this._burst({ freq: 2600, q: 6, gain: 0.08, decay: 0.05 });
+    this._tone({ freq: bright ? 1568 : 784, gain: 0.05, decay: bright ? 0.9 : 0.35, type: 'sine', at: 0.02 });
+    if (bright) this._tone({ freq: 2349, gain: 0.03, decay: 0.8, type: 'sine', at: 0.08 });
+  }
+
   /** Holy Water turns the Devil away: the vial cracks and a clear note rings out. */
   ward() {
     this._burst({ freq: 5200, q: 1.5, gain: 0.22, decay: 0.12 });

@@ -129,6 +129,16 @@ const COLORS = {
   black: '#141212',
   green: '#1c7a43',
 };
+// The felt's mark for each pocket enhancement (doc 6.5), as on the wheel.
+const ENH_DOT = {
+  gilded: '#e2b45a',
+  platinum: '#eef2f6',
+  glass: '#a9dcf2',
+  bone: '#e2d6b6',
+  ember: '#ff7a1c',
+  lucky: '#4fae5d',
+  cursed: '#6f9c4e',
+};
 
 export class FeltCanvas {
   constructor({ width = 2048 } = {}) {
@@ -137,10 +147,18 @@ export class FeltCanvas {
     this.height = Math.round((LAYOUT_H + 2 * MARGIN) * this.px);
     this.metersPerUnit = 0.075;
 
+    // The felt and its lines are drawn once; the numbers follow the wheel
+    // (doc 5.4): its paint, "×2" for a number with two pockets, a struck-out
+    // number no pocket carries, a mark for each enhancement.
+    this.ground = document.createElement('canvas');
+    this.ground.width = this.width;
+    this.ground.height = this.height;
+    this._drawBase(this.ground.getContext('2d'));
     this.base = document.createElement('canvas');
     this.base.width = this.width;
     this.base.height = this.height;
-    this._drawBase(this.base.getContext('2d'));
+    this.numbersKey = null;
+    this.setNumbers(null);
 
     this.texture = new THREE.CanvasTexture(this.base);
     this.texture.colorSpace = THREE.SRGBColorSpace;
@@ -229,19 +247,8 @@ export class FeltCanvas {
     for (let k = 0; k <= 3; k++) this._line(ctx, u(1 + 4 * k), u(3), u(1 + 4 * k), u(DOZEN_BOTTOM));
     for (let k = 0; k <= 6; k++) this._line(ctx, u(1 + 2 * k), u(DOZEN_BOTTOM), u(1 + 2 * k), u(LAYOUT_H));
 
-    // Numbers on red, black and green badges.
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    for (let n = 0; n <= 36; n++) {
-      const c = cellCenter(n);
-      const fill = n === 0 ? COLORS.green : RED_NUMBERS.has(n) ? COLORS.red : COLORS.black;
-      const bw = n === 0 ? 0.62 : 0.66;
-      const bh = n === 0 ? 1.0 : 0.62;
-      this._badge(ctx, u(c.x), u(c.y), bw * px, bh * px, fill);
-      ctx.fillStyle = COLORS.ink;
-      ctx.font = `600 ${Math.round(px * 0.4)}px Oswald, "Arial Narrow", sans-serif`;
-      ctx.fillText(String(n), u(c.x), u(c.y) + px * 0.02);
-    }
 
     // "2 to 1" on each column box, turned to read along the box.
     ctx.font = `500 ${Math.round(px * 0.26)}px Oswald, "Arial Narrow", sans-serif`;
@@ -274,6 +281,79 @@ export class FeltCanvas {
     ctx.strokeRect(u(-0.2), u(-0.2), u(LAYOUT_W + 0.2) - u(-0.2), u(LAYOUT_H + 0.2) - u(-0.2));
   }
 
+  /**
+   * Redraws the numbers for the wheel as it is (selectors' numbersView
+   * `numbers`: each with the pockets that carry it), or the House's own
+   * wheel for null. Does nothing when nothing on the felt would change.
+   */
+  setNumbers(numbers) {
+    const list = numbers ?? Array.from({ length: 37 }, (_, n) => ({ number: n, pockets: [{ color: n === 0 ? 'green' : RED_NUMBERS.has(n) ? 'red' : 'black', enh: null }] }));
+    const key = JSON.stringify(list.map((x) => x.pockets.map((p) => [p.color, p.enh])));
+    if (key === this.numbersKey) return false;
+    this.numbersKey = key;
+    const ctx = this.base.getContext('2d');
+    ctx.drawImage(this.ground, 0, 0);
+    const px = this.px;
+    const u = (v) => this._u(v);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const { number: n, pockets } of list) {
+      const c = cellCenter(n);
+      const bw = (n === 0 ? 0.62 : 0.66) * px;
+      const bh = (n === 0 ? 1.0 : 0.62) * px;
+      const x = u(c.x);
+      const y = u(c.y);
+      ctx.font = `600 ${Math.round(px * 0.4)}px Oswald, "Arial Narrow", sans-serif`;
+      if (!pockets.length) {
+        // No pocket reads this number any more: a ghost of the badge, struck out.
+        ctx.save();
+        ctx.strokeStyle = 'rgba(224, 204, 152, 0.35)';
+        ctx.lineWidth = Math.max(2, px * 0.025);
+        ctx.setLineDash([px * 0.06, px * 0.05]);
+        ctx.beginPath();
+        ctx.roundRect(x - bw / 2, y - bh / 2, bw, bh, Math.min(bw, bh) * 0.32);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(243, 236, 220, 0.3)';
+        ctx.fillText(String(n), x, y + px * 0.02);
+        ctx.strokeStyle = 'rgba(224, 204, 152, 0.6)';
+        ctx.beginPath();
+        ctx.moveTo(x - bw * 0.42, y + bh * 0.3);
+        ctx.lineTo(x + bw * 0.42, y - bh * 0.3);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
+      // The badge in its paint; split down the middle when its pockets differ.
+      const colors = [...new Set(pockets.map((p) => p.color))];
+      this._badge(ctx, x, y, bw, bh, COLORS[colors[0]] ?? COLORS.black, COLORS[colors[1]] ?? null);
+      ctx.fillStyle = COLORS.ink;
+      ctx.fillText(String(n), x, y + px * 0.02);
+      if (pockets.length > 1) {
+        ctx.font = `600 ${Math.round(px * 0.2)}px Oswald, "Arial Narrow", sans-serif`;
+        ctx.fillStyle = COLORS.line;
+        ctx.fillText(`×${pockets.length}`, x + px * 0.32, y - (n === 0 ? px * 0.62 : px * 0.36));
+      }
+      // A dot for each enhanced pocket, along the cell's foot.
+      const marks = pockets.map((p) => p.enh).filter((e) => ENH_DOT[e]);
+      marks.forEach((e, i) => {
+        const dx = (i - (marks.length - 1) / 2) * px * 0.15;
+        const dy = n === 0 ? px * 0.62 : px * 0.39;
+        ctx.save();
+        ctx.fillStyle = ENH_DOT[e];
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.lineWidth = px * 0.015;
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, px * 0.055, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+    if (this.texture) this.texture.needsUpdate = true;
+    return true;
+  }
+
   _line(ctx, x0, y0, x1, y1) {
     ctx.beginPath();
     ctx.moveTo(x0, y0);
@@ -281,7 +361,7 @@ export class FeltCanvas {
     ctx.stroke();
   }
 
-  _badge(ctx, cx, cy, w, h, fill) {
+  _badge(ctx, cx, cy, w, h, fill, second = null) {
     const r = Math.min(w, h) * 0.32;
     ctx.save();
     ctx.fillStyle = fill;
@@ -290,6 +370,12 @@ export class FeltCanvas {
     ctx.beginPath();
     ctx.roundRect(cx - w / 2, cy - h / 2, w, h, r);
     ctx.fill();
+    if (second) {
+      ctx.shadowBlur = 0;
+      ctx.clip();
+      ctx.fillStyle = second;
+      ctx.fillRect(cx, cy - h / 2, w / 2, h);
+    }
     ctx.restore();
   }
 
@@ -313,12 +399,35 @@ export class FeltCanvas {
    * Light up the numbers a bet covers (hover) and/or a landed number (result).
    * `numbers` is a list of numbers; `spot` optionally marks the chip position.
    */
-  highlight({ numbers = [], spotId = null, result = null, foreseen = null } = {}) {
+  highlight({ numbers = [], spotId = null, result = null, foreseen = null, pick = null } = {}) {
     const ctx = this.overlay.getContext('2d');
     const s = 0.5; // overlay is half resolution
     const u = (v) => this._u(v) * s;
     const px = this.px * s;
     ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
+    if (pick) {
+      // Choosing where wheel work goes: the felt sinks into the dark but for
+      // the numbers it can act on; the ones already chosen wear a bone ring.
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
+      ctx.fillRect(0, 0, this.overlay.width, this.overlay.height);
+      ctx.strokeStyle = 'rgba(243, 223, 176, 0.9)';
+      ctx.lineWidth = Math.max(1.5, px * 0.04);
+      for (const n of pick.valid) {
+        const r = cellRect(n);
+        ctx.clearRect(u(r.x0), u(r.y0), (r.x1 - r.x0) * px, (r.y1 - r.y0) * px);
+        ctx.strokeRect(u(r.x0) + 2, u(r.y0) + 2, (r.x1 - r.x0) * px - 4, (r.y1 - r.y0) * px - 4);
+      }
+      ctx.save();
+      ctx.strokeStyle = 'rgba(237, 229, 211, 1)';
+      ctx.lineWidth = px * 0.07;
+      for (const n of pick.chosen ?? []) {
+        const c = cellCenter(n);
+        ctx.beginPath();
+        ctx.arc(u(c.x), u(c.y), px * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     ctx.fillStyle = 'rgba(255, 236, 190, 0.22)';
     ctx.strokeStyle = 'rgba(255, 236, 190, 0.85)';
@@ -373,7 +482,14 @@ export class FeltCanvas {
   }
 }
 
-/** Numbers to light up when a bet is hovered (colour bets light their pockets). */
-export function numbersFor(betId) {
-  return getBet(betId).numbers;
+/**
+ * Numbers to light up when a bet is hovered. Colour bets light the numbers
+ * painted their colour (`numbers`: selectors' numbersView), as the paint
+ * decides what they win.
+ */
+export function numbersFor(betId, numbers = null) {
+  const bet = getBet(betId);
+  const color = BET_KINDS[bet.kind].color;
+  if (!color || !numbers) return bet.numbers;
+  return numbers.filter((x) => x.pockets.some((p) => p.color === color)).map((x) => x.number);
 }

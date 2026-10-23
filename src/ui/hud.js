@@ -86,6 +86,7 @@ export function createHud(root = document.body) {
     <button class="hud-menu" data-k="menu" type="button" aria-label="Menu"></button>
     <button class="hud-spin" data-k="spin" type="button" aria-label="Spin (hold to spin fast)" hidden><span class="typed">Spin</span></button>
     <button class="hud-back typed" data-k="back" type="button" hidden>&#8593; The wheel</button>
+    <div class="hud-pick" data-k="pick" role="dialog" aria-live="polite" hidden></div>
     <div class="hud-loupe" data-k="loupe" aria-hidden="true"><canvas></canvas><span class="label typed"></span></div>
     <div class="hud-note" data-k="tooltip" aria-live="polite"><div class="note-body"></div></div>
     <div class="hud-toast typed" data-k="toast"><span></span></div>
@@ -119,6 +120,7 @@ export function createHud(root = document.body) {
     menu: $('menu'),
     spinBtn: $('spin'),
     back: $('back'),
+    pick: $('pick'),
     loupe: $('loupe'),
     tooltip: $('tooltip'),
     toast: $('toast'),
@@ -506,6 +508,36 @@ export function createHud(root = document.body) {
     refs.back.hidden = !on;
   }
 
+  /**
+   * Choosing where wheel work goes (doc 5.4): a bar over the felt's foot
+   * naming the work, what to tap, and its buttons ({ label, primary,
+   * onClick }). null puts it away.
+   */
+  function setPicking(spec) {
+    hud.classList.toggle('picking', !!spec);
+    const box = refs.pick;
+    box.hidden = !spec;
+    box.textContent = '';
+    if (!spec) return;
+    const title = document.createElement('div');
+    title.className = 'pick-title scrawl fat';
+    title.textContent = spec.title;
+    const prompt = document.createElement('div');
+    prompt.className = 'pick-prompt typed';
+    prompt.textContent = spec.prompt;
+    const row = document.createElement('div');
+    row.className = 'pick-actions';
+    for (const a of spec.actions) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `pick-btn typed${a.primary ? ' primary' : ''}`;
+      b.textContent = a.label;
+      b.addEventListener('click', a.onClick);
+      row.append(b);
+    }
+    box.append(title, prompt, row);
+  }
+
   // The magnifier: the felt under the finger, shown beside it, never under it.
   const LOUPE = 132;
   const loupeCanvas = refs.loupe.querySelector('canvas');
@@ -581,6 +613,7 @@ export function createHud(root = document.body) {
     setMode,
     setSpinButton,
     setZoomed,
+    setPicking,
     showLoupe,
     hideLoupe,
     setView,
