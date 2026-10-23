@@ -63,7 +63,10 @@ const catCrosses = (state) => (state.stats.spins + 1) % 13 === 0;
 // lacked at some rarity. Some wait for a lock of the Vault or a feat in the
 // Almanac (`unlock`, decision 29).
 const P7 = {
-  chalk: 1, // spins' worth of coins for a ball on an odd number
+  chalk: 2, // spins' worth of coins for a ball on an odd number
+  wishbone: 3, // spins a night that pay nothing and give their cost back
+  hourglass: 2, // spins added to every night
+  tally: 2, // Tally Stick: Stake on a bet that won last spin
   cookie: 3, // Fortune Cookie: straight-ups on the named number ×
   shard: 0.5, // Mirror Shard: the pocket opposite pays at ×
   tableMap: 0.5, // Table Map: a split or corner beside the number pays at ×
@@ -765,7 +768,7 @@ export const TALISMAN_LIST = [
     name: 'Chalk Stub',
     rarity: 'common',
     tags: ['economy'],
-    text: 'Whenever a ball lands on an odd number: coins worth a spin.',
+    text: `Whenever a ball lands on an odd number: coins worth ${P7.chalk} spins.`,
     hooks: {
       ballLanded(ctx) {
         if (isOdd(ctx.landing.number)) ctx.bonusCoins(mul(spinCostFor(ctx.state.debt), P7.chalk));
@@ -777,13 +780,19 @@ export const TALISMAN_LIST = [
     name: 'Wishbone',
     rarity: 'common',
     tags: ['economy', 'safety'],
-    text: 'The first spin each night that pays nothing gives its spin’s cost back.',
-    status: (data, state) => (data.night === tonight(state) ? 'Snapped tonight.' : 'Whole tonight.'),
+    text: `The first ${P7.wishbone} spins each night that pay nothing give their spin’s cost back.`,
+    status: (data, state) => {
+      const left = P7.wishbone - (data.night === tonight(state) ? data.snaps ?? 0 : 0);
+      return left ? `${left} left tonight.` : 'Snapped tonight.';
+    },
     hooks: {
       spinPaid(ctx) {
-        if (ctx.winners || ctx.self.night === tonight(ctx.state)) return;
+        if (ctx.winners) return;
+        const snaps = ctx.self.night === tonight(ctx.state) ? ctx.self.snaps ?? 0 : 0;
+        if (snaps >= P7.wishbone) return;
         ctx.bonusCoins(spinCostFor(ctx.state.debt));
         ctx.setData('night', tonight(ctx.state));
+        ctx.setData('snaps', snaps + 1);
       },
     },
   },
@@ -805,10 +814,10 @@ export const TALISMAN_LIST = [
     name: 'Hourglass',
     rarity: 'uncommon',
     tags: ['tempo', 'economy'],
-    text: '+1 spin every night you play.',
+    text: `+${P7.hourglass} spins every night you play.`,
     hooks: {
       nightSpins(ctx) {
-        ctx.addSpins(1);
+        ctx.addSpins(P7.hourglass);
       },
     },
   },
@@ -817,8 +826,11 @@ export const TALISMAN_LIST = [
     name: 'Saint’s Medal',
     rarity: 'uncommon',
     tags: ['zero', 'colour'],
-    text: 'A green zero counts as red and as black.',
+    text: 'Chips on Red and Black +1 Stake, and a green zero counts as red and as black.',
     hooks: {
+      chipStake(ctx) {
+        if (ctx.bet.kind === 'red' || ctx.bet.kind === 'black') ctx.addStake(1);
+      },
       covers(ctx) {
         if ((ctx.bet.kind === 'red' || ctx.bet.kind === 'black') && isGreenNumber(ctx.hit.pocket)) ctx.cover();
       },
@@ -965,10 +977,10 @@ export const TALISMAN_LIST = [
     name: 'Tally Stick',
     rarity: 'common',
     tags: ['streaks'],
-    text: 'A chip on a bet that won last spin: +1 Stake.',
+    text: `A chip on a bet that won last spin: +${P7.tally} Stake.`,
     hooks: {
       chipStake(ctx) {
-        if (ctx.state.lastSpin?.wins?.some((w) => w.betId === ctx.bet.id)) ctx.addStake(1);
+        if (ctx.state.lastSpin?.wins?.some((w) => w.betId === ctx.bet.id)) ctx.addStake(P7.tally);
       },
     },
   },
@@ -1023,10 +1035,10 @@ export const TALISMAN_LIST = [
     name: 'Marble',
     rarity: 'common',
     tags: ['multi'],
-    text: 'The last spin of each night throws a second ball.',
+    text: 'The first and last spins of each night throw a second ball.',
     hooks: {
       balls(ctx) {
-        if (ctx.spin.last) ctx.addBall();
+        if (ctx.spin.last || ctx.spin.ofNight === 1) ctx.addBall();
       },
     },
   },

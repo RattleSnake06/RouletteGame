@@ -190,7 +190,7 @@ describe('records', () => {
     expect(owed(s)).toBe(120);
     s = play({ ...s, phase: 'nightOver', round: 3, deposited: 200 }, { type: 'endNight' }).state;
     expect(s.deposited).toBe(200 + 10 - 120); // the night's interest, then the doubled debt
-    expect(owed(s)).toBe(400);
+    expect(owed(s)).toBe(370);
   });
 
   it('Funeral March: +2 tokens every night, chips pay ×0.75', () => {

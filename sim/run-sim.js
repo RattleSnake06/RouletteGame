@@ -107,17 +107,20 @@ for (const kv of args.set === undefined ? [] : [args.set].flat()) {
 // Phase 5 targets for the best bot (doc 9.8, decision 27), a step above
 // Phase 4's: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25%.
 // Wheel work carries the later debts.
-// Debts 1–4: decision 27's. Debts 5–8: the gentle tail (decision 30), so
-// every lock of the Vault can be earned.
+// Debts 1–4: decision 27's, for a new player's pool (what a first run
+// meets). Debts 5–8: the gentle tail (decision 30), with everything open:
+// only a run with a lock open has a goal past debt 4, and by then most of
+// the pool is. Each debt is graded on its own pool; the other prints as
+// a figure only.
 const TARGETS = [
-  [1, 0.9, 1],
-  [2, 0.7, 0.85],
-  [3, 0.35, 0.5],
-  [4, 0.15, 0.25],
-  [5, 0.08, 0.15],
-  [6, 0.04, 0.1],
-  [7, 0.02, 0.06],
-  [8, 0.01, 0.04],
+  [1, 0.9, 1, 'start'],
+  [2, 0.7, 0.85, 'start'],
+  [3, 0.35, 0.5, 'start'],
+  [4, 0.15, 0.25, 'start'],
+  [5, 0.08, 0.15, 'full'],
+  [6, 0.04, 0.1, 'full'],
+  [7, 0.02, 0.06, 'full'],
+  [8, 0.01, 0.04, 'full'],
 ];
 
 // --- Where chips go ---------------------------------------------------------
@@ -812,12 +815,13 @@ for (const r of results) {
 // bots that play the House's luck, whichever that is.
 const graded = results.filter((r) => botFor(r.name).leans);
 console.log(`\nTargets for the best bot at each debt (decisions 27 and 30; ${POOL === 'full' ? 'everything open' : 'a new player\'s pool'}):`);
-for (const [d, lo, hi] of TARGETS) {
+for (const [d, lo, hi, pool] of TARGETS) {
   if (d > MAX_DEBT || !graded.length) continue;
   const best = graded.reduce((a, b) => (b.paid[d] > a.paid[d] ? b : a));
   const share = best.paid[d] / RUNS;
   const ok = share >= lo && share <= hi;
-  console.log(`  debt ${d}: ${pct(best.paid[d]).padStart(6)}  target ${lo * 100}–${hi * 100}%  ${ok ? 'PASS' : 'MISS'}  (${best.name})`);
+  const grade = pool === POOL ? (ok ? 'PASS' : 'MISS') : `(graded with --pool ${pool})`;
+  console.log(`  debt ${d}: ${pct(best.paid[d]).padStart(6)}  target ${lo * 100}–${hi * 100}%  ${grade}  (${best.name})`);
 }
 
 for (const r of results.filter((x) => Object.keys(x.picks).length)) {

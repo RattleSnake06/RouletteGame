@@ -55,7 +55,8 @@ export function showAlmanac(view, { names = (id) => id, onClose } = {}) {
     for (const e of section.entries) {
       const item = el('div', `alm-entry${e.seen ? '' : ' unseen'}`);
       if (e.seen) item.append(el('b', 'scrawl', escapeHtml(e.name)), el('span', 'typed', escapeHtml(e.text ?? '')));
-      else item.append(el('b', 'scrawl', '?'), el('span', 'typed', 'Not yet seen.'));
+      // One that waits for a lock or a feat says what opens it (doc 7.1).
+      else item.append(el('b', 'scrawl', '?'), el('span', 'typed', escapeHtml(e.opens ?? 'Not yet seen.')));
       grid.append(item);
     }
     page.append(grid);

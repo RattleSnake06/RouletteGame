@@ -152,8 +152,11 @@ export function createMainMenu(handlers) {
     picks.hidden = wheelBtn.hidden && edgeBtn.hidden && goalBtn.hidden;
     // With the choosers out, a narrow screen drops Begin's second line (CSS).
     chips.classList.toggle('setup', !picks.hidden);
-    wheelBtn.querySelector('.label').textContent = `${setup.wheel.name} wheel ▾`;
-    edgeBtn.querySelector('.label').textContent = setup.edge.level ? `House Edge ${setup.edge.level} ▾` : 'No House Edge ▾';
+    // With the goal's chooser too (the Vault open), the three go short to fit a phone.
+    const short = !goalBtn.hidden;
+    wheelBtn.querySelector('.label').textContent = short ? `${setup.wheel.name} ▾` : `${setup.wheel.name} wheel ▾`;
+    if (short) edgeBtn.querySelector('.label').textContent = setup.edge.level ? `Edge ${setup.edge.level} ▾` : 'No edge ▾';
+    else edgeBtn.querySelector('.label').textContent = setup.edge.level ? `House Edge ${setup.edge.level} ▾` : 'No House Edge ▾';
     wheelBtn.setAttribute('aria-label', `${setup.wheel.name} wheel. ${setup.wheel.upside} ${setup.wheel.downside} Change the wheel.`);
     edgeBtn.setAttribute('aria-label', `House Edge ${setup.edge.level}: ${setup.edge.text} Change the edge.`);
     goalBtn.querySelector('.label').textContent = setup.endless ? 'Endless ▾' : `To debt ${setup.goal} ▾`;

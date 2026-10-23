@@ -13,7 +13,10 @@ oddities and the stats chalkboard; then bet levels with the payout placard,
 chips and records as oddities. Phase 6 (meta) is built (decision 29): the
 Vault's locks and the moving goal, stepping out of the light, the starting
 wheels and House Edge levels, the figures in the dark and the Almanac.
-Phase 7 (content and balance) comes next.
+Phase 7 (content and balance) is built (decision 30): 68 talismans, 25
+cards and 12 records, the special bets on a racetrack, multi-ball, what the
+locks and feats open, Endless after the Vault, and a simulator curve that
+runs to debt 8. Phase 8 (polish) comes next.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -194,23 +197,27 @@ At the start of each round, choose one:
 | **Short night** | 3 | 3 × spin cost | +1 token now |
 | **Sit out** | 0 | none | +3 tokens when the debt is paid |
 
-Debt table (first draft, debts 2 and 4 tuned in Phases 3 and 4). Spin cost
-follows Fibonacci, a small detail players can spot. Phase 3 set debt 2 to 333
-(half of 666) and debt 4 to 1,332 (twice 666). Madame Zero's lasting cards
-then carried too many runs through, so Phase 4 raised them to 400 and 2,664
-(four times 666). Debt 3 stays 666 (decision 14).
+Debt table (first draft, debts 2 and 4 tuned in Phases 3 and 4, debts 2 and
+5–9 in Phase 7). Spin cost follows Fibonacci, a small detail players can
+spot. Phase 3 set debt 2 to 333 (half of 666) and debt 4 to 1,332 (twice
+666). Madame Zero's lasting cards then carried too many runs through, so
+Phase 4 raised them to 400 and 2,664 (four times 666). Debt 3 stays 666
+(decision 14). Phase 7's larger pool thinned a new player's Cabinet, and
+debt 2 came down to 370; the debts past the first goal came down to the
+gentle tail (decision 30), with debt 9 eased so endless runs climb smoothly
+into the doubling growth.
 
 | Debt | Owed | Spin cost | Restock base |
 |---|---|---|---|
 | 1 | 60 | 1 | 2 |
-| 2 | **400** | 2 | 5 |
+| 2 | **370** | 2 | 5 |
 | 3 | **666** | 3 | 15 |
 | 4 | **2,664** | 5 | 50 |
-| 5 | 12,000 | 8 | 200 |
-| 6 | 36,000 | 13 | 700 |
-| 7 | 120,000 | 21 | 2,000 |
-| 8 | 370,000 | 34 | 6,000 |
-| 9 | 1,300,000 | 55 | 25,000 |
+| 5 | **8,000** (drafted 12,000) | 8 | 200 |
+| 6 | **18,000** (drafted 36,000) | 13 | 700 |
+| 7 | **40,000** (drafted 120,000) | 21 | 2,000 |
+| 8 | **95,000** (drafted 370,000) | 34 | 6,000 |
+| 9 | **250,000** (drafted 1,300,000) | 55 | 8,000 |
 | 10+ | previous × 6 × 2^(N−10) | Fibonacci continues | owed ÷ 50 |
 
 From debt 10 the growth factor itself doubles each debt (×6, ×12, ×24...), so
@@ -312,6 +319,21 @@ the Odds mult and the rest (5.5), and the House rounds down as ever. Levels
 come from the Brass Odds Plate (6.7; tap a bet on the felt to raise its kind)
 and from two of Madame Zero's cards (6.2). The payout placard shows them
 (5.11), and a raised bet's note starts from its level.
+
+*As built (Phase 7, decision 30):* the seven special bets lie on a
+**racetrack** printed across the top of the felt, above the numbers (8.1):
+Neighbours, Finales, Voisins, Tiers, Orphelins, Jeu Zéro and the Snake, each
+a zone with its odds. They are **closed** until something in the run opens
+them; a closed zone sinks into the dark under a brass crosshatch and takes
+no chip. The Croupier's Glove opens Voisins, Tiers, Orphelins, Jeu Zéro and
+the Finales; Snakeskin the Snake; Madame Zero's "Neighbours talk." the
+Neighbours; and the Habanera all seven while it plays. A chip on the
+Neighbours or Finales zone asks which number (a grid laid out as the felt,
+the zero down its left) or which last digit. Neighbours follows the run's
+own wheel (the American and the Mirror have their own order); the sectors
+keep their European numbers. The odds are the table's; a Finale pays 9, or
+12 on 7, 8 and 9, which have three numbers. Levels apply to them as to any
+kind, and the placard and levels list only the kinds that are open.
 
 ### 5.4 The wheel: pockets you can build
 
@@ -420,6 +442,16 @@ relative to what an upgrade adds.
 
 A **miss** is a spin where no chip pays. Coins from talismans (Lucky Penny) do
 not undo a miss. Misses feed pity (5.6).
+
+**Multi-ball** (*built in Phase 7*). A spin can throw more than one ball.
+Talismans, a card and a record add balls (`balls` hooks, shown before the
+spin, so the player bets knowing). Each ball draws its own pocket, Nudge
+and the Lean act on every ball, and every chip is paid for every ball that
+lands on its bet; an extra ball's lines pay at that ball's own factor
+(the Ivory Ball's ×½), which multiplies like a secondary hit. The Devil
+reads the throw as one: if he fires, the whole spin is his. The view throws
+the extra balls with the first, in ivory, and they settle in their own
+pockets (8.1).
 
 ### 5.6 Luck: Nudge and the Lean
 
@@ -702,7 +734,7 @@ a free slot. Danse Macabre is built (6.3).
 
 A first pool to build from. Names and numbers are drafts.
 
-### 6.1 Talismans (44 built)
+### 6.1 Talismans (68 built)
 
 **Built in Phase 2 (15):** Red Ribbon, Horseshoe, Matchbook, Lucky Penny, Crumpled
 Receipt, Pawn Ticket (common); Brass Knuckles, Croupier's Rake, Ledger, Abacus
@@ -829,6 +861,57 @@ Nudge, wheel-geometry neighbours, table-geometry inside bets, streaks and repeat
 zero worship, multi-ball, economy and interest, Devil risk. Every family needs
 at least one item at each rarity before content lock (Phase 7).
 
+**Built in Phase 7 (24, decision 30).** The drafts not yet built, and what
+each family lacked at some rarity. Thirteen wait behind the Vault's first
+lock or a feat (7.1), so a new player's Cabinet offers 53 (the other 55
+less the two cursed, which only black cards deal). Six were strengthened after the simulator showed them adding
+nothing alone (9.8): Chalk Stub (drafted coins worth a spin), Wishbone
+(drafted once a night), Hourglass (drafted +1 spin), Saint's Medal (drafted
+the zero rule only), Tally Stick (drafted +1 Stake) and Marble (drafted the
+last spin only).
+
+| Talisman | Rarity | Effect | Opens with |
+|---|---|---|---|
+| Chalk Stub | Common | A ball on an odd number: coins worth 2 spins | |
+| Wishbone | Common | The first 3 spins each night that pay nothing give their cost back | |
+| Tally Stick | Common | A chip on a bet that won last spin +2 Stake | |
+| Green Thread | Common | Chips on a bet that covers zero +2 Stake | |
+| Marble | Common | The first and last spins of each night throw a second ball | |
+| Mirror Shard | Uncommon | The pocket straight across the wheel also counts as hit, at ×½ | |
+| Hourglass | Uncommon | +2 spins on every night you play | |
+| Saint's Medal | Uncommon | Red and Black chips +1 Stake; a green zero counts as both | |
+| Fortune Cookie | Uncommon | Each spin names a number before you bet: straight-ups on it ×3 | |
+| Juggler's Ball | Uncommon | Every third spin of a night throws a second ball | |
+| Ivory Ball | Rare | A second ball every spin, paying ×½ | |
+| Gilder's Knife | Rare | Once a night, gild the pocket the ball lands in (gilded turns platinum) | feat: Platinum |
+| Snakeskin | Rare | Opens the Snake; Snake chips +2 Stake | lock 1 |
+| Croupier's Glove | Rare | Opens Voisins, Tiers, Orphelins, Jeu Zéro and the Finales; their chips ×1.5 | lock 1 |
+| Table Map | Rare | Splits and corners touching the number on the table win at ×½ | feat: A Wheel of Your Own |
+| Rose Brooch | Rare | Red or Black chips ×2 when their colour came up last spin | feat: A Thousand in a Breath |
+| Hot Coals | Rare | Each paying spin in a row: chips +×½, up to ×4; a miss puts them out | feat: Same Again |
+| Zero's Coin | Rare | A ball on a green zero: +3 tokens and coins worth 3 spins | feat: Ride the Lean |
+| Brimstone | Rare | Once the Devil has fired this debt, chips ×2; the Devil's chance +1% | feat: Paid in Spite |
+| Metronome | Legendary | Every 4th spin of a night +2 Nudge | feat: Step Out of the Light |
+| Loaded Wheel | Legendary | When bought, every red pocket +0.5 wide, for good | feat: Out of the Red |
+| Surveyor's Chain | Legendary | Split, street, corner and six-line chips ×3 | feat: Bare Hands |
+| Bag of Marbles | Legendary | Two more balls every spin, each paying ×½ | feat: The Vault |
+| Usurer's Seal | Legendary | Interest doubled (the talismans to its left included) | feat: A Full Rail |
+
+**Every family at every rarity** (a talisman counts for each family its tags
+name; `tests/core/phase7.test.js` checks it):
+
+| Family | Common | Uncommon | Rare | Legendary |
+|---|---|---|---|---|
+| Colour | Red Ribbon, Matchbook, Black Cat | Ledger, Domino, Saint's Medal | Rose Brooch | Loaded Wheel |
+| Straight-up hunting (Nudge) | Pocket Watch, Lodestone, Wind-Up Key, Hamsa, Four-Leaf Clover | Rabbit's Foot, Dowsing Rod, Weathervane, Fortune Cookie | Compass | Metronome |
+| Wheel geometry and sectors | Brass Scales | Croupier's Rake, Mirror Shard | Compass, Gilder's Knife, Snakeskin, Croupier's Glove | Number Punches, Loaded Wheel |
+| Table geometry (inside bets) | Horseshoe, Lucky Penny, Lodestone, Wind-Up Key | Brass Knuckles, Croupier's Rake, Ledger, Mousetrap, Fortune Cookie | Wheel of Fortune, Thirteen Ball, Table Map | House Key, Ouroboros, Surveyor's Chain |
+| Streaks and repeats | Tally Stick | Ledger, Abacus, Mousetrap | Rose Brooch, Hot Coals | Ouroboros |
+| Zero | Green Thread | Saint's Medal | Zero's Coin | House Key |
+| Multi-ball | Marble | Juggler's Ball | Ivory Ball | Bag of Marbles |
+| Economy and interest | Lucky Penny, Pawn Ticket, Grandmother's Purse, Lost Wallet, Chalk Stub, Wishbone | Beckoning Cat, Hourglass | Piggy Bank | Usurer's Seal |
+| Devil and risk | Salt Cellar, Wishbone | Evil Eye, Holy Water | Brimstone | Golden Ball |
+
 ### 6.2 Fortunes
 
 *As built (Phase 4, decision 22):* the cards below work as written, with these
@@ -877,7 +960,9 @@ below give the tuned numbers.
 | ~~"A new chip in your pocket."~~ | Gain a chip of a random material (left out, decision 28) | Uncommon | none |
 | "Gold finds gold." | Gild 3 random pockets (built in Phase 5) | Rare | none |
 | "Something carved in brass." | A random engraving on a random talisman | Rare | none |
-| "Neighbours talk." | Unlock the Neighbours bet this run | Rare | 1 |
+| "Neighbours talk." | Unlock the Neighbours bet this run (built in Phase 7; opens with lock 1) | Rare | 1 |
+| "Zero smiles on you." | Every green zero +0.5 wide, for good (Phase 7) | Common | none |
+| "The ball has a twin." | A second ball every spin for the rest of the run, paying ×½ (Phase 7; opens with lock 4) | Rare | 1 |
 
 **Black cards**
 
@@ -890,10 +975,16 @@ below give the tuned numbers.
 | "Borrowed gold." | Gild 4 random pockets; curse 2 plain others (Phase 5) | Uncommon |
 | "Shiny things." | Engrave every Cabinet item; one of your talismans gets the Cursed engraving | Rare |
 | "Ask the figures." | The oldest figure in the dark disappears; +1 Nudge for the rest of the run | Rare |
+| "Shake the Devil's hand." | Winning chips +1 Stake for the rest of the run; the Devil's chance +1% (Phase 7; opens with the feat The House at Its Worst) | Uncommon |
+| "Break the wheel." | 2 pockets chiselled out at random; +4 tokens (Phase 7; opens with lock 3) | Common |
 
 *Phase 6:* "Ask the figures" now sends the oldest standing figure away: the
 run counts one fewer for Danse Macabre, and the profile keeps it in the
 Almanac's ledger as "Sent away by Madame Zero".
+
+*Phase 7 (decision 30):* "Neighbours talk." is built, and four cards join
+the decks (the four rows marked Phase 7), bringing them to 25. Three of the
+five wait behind a lock or a feat (7.1).
 
 ### 6.3 Records
 
@@ -921,6 +1012,8 @@ on every night costs more than its Nudge wins back.
 | Static | No music; +1 talisman hook |
 | Carousel | The wheel turns backwards; Nudge reaches 1 pocket further |
 | Danse Macabre | +1% interest for each figure standing in the dark |
+| Habanera | The special bets are open while it plays; their chips +1 Stake (Phase 7; opens with lock 1) |
+| Two-Step | A second ball every spin; every payout ×0.6 (Phase 7; opens with lock 2, the gramophone's second slot) |
 
 ### 6.4 Engravings
 
@@ -1062,14 +1155,47 @@ hasp.
   adds no figure; a run that plays on and is collected later leaves one.
 - **Each lock opens a starting wheel** (7.2): lock 1 the American, lock 2 the
   Gilded and the gramophone's second slot (5.10), lock 3 the Bone, lock 4
-  the Mirror. New talismans, the sector-bet family and a new record are
-  Phase 7's content; they will be what the locks and the Almanac's feats
-  open, so today's pool stays whole (decision 29).
+  the Mirror. *Phase 7:* each also opens content (below).
 - **All four locks open:** paying debt 8 or later opens the Vault, once. For
   now the ending is a card: behind the door a small room, one chair, a wheel
   no bigger than a plate, and on the wall "ZERO IS NOT EMPTY. SHE WAS A
   PLAYER ONCE." The door stands ajar in the room from then on, and the House
-  lets the run play on. Endless mode proper is Phase 7.
+  lets the run play on.
+- **Endless** (*built in Phase 7*). Once the Vault has opened, the chip
+  select shows a third chooser beside the wheel and the House Edge: **To
+  debt N** or **Endless**. An endless run has no goal: the Cage never offers
+  to let the player step out, and the run goes on until it is collected.
+  Debts grow by the doubling table (5.2) past 1e300, which is why money is a
+  big number (9.5); the HUD reads "debt N", the figure it leaves says
+  "endless", and the profile keeps the deepest endless run (debts paid) for
+  the Almanac.
+
+**What opens what** (*Phase 7, decision 30*). The new content is shut until
+a lock or a feat opens it, for good; until then the Cabinet and Madame Zero
+never offer it, and the Almanac's silhouette says what opens it. The news
+card for a lock or a feat names what it opened.
+
+| Opened by | Content |
+|---|---|
+| Lock 1 | Snakeskin, the Croupier's Glove, "Neighbours talk.", the Habanera |
+| Lock 2 | Two-Step |
+| Lock 3 | "Break the wheel." |
+| Lock 4 | "The ball has a twin." |
+| Same Again | Hot Coals |
+| Out of the Red | Loaded Wheel |
+| Step Out of the Light | Metronome |
+| The Vault | Bag of Marbles |
+| Paid in Spite | Brimstone |
+| Bare Hands | Surveyor's Chain |
+| A Full Rail | Usurer's Seal |
+| Ride the Lean | Zero's Coin |
+| A Thousand in a Breath | Rose Brooch |
+| Platinum | Gilder's Knife |
+| A Wheel of Your Own | Table Map |
+| The House at Its Worst | "Shake the Devil's hand." |
+
+A run keeps what was open when it began (`opened` in the run), so a feat
+earned mid-run opens its talisman for the next.
 
 ### 7.2 Starting wheels and House Edge
 
@@ -1081,7 +1207,7 @@ European for the best bot (9.8); the doc's first drafts are noted.
 | Wheel | Opens with | Upside | Downside |
 |---|---|---|---|
 | European | — | One zero: 37 pockets | — |
-| American | lock 1 | +2 tokens each time a debt is paid (drafted +2 a night) | A real **00** (green, in no outside bet, with its own straight-up and splits with 0, 2 and 3): 38 pockets |
+| American | lock 1 | +1 token each time a debt is paid (drafted +2 a night; +2 in Phase 6) | A real **00** (green, in no outside bet, with its own straight-up and splits with 0, 2 and 3): 38 pockets |
 | Gilded | lock 2 | 6 pockets start gilded, drawn from the run's seed | Debts ×1.25 (drafted ×1.5) |
 | Bone | lock 3 | Every third black pocket is Bone, six in all (drafted every black one) | The Devil is live from debt 1 |
 | Mirror | lock 4 | The numbers run 0 to 36 round the rim, as on the felt: a pocket's neighbours are its felt neighbours, so Nudge works along streets and splits | Red and black no longer take turns, so Nudge seldom changes a colour |
@@ -1128,8 +1254,9 @@ Cabinet offer, a card dealt, a record, a pocket's enhancement) is seen.
 Twelve feats are kept, among them "Same Again" (one number three times in a
 night), "Paid in Spite" (pay a debt the Devil fired in), "Bare Hands" (pay
 debt 3 with a bare rail) and "The House at Its Worst" (the goal at House
-Edge 5). They unlock nothing yet: Phase 7's new talismans and records will
-be what they open (decision 29), and Steam's achievements map onto them.
+Edge 5). *Phase 7:* each feat opens one piece of content (7.1), and Steam's
+achievements map onto them. The lifetime ledger shows the deepest endless
+run once there has been one, and a figure from an endless run says so.
 
 ### 7.5 The main menu and chip sets
 
@@ -1234,6 +1361,20 @@ backwards when it is spun.
 - **The wheel** shows 00 on the American wheel, and the House's pocket as a
   green cell with Madame Zero's eye on it and a green floor; the results
   board shows a landing there as a green dash.
+
+*As built (Phase 7):*
+- **The racetrack** is printed across the top of the felt, above the
+  numbers: a rounded band of seven zones, each lettered with its bet and
+  what it pays. A closed zone is dark under a brass crosshatch, its name
+  dim; an open one is lit like the rest of the felt, and a chip there sits
+  low in the zone, under the lettering (5.3).
+- **Extra balls** are two more ivory balls kept hidden in the wheel. A
+  multi-ball spin throws them with the first; each runs its own path into
+  its own pocket, with its own hops, and they rest where they landed until
+  the next throw (5.5).
+- **The night and end cards** stand a little nearer the player and lean
+  further back than before, so a charm on the middle hooks stays clear to
+  tap above them.
 
 ### 8.2 Camera
 
@@ -1381,7 +1522,8 @@ bounces, never the result.
   Overture of Excess brass and timpani, Funeral March a slow organ, Boogie-
   Woogie a shuffle with a walking left hand, Nocturne a rolling piano, and
   Carousel a calliope waltz. Static has no tune, only the groove's hiss and
-  crackle. All of it plays through the horn: a band-pass, a soft clip, a slow
+  crackle. *Phase 7:* the Habanera slides down by semitones over its limping
+  bass with castanets, and the Two-Step is a brass band's oom-pah in G. All of it plays through the horn: a band-pass, a soft clip, a slow
   wow in the pitch, and crackle. The needle drops with a thump. With the
   needle up, the room tone carries a low mains hum. Her lines are subtitled
   (a toast) for now; her processed voice comes later.
@@ -1702,6 +1844,36 @@ play back strictly left to right. Every hook that changes something emits a
     +2 tokens a night 42% at debt 4, the Bone with every black pocket Bone
     26%, the Gilded at ×1.5 12%. House Edge, at debts 2/3/4: level 1
     69/47/16%, 2 64/41/12%, 3 60/35/9%, 4 41/20/6%, 5 34/15/4%.
+  - *Phase 7 (decision 30):* `--pool start` plays a new player's pool
+    (nothing a lock or a feat opens) and `--pool full` (the default)
+    everything. **Debts 1–4 are graded on the new player's pool**, with
+    decision 27's targets; **debts 5–8 on the full pool**, with the gentle
+    tail: 8–15%, 4–10%, 2–6% and 1–4% for the best bot. Only a run with a
+    lock open has a goal past debt 4, and by then most of the pool is open;
+    a player with everything open finds debts 1–4 easier, which House Edge
+    is there to answer. Bots read the new talismans' families, play the
+    racetrack's sectors (a Glove bot lays Voisins, Tiers and Orphelins, a
+    Snakeskin bot the Snake) and straight-ups on the Fortune Cookie's number.
+    As first built, the 24 new talismans thinned a new player's Cabinet
+    (66/44/14% at debts 2–4), and the drafted debts 5–8 were too steep for
+    every lock to be earned (7.0/2.0/0.6/0.2%). One at a time (400 runs,
+    `--bot solo:`), Chalk Stub, Wishbone, Green Thread, Hourglass and
+    Saint's Medal paid debt 2 no more often than a bare rail (5–7%, against
+    16–22% for Red Ribbon or the Pocket Watch); six were strengthened (6.1),
+    debt 2 came down to 370, and debts 5–8 to 8,000, 18,000, 40,000 and
+    95,000 (5.2). *Results (1,000 runs):* a new player's pool, debts 1–4:
+    96.7/71.4/49.0/18.2% (the outside builder at debt 1, the inside builder
+    at 2 and 3, adaptive at 4). Everything open, debts 5–8: 12.8/6.3/3.0/1.2%
+    (the outside builder at debt 5, adaptive after); debts 1–4 there run
+    97.5/79.2/58.9/27.6%. All eight inside their targets.
+    The starting wheels against the European, everything open (500 runs):
+    Gilded 78/61/29% at debts 2–4, Bone 74/59/30%, Mirror 81/61/27%, all
+    within a few points, and each inside the tail at debts 5–8 but the
+    Bone's debt 7 and 8 (0.8 and 0.6%, a few runs either way). The American
+    ran ahead (68/39% at debts 3–4, 20% at debt 5) with the new pool's
+    tokens worth more than before; at +1 token per paid debt (+2 in Phase 6)
+    it pays 83/63/35% and 12.8% at debt 5. Without the token it sits level
+    with the European (81/58/28%): its 00 costs almost nothing now.
 - **Playwright smoke test** for the view, as already used for the wheel: load,
   place chips, spin, check for console errors.
 
@@ -1709,10 +1881,13 @@ play back strictly left to right. Every hook that changes something emits a
 
 - **Saves:** localStorage, versioned JSON with migrations. Meta progression (locks,
   figures, Almanac, stats) is stored separately from the current run.
-  *As built:* the run saves as version 8 (Phase 6 added the starting wheel,
+  *As built:* the run saves as version 9 (Phase 6 added the starting wheel,
   House Edge, goal, locks and figures counted, the gramophone's second slot
-  and tonight's numbers); the profile as version 2, and a version 1 profile
-  opens the locks its furthest debt would have.
+  and tonight's numbers; Phase 7 what the run has open, endless, and the
+  starting wheel's order for Neighbours; a version 8 run opens nothing new);
+  the profile as version 2, and a version 1 profile opens the locks its
+  furthest debt would have. Phase 7 adds the deepest endless run to the
+  profile's ledger (missing reads as none).
 - **Performance:**
   - Procedural textures currently take 1–2 s at load. Move generation to a Web
     Worker with OffscreenCanvas and cache the results.
@@ -1807,7 +1982,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **4. The House** | Madame Zero with white and black cards; engravings; records and the gramophone | One fortune per debt changes a run's direction |
 | **5. Building the wheel** (done; decisions 27, 28) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** (done; decision 29) | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
-| **7. Content and balance** | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
+| **7. Content and balance** (done; decision 30) | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
 | **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
 | **9. Store releases** | Capacitor builds for iOS and Android (M3: native saves, pause and resume, haptics, the orientation lock, the audio session); Game Center and Play Games (M4, optional); App Store and Play Store listings, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset) | The game installs from TestFlight and a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
 
@@ -1924,6 +2099,29 @@ Built (decision 29):
    pocket on the felt, the wheel, the board and the chalkboard; checked by
    `npm run layout`, `npm run touch` and `npm run smoke`.
 
+### Phase 7 breakdown
+
+Built (decision 30), in two halves:
+
+1. Core: the seven special bets (`BET_KINDS.special`), shut until a
+   definition's `opens` field opens them, Neighbours following the run's
+   wheel; multi-ball (`balls` hooks, a factor per ball); `nightSpins`;
+   24 talismans, 4 cards and "Neighbours talk.", the Habanera and the
+   Two-Step: 68 talismans, 25 cards, 12 records, every family at every
+   rarity; what the locks and feats open (`unlock`, `state.opened`); endless
+   runs (`goal: null`) and the profile's deepest; save version 9. One test
+   per rule, and big numbers checked through debt 80: debts, a spin, a save.
+2. Simulator: a new player's pool and the full pool, each grading its own
+   debts; the bots play the new families; six talismans strengthened, debt
+   2 and debts 5–9 tuned (9.8).
+3. View: the racetrack on the felt and its number chooser; two extra ivory
+   balls; charm faces for the new talismans (and the Number Punches); a
+   loop for each new record; notes for extra balls and part-paying covers;
+   the Endless chooser on the chip select; what a lock or a feat opens on
+   its card and in the Almanac; the night and end cards moved clear of the
+   rail's middle hooks. Checked by `npm run layout`, `npm run touch` and
+   `npm run smoke`.
+
 ---
 
 ## 11. Risks
@@ -1973,3 +2171,4 @@ Built (decision 29):
 | 27 | Phase 5 | **Built in two halves**: first the wheel work, pocket enhancements, the 4th compartment's wheel-work oddities and the stats chalkboard; then chips, bet levels and records. Pockets are picked on the felt's number grid in the close-up; the chalkboard stands at the table, seen from the table view. **Oddities cost coins**, a number of the debt's spins (the owner chose this after the simulator showed token-priced wheel work losing to talismans). Targets raised a step: debt 1 ≥ 90%, debt 2 70–85%, debt 3 35–50%, debt 4 15–25% for the best bot. Outcome: 97/70/50/18%. (5.4, 5.11, 6.7, 9.8) |
 | 28 | Phase 5, second half | **No Lead or Wax chips**: the five materials are enough. **The two chip cards ("Your stack grows heavy", "A new chip in your pocket") are left out**: chips come from the Cabinet's chip oddities. **A bet level adds a quarter of the base odds** (straight-up 36 → 45 → 54), not the whole; the two level cards are legendary and once a run. All chosen by the owner after the simulator. Outcome: 97/72/50/16% for the best bot. (5.3, 6.2, 6.6, 6.7, 9.8) |
 | 29 | Phase 6 | **The Mirror wheel mirrors the felt**: the numbers run 0 to 36 round the rim, since a reversed wheel keeps every pocket's neighbours. **Locks open starting wheels now, items later**: lock 1 the American, lock 2 the Gilded and the gramophone's second slot, lock 3 the Bone, lock 4 the Mirror; reaching the goal opens the next House Edge level; the Almanac's feats are kept but unlock nothing until Phase 7's new talismans and records, so today's pool and balance stay as they are. Both chosen by the owner. Tuned with the simulator to sit near the European wheel: the American gives +2 tokens per paid debt (not a night), the Gilded owes ×1.25, the Bone has six Bone pockets, House Edge 3 is a token less per paid debt; House Edge 1's "+1 zero" is a green pocket with no number, so a straight-up on 0 gains nothing from it. (7, 9.8) |
+| 30 | Phase 7 | **A gentle tail past debt 4**: the best bot pays debt 5 in 8–15% of runs, debt 6 in 4–10%, debt 7 in 2–6%, debt 8 in 1–4%, so every lock of the Vault can be earned; debts 1–4 keep decision 27's targets, graded on a new player's pool, and debts 5–8 on the full pool. **Multi-ball is built**: up to two extra ivory balls in the view, and a multi-ball talisman at each rarity (Marble, Juggler's Ball, Ivory Ball, Bag of Marbles). **The special bets are built** on a racetrack across the felt; the Croupier's Glove, Snakeskin and "Neighbours talk." open them, and join the pool with the Vault's first lock. **Endless is a mode after the Vault**: once it has opened, the chip select offers Endless (no goal, play until collected), and the Almanac keeps the deepest. The new content opens with the locks and the feats (7.1). All four chosen by the owner. Outcome after the simulator: six new talismans strengthened, debt 2 at 370 and debts 5–9 at 8,000 / 18,000 / 40,000 / 95,000 / 250,000, the American wheel at +1 token per paid debt; 97/71/49/18% at debts 1–4 (a new player's pool) and 12.8/6.3/3.0/1.2% at debts 5–8 (everything open). (5.2, 5.3, 5.5, 6.1–6.3, 7.1, 9.8) |

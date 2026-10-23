@@ -1426,6 +1426,17 @@ img.mark {
   margin-top: calc(14 * var(--u));
 }
 
+/* A short screen keeps the whole grid in view: the line under the title goes. */
+@media (max-height: 420px) {
+  .modal-backdrop.numbers .modal-body {
+    display: none;
+  }
+
+  .modal-backdrop.numbers .modal-actions {
+    margin-top: 4px;
+  }
+}
+
 .modal-backdrop.numbers.finale .modal-actions {
   grid-template-columns: repeat(10, minmax(44px, 1fr));
 }

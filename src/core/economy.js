@@ -33,14 +33,15 @@ export const PACKAGES = {
 
 export const DEBT_TABLE = [
   { owed: 60, restock: 2 },
-  { owed: 400, restock: 5 }, // drafted as 180; 333 in Phase 3, 400 with Madame Zero (Phase 4)
+  { owed: 370, restock: 5 }, // drafted as 180; 333 in Phase 3, 400 with Madame Zero (Phase 4), 370 in Phase 7
   { owed: 666, restock: 15 },
   { owed: 2664, restock: 50 }, // four times 666 (drafted as 2,500; 1,332 in Phase 3)
-  { owed: 12000, restock: 200 },
-  { owed: 36000, restock: 700 },
-  { owed: 120000, restock: 2000 },
-  { owed: 370000, restock: 6000 },
-  { owed: 1300000, restock: 25000 },
+  // Debts 5-8: the gentle tail (decision 30; drafted 12,000 to 370,000).
+  { owed: 8000, restock: 200 },
+  { owed: 18000, restock: 700 },
+  { owed: 40000, restock: 2000 },
+  { owed: 95000, restock: 6000 },
+  { owed: 250000, restock: 8000 },
 ];
 
 /** What the Cage collects at the end of debt `n` (1-based). */

@@ -81,16 +81,26 @@ opens the next House Edge level (1–5, stacking; level 1 is the House's
 green pocket with no number). `core/meta.js` keeps the profile (version 2):
 locks, edge, figures (the newest twelve stand in the room), what was seen,
 feats and the lifetime ledger; `core/house.js` reads a run's wheel and edge.
-The Almanac is a book on the table and on both menus. Next is Phase 7
-(content and balance). The best simulator bot at each debt pays debts 1–4 in
-about 97%, 72%, 49% and 16% of runs on the European wheel, inside the Phase 5
-targets (decision 27), with debt 2 near its floor and debt 3 at its ceiling;
-the other wheels sit within a few points of it. Debts 2 and 4 owe 400 and 2,664. See `npm run sim`, which grades
-the best Lean-playing bot at each debt; `--no-oracle` keeps the bots away from
-Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b` keeps the bots
-off talismans, fortunes or records, and `--bot solo:a,b` hangs talismans from
-the first spin, and `--no-wheel` keeps them off wheel work; `--wheel`, `--edge`,
-`--locks` and `--figures` set a run's setup. One point of Nudge is worth a lot (a straight-up's return grows
+The Almanac is a book on the table and on both menus. Phase 7 (content and
+balance) is done (decision 30): 68 talismans, 25 cards and 12 records, every
+build family at every rarity; the seven special bets on a racetrack across
+the top of the felt, shut until the Croupier's Glove, Snakeskin, "Neighbours
+talk." or the Habanera opens them; multi-ball (`balls` hooks, up to two
+extra ivory balls in the view); content opened by the Vault's locks and the
+feats (`unlock`, `state.opened`, doc 7.1); and Endless, chosen on the chip
+select once the Vault is open (`goal: null`; the profile keeps the deepest).
+Next is Phase 8 (polish). The best simulator bot at each debt pays debts 1–4
+in about 97%, 71%, 49% and 18% of runs with a new player's pool (`--pool
+start`, decision 27's targets), and debts 5–8 in about 13%, 6%, 3% and 1%
+with everything open (the default pool, the gentle tail); debt 2 sits near
+its floor and debt 3 near its ceiling. Debts 2 and 4 owe 370 and 2,664,
+debts 5–8 8,000 to 95,000. See `npm run sim`, which grades the best
+Lean-playing bot at each debt on that debt's pool; `--no-oracle` keeps the
+bots away from Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b`
+keeps the bots off talismans, fortunes or records, `--bot solo:a,b` hangs
+talismans from the first spin, and `--no-wheel` keeps them off wheel work;
+`--pool start|full`, `--wheel`, `--edge`, `--locks` and `--figures` set a
+run's setup. One point of Nudge is worth a lot (a straight-up's return grows
 with 2N + 1). A Stake point doubles a line, and a multiplier on one number pays
 a whole debt in a hit. Re-run the sim after any luck, jackpot or fortune
 change.
@@ -172,7 +182,10 @@ change.
   `gramophone`, `chalkboard`, `placard`, `almanac`). The views are `oracle`, `cage`, `table` and `cabinet`.
   `vault` and `figures` are the Vault door and the figures; `game.profile`
   is the meta profile, `game.openAlmanac()`, `game.chooseWheel()`,
-  `game.chooseEdge()` and `game.stepOut()` drive Phase 6's screens.
+  `game.chooseEdge()` and `game.stepOut()` drive Phase 6's screens;
+  `game.chooseGoal()` picks Endless once `profile.vault` is set, and
+  `game.placeChip(id, 'neighbours:17')` opens the racetrack's number
+  chooser when the Neighbours are open.
   `game.picking` is set while wheel work is being placed; `game.pickBet(betId)`
   stands for a tap on the felt then, and `cabinet.slotWorldPosition(3)` is the
   oddity. `table.boardWorldPosition()` and

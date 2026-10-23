@@ -26,7 +26,7 @@ const FELT_Z = -0.0716;
 const TRAY = { x0: 0.27, z: 0.262, step: 0.052 };
 // The night cards stand propped toward the player's eye (about 50° up from
 // the felt): lying flat they were seen edge-on and could not be read.
-const CARD = { w: 0.19, h: 0.268, tilt: 0.78, gap: 0.215, z: 0.0816 };
+const CARD = { w: 0.182, h: 0.257, tilt: 0.6, gap: 0.215, z: 0.175 };
 const CARD_ORDER = ['long', 'short', 'sitout'];
 
 // Night cards are black card stock lettered in the HUD's hand: bone words, a

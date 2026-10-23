@@ -70,10 +70,9 @@ describe('multi-ball', () => {
     expect(ballsFor(setup())).toHaveLength(1);
     expect(ballsFor(grantTalisman(setup(), 'ivory_ball')).map((b) => b.mult)).toEqual([1, 0.5]);
     expect(ballsFor(grantTalisman(setup(), 'bag_of_marbles')).map((b) => b.mult)).toEqual([1, 0.5, 0.5]);
-    // The Marble on the night's last spin only; the Juggler's Ball on every third.
+    // The Marble on the night's first and last spins; the Juggler's Ball on every third.
     const m = grantTalisman(setup(), 'marble');
-    expect(ballsFor(betting(m, 2))).toHaveLength(1);
-    expect(ballsFor(betting(m, 1))).toHaveLength(2);
+    expect([7, 6, 2, 1].map((left) => ballsFor(betting(m, left)).length)).toEqual([2, 1, 1, 2]);
     const j = grantTalisman(setup(), 'jugglers_ball');
     expect([7, 6, 5, 4].map((left) => ballsFor(betting(j, left)).length)).toEqual([1, 1, 2, 1]);
     const s = one(setup(), 'straight:17');
@@ -99,9 +98,13 @@ describe('multi-ball', () => {
 describe('the new talismans', () => {
   it('Chalk Stub, Wishbone and Zero’s Coin pay coins and tokens', () => {
     const chalk = evaluate(grantTalisman(setup(), 'chalk_stub'), [{ ball: 0, pocketIndex: at(setup(), 17) }]);
-    expect(chalk.bonusCoins).toBe(1);
-    const wish = evaluate(one(grantTalisman(setup(), 'wishbone'), 'red'), [{ ball: 0, pocketIndex: at(setup(), 2) }]);
-    expect(wish.bonusCoins).toBe(1);
+    expect(chalk.bonusCoins).toBe(2);
+    const wish = one(grantTalisman(setup(), 'wishbone'), 'red');
+    expect(evaluate(wish, [{ ball: 0, pocketIndex: at(setup(), 2) }]).bonusCoins).toBe(1);
+    // Three snaps a night, then it holds until the next.
+    const snapped = { ...wish, rail: wish.rail.map((t) => ({ ...t, data: { night: `${wish.debt}.${wish.round}`, snaps: 3 } })) };
+    expect(evaluate(snapped, [{ ball: 0, pocketIndex: at(setup(), 2) }]).bonusCoins).toBe(0);
+    expect(evaluate({ ...snapped, round: 2 }, [{ ball: 0, pocketIndex: at(setup(), 2) }]).bonusCoins).toBe(1);
     const zero = evaluate(grantTalisman(setup(), 'zeros_coin'), [{ ball: 0, pocketIndex: at(setup(), 0) }]);
     expect([zero.bonusTokens, zero.bonusCoins]).toEqual([3, 3]);
   });
@@ -111,16 +114,18 @@ describe('the new talismans', () => {
     const i = at(s, 17);
     const across = s.wheel.pockets[(i + 18) % 37].number;
     expect(paysOn(one(s, `straight:${across}`), 17)).toEqual([18]);
-    expect(paysOn(one(grantTalisman(setup(), 'saints_medal'), 'black'), 0)).toEqual([2]);
+    // +1 Stake on the colours, and zero counts as either.
+    expect(paysOn(one(grantTalisman(setup(), 'saints_medal'), 'black'), 0)).toEqual([4]);
+    expect(paysOn(one(grantTalisman(setup(), 'saints_medal'), 'red'), 1)).toEqual([4]);
     const map = grantTalisman(setup(), 'table_map');
     expect(paysOn(one(map, 'split:17-20'), 14)).toEqual([9]);
     expect(paysOn(one(map, 'split:17-20'), 26)).toEqual([]);
   });
 
-  it('Hourglass adds a spin to a night that has any', () => {
+  it('Hourglass adds two spins to a night that has any', () => {
     const s = grantTalisman(setup(), 'hourglass');
-    expect([spinsOf(s, 'long'), spinsOf(s, 'short'), spinsOf(s, 'sitout')]).toEqual([8, 4, 0]);
-    expect(play(s, { type: 'choosePackage', packageId: 'long' }).state.spinsLeft).toBe(8);
+    expect([spinsOf(s, 'long'), spinsOf(s, 'short'), spinsOf(s, 'sitout')]).toEqual([9, 5, 0]);
+    expect(play(s, { type: 'choosePackage', packageId: 'long' }).state.spinsLeft).toBe(9);
   });
 
   it('Fortune Cookie, Rose Brooch, Tally Stick, Green Thread and Surveyor’s Chain', async () => {
@@ -132,7 +137,7 @@ describe('the new talismans', () => {
     expect(paysOn(one(rose, 'red'), 1)).toEqual([4]);
     expect(paysOn(one(rose, 'black'), 2)).toEqual([2]);
     const tally = { ...grantTalisman(setup(), 'tally_stick'), lastSpin: { wins: [{ betId: 'red' }] } };
-    expect(paysOn(one(tally, 'red'), 1)).toEqual([4]);
+    expect(paysOn(one(tally, 'red'), 1)).toEqual([6]);
     expect(paysOn(one(grantTalisman(setup(), 'green_thread'), 'firstFour'), 0)).toEqual([27]);
     expect(paysOn(one(grantTalisman(setup(), 'surveyors_chain'), 'corner:1-2-4-5'), 5)).toEqual([27]);
   });

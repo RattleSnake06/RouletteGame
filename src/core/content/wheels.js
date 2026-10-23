@@ -29,8 +29,8 @@ export const WHEEL_LIST = [
     name: 'American',
     lock: 1,
     order: AMERICAN_ORDER,
-    debtTokens: 2,
-    upside: '+2 tokens each time a debt is paid.',
+    debtTokens: 1,
+    upside: '+1 token each time a debt is paid.',
     downside: 'A 00 pocket across from the zero: 38 pockets, and 00 is in no outside bet.',
   },
   {

@@ -30,6 +30,8 @@ const VIEW_NAMES = { oracle: 'Madame Zero', cage: 'Cage', table: 'Table', cabine
 const FOCUS_BETS = ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'dozen:2', 'dozen:3', 'column:1', 'column:2', 'column:3'];
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** "a, b and c". */
+const listOf = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 // The hint line (doc 8.4). [Key] marks a key. On a touch screen the hints
 // name touches instead (doc 9.10).
 const KEY_HINTS = {
@@ -407,8 +409,12 @@ export class Game {
       this.saveProfile();
     }
     this.news = news;
-    const feats = news.filter((n) => n.kind === 'achievement').map((n) => ACHIEVEMENTS.find((a) => a.id === n.id)?.name);
-    if (feats.length) setTimeout(() => this.hud.toast(`In the Almanac: ${feats.join(', ')}`, 2600), 900);
+    // A feat that opens content says so (doc 7.1).
+    const feats = news.filter((n) => n.kind === 'achievement').map((n) => {
+      const name = ACHIEVEMENTS.find((a) => a.id === n.id)?.name;
+      return n.content?.length ? `${name} (opens ${n.content.map((id) => contentName(id)).join(', ')})` : name;
+    });
+    if (feats.length) setTimeout(() => this.hud.toast(`In the Almanac: ${feats.join(', ')}`, 3200), 900);
     return events;
   }
 
@@ -784,8 +790,8 @@ export class Game {
     }
     showModal({
       className: `numbers ${kind}`,
-      kicker: 'The racetrack',
-      title: kind === 'neighbours' ? 'Neighbours of which number?' : 'Which finale?',
+      kicker: kind === 'neighbours' ? 'The racetrack · Neighbours' : 'The racetrack · Finales',
+      title: kind === 'neighbours' ? 'Which number?' : 'Which digit?',
       lines: [kind === 'neighbours' ? `The number and the two pockets either side of it on the wheel. Pays ${BET_KINDS.neighbours.odds}.` : 'Every number ending in the digit: 9, or 12 for 7, 8 and 9.'],
       actions: [{ label: 'Never mind', primary: true }, ...actions],
     });
@@ -1166,6 +1172,7 @@ export class Game {
       else if (n.kind === 'lock') {
         const wheels = n.wheels.map((id) => `the ${getStartingWheel(id).name} wheel`).join(' and ');
         lines.push(`<b>Lock ${n.lock} of the Vault</b> falls open: ${wheels} can be chosen for a new run${n.slot ? ', and the gramophone takes a second record' : ''}. A new run’s goal is debt ${4 + n.lock}.`);
+        if (n.content?.length) lines.push(`From the next run, the House also offers ${escapeHtml(listOf(n.content.map((id) => contentName(id))))}.`);
       } else if (n.kind === 'edge') lines.push(`<b>House Edge ${n.level}</b> is open for a new run: ${escapeHtml(edgeChoices(this.profile)[n.level].name.toLowerCase())}.`);
     }
     return lines;

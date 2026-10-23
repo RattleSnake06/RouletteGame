@@ -41,9 +41,9 @@ describe('starting wheels', () => {
     expect(getBet('straight:37').label).toBe('Straight up 00');
   });
 
-  it('the American wheel pays 2 tokens more for a paid debt', () => {
+  it('the American wheel pays a token more for a paid debt (2 in Phase 6)', () => {
     const r = play(atCage(run({ wheel: 'american' }), 1, 1000), { type: 'endNight' });
-    expect(r.events.find((e) => e.type === 'debtPaid').rewardTokens).toBe(4);
+    expect(r.events.find((e) => e.type === 'debtPaid').rewardTokens).toBe(3);
     expect(play(atCage(run(), 1, 1000), { type: 'endNight' }).events.find((e) => e.type === 'debtPaid').rewardTokens).toBe(2);
   });
 
@@ -70,7 +70,7 @@ describe('starting wheels', () => {
     expect(gilded).toHaveLength(6);
     expect(gilded.every((p) => p.number > 0)).toBe(true);
     expect(owed(s)).toBe(75);
-    expect(owed(s, 2)).toBe(500);
+    expect(owed(s, 2)).toBe(463);
     // The draw is the run's own: the same seed gilds the same pockets.
     expect(run({ wheel: 'gilded' }).wheel.pockets.filter((p) => p.enh === 'gilded').map((p) => p.id)).toEqual(gilded.map((p) => p.id));
     // The other wheels draw nothing, so a European run is the run it always was.
