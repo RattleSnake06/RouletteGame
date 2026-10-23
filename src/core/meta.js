@@ -13,7 +13,8 @@ import { deserialize, max, serialize } from './num.js';
 //                    a level opens the next
 //   figures          the runs that ended without stepping out: they stand in
 //                    the dark, the newest twelve; older ones fade out of it
-//   seen, achievements, stats   the Almanac (doc 7.4)
+//   seen, achievements, stats   the Almanac (doc 7.4); stats.deepest is the
+//                    most debts an endless run has paid (doc 7.1)
 //
 // Everything here is pure: the game hands it the run and the events an
 // action made, and saves what comes back.
@@ -27,7 +28,7 @@ const STRANGER = Object.freeze({ n: 0, stranger: true, cause: 'collected', debt:
 
 const SEEN_KINDS = ['talismans', 'fortunes', 'records', 'enhancements', 'oddities', 'engravings'];
 const emptySeen = () => Object.fromEntries(SEEN_KINDS.map((k) => [k, []]));
-const emptyStats = () => ({ runs: 0, goals: 0, left: 0, lost: 0, bestDebt: 0, bestSpin: 0, spins: 0, debtsPaid: 0, devils: 0 });
+const emptyStats = () => ({ runs: 0, goals: 0, left: 0, lost: 0, bestDebt: 0, bestSpin: 0, spins: 0, debtsPaid: 0, devils: 0, deepest: 0 });
 
 export function newProfile() {
   return {
@@ -113,6 +114,9 @@ export function opensLine(def) {
 
 /** What a new run takes from the profile (core/run.js createRun). */
 export const runOptions = (profile) => ({ locks: profile.locks, vault: profile.vault, figures: standingFigures(profile).length, opened: openedContent(profile) });
+
+/** Endless (doc 7.1): a run with no goal, once the Vault has opened. */
+export const endlessOpen = (profile) => profile.vault;
 
 /** The goal a new run would have: debt 4 + the open locks. */
 export const goalFor = (profile) => UNLOCK_DEBT + profile.locks;
@@ -223,6 +227,7 @@ export function endRun(profile, state, cause) {
     spins: st.spins + s.spins,
     debtsPaid: st.debtsPaid + s.debtsPaid,
     devils: st.devils + (s.devils ?? 0),
+    deepest: state.endless ? Math.max(st.deepest ?? 0, s.debtsPaid) : (st.deepest ?? 0),
   };
   let figures = profile.figures;
   if (cause !== 'left') {
@@ -237,6 +242,7 @@ export function endRun(profile, state, cause) {
       wheel: state.wheelId ?? 'european',
       edge: state.edge ?? 0,
       seed: state.seed,
+      endless: !!state.endless,
     };
     figures = [...figures, figure].slice(-FIGURES.kept);
   }
@@ -246,7 +252,8 @@ export function endRun(profile, state, cause) {
 /** "Collected at debt 4", "Gave up at debt 2". */
 export function figureCause(f) {
   if (f.gone) return 'Sent away by Madame Zero';
-  return f.cause === 'gaveUp' ? `Gave up at debt ${f.debt}` : `Collected at debt ${f.debt}`;
+  const where = `debt ${f.debt}${f.endless ? ', endless' : ''}`;
+  return f.cause === 'gaveUp' ? `Gave up at ${where}` : `Collected at ${where}`;
 }
 
 // --- The Almanac -------------------------------------------------------------

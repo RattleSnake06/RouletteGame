@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { getBet } from './core/bets.js';
+import { BET_KINDS, getBet } from './core/bets.js';
 import { ACHIEVEMENTS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from './core/content/index.js';
-import { almanacView, applyRun, chipSets, edgeChoices, endRun, goalFor, isUnlocked, runOptions, serializeProfile, standingFigures, wheelChoices } from './core/meta.js';
+import { almanacView, applyRun, chipSets, edgeChoices, endRun, endlessOpen, goalFor, isUnlocked, runOptions, serializeProfile, standingFigures, wheelChoices } from './core/meta.js';
 import { nightTokensFor } from './core/house.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
@@ -10,7 +10,7 @@ import { randomSeed } from './core/rng.js';
 import { PHASE, act, chipsOnTable, costOf, createRun, hooksFor, interestRate, isFinalNight, owed } from './core/run.js';
 import { deserializeRun, serializeRun } from './core/save.js';
 import { bellView, cabinetView, gramophoneView, levelsView, luckView, numbersView, oracleView, pickView, previewBet, railView, statsView, wheelView } from './core/selectors.js';
-import { numberLabel } from './core/wheel.js';
+import { DOUBLE_ZERO, numberLabel } from './core/wheel.js';
 import { openSpecials } from './core/effects.js';
 import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
@@ -171,8 +171,8 @@ export class Game {
     clearTimeout(this.leanTimer);
     this.leanTimer = null;
     this.clearFocus();
-    const { wheel, edge } = this.chosenSetup();
-    this.state = createRun({ seed: randomSeed(), chipSet, wheel, edge, ...runOptions(this.profile) });
+    const { wheel, edge, endless } = this.chosenSetup();
+    this.state = createRun({ seed: randomSeed(), chipSet, wheel, edge, endless, ...runOptions(this.profile) });
     this.hideExtraBalls();
     this.save();
     this.power = 1;
@@ -222,13 +222,16 @@ export class Game {
     const wheels = wheelChoices(this.profile).filter((w) => w.unlocked);
     const wheel = wheels.find((w) => w.id === saved?.wheel)?.id ?? 'european';
     const edge = Number.isInteger(saved?.edge) ? Math.max(0, Math.min(saved.edge, this.profile.edge)) : 0;
-    return { wheel, edge };
+    const endless = saved?.endless === true && endlessOpen(this.profile);
+    return { wheel, edge, endless };
   }
 
   setupView() {
-    const { wheel, edge } = this.chosenSetup();
+    const { wheel, edge, endless } = this.chosenSetup();
     return {
       goal: goalFor(this.profile),
+      endless,
+      endlessOpen: endlessOpen(this.profile),
       wheel: wheelChoices(this.profile).find((w) => w.id === wheel),
       edge: edgeChoices(this.profile)[edge],
       wheels: wheelChoices(this.profile).filter((w) => w.unlocked).length,
@@ -252,6 +255,24 @@ export class Game {
       actions: [
         { label: 'Keep it', primary: true },
         ...list.filter((w) => w.unlocked && w.id !== now).map((w) => ({ label: `${w.name} wheel`, onClick: () => this.saveSetup({ wheel: w.id }) })),
+      ],
+    });
+  }
+
+  /** Once the Vault is open: a run to the goal, or endless (doc 7.1). */
+  chooseGoal() {
+    const { endless } = this.chosenSetup();
+    const goal = goalFor(this.profile);
+    showModal({
+      kicker: 'The goal',
+      title: 'How far?',
+      lines: [
+        `<b>To debt ${goal}</b>: pay it and you may step out of the light, the run won.`,
+        '<b>Endless</b>: no goal and no stepping out. Play until the Cage collects; the deepest run goes in the Almanac.',
+      ],
+      actions: [
+        { label: 'Keep it', primary: true },
+        endless ? { label: `To debt ${goal}`, onClick: () => this.saveSetup({ endless: false }) } : { label: 'Endless', onClick: () => this.saveSetup({ endless: true }) },
       ],
     });
   }
@@ -287,7 +308,7 @@ export class Game {
   continueLine() {
     const s = this.state;
     if (!s || s.phase === PHASE.GAME_OVER || (s.stats.spins === 0 && s.debt === 1 && s.round === 1)) return null;
-    return `debt ${s.debt} · night ${s.round} · ${getMaterial(s.chipSet).name} chips`;
+    return `debt ${s.debt} · night ${s.round} · ${getMaterial(s.chipSet).name} chips${s.endless ? ' · endless' : ''}`;
   }
 
   /** The hall goes dark, the camera finds her in it, and the menu comes up. */
@@ -747,16 +768,26 @@ export class Game {
 
   /** Which number for a Neighbours bet, or which last digit for a Finale. */
   chooseTrackBet(chipId, kind) {
-    const numbers = kind === 'neighbours' ? Array.from({ length: this.state.wheelOrder?.length ?? 37 }, (_, n) => n) : Array.from({ length: 10 }, (_, d) => d);
+    const place = (n) => () => this.placeChipOn(chipId, `${kind}:${n}`);
+    let actions;
+    if (kind === 'neighbours') {
+      // Laid out as the felt is: the zero (and the 00) down the left, then
+      // twelve columns of three.
+      const double = this.state.wheelOrder?.includes(DOUBLE_ZERO);
+      actions = [
+        { label: '0', onClick: place(0), cell: { col: 1, row: double ? 2 : 1, rows: double ? 2 : 3 } },
+        ...(double ? [{ label: numberLabel(DOUBLE_ZERO), onClick: place(DOUBLE_ZERO), cell: { col: 1, row: 1 } }] : []),
+        ...Array.from({ length: 36 }, (_, i) => i + 1).map((n) => ({ label: String(n), onClick: place(n), cell: { col: Math.ceil(n / 3) + 1, row: 3 - ((n - 1) % 3) } })),
+      ];
+    } else {
+      actions = Array.from({ length: 10 }, (_, d) => ({ label: String(d), onClick: place(d) }));
+    }
     showModal({
-      className: 'numbers',
+      className: `numbers ${kind}`,
       kicker: 'The racetrack',
       title: kind === 'neighbours' ? 'Neighbours of which number?' : 'Which finale?',
-      lines: [kind === 'neighbours' ? 'The number and the two pockets either side of it on the wheel. Pays 7.' : 'Every number ending in the digit: 9, or 12 for 7, 8 and 9.'],
-      actions: [
-        { label: 'Never mind', primary: true },
-        ...numbers.map((n) => ({ label: kind === 'neighbours' ? numberLabel(n) : String(n), onClick: () => this.placeChipOn(chipId, `${kind}:${n}`) })),
-      ],
+      lines: [kind === 'neighbours' ? `The number and the two pockets either side of it on the wheel. Pays ${BET_KINDS.neighbours.odds}.` : 'Every number ending in the digit: 9, or 12 for 7, 8 and 9.'],
+      actions: [{ label: 'Never mind', primary: true }, ...actions],
     });
   }
 

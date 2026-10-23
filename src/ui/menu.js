@@ -62,7 +62,7 @@ function chipStack(set, w = 168, h = 96) {
 
 /**
  * handlers: { onContinue, onPlay, onAlmanac, onSettings, onBegin(setId),
- * onBack, onWheel, onEdge }. The chip select also chooses the starting wheel
+ * onBack, onWheel, onEdge, onGoal }. The chip select also chooses the starting wheel
  * and the House Edge (doc 7.2): each a button that opens its list, shown once
  * the Vault or a win has opened more than one.
  */
@@ -122,8 +122,9 @@ export function createMainMenu(handlers) {
   };
   const wheelBtn = chooser(() => handlers.onWheel?.());
   const edgeBtn = chooser(() => handlers.onEdge?.());
+  const goalBtn = chooser(() => handlers.onGoal?.());
   const picks = el('div', 'ts-picks');
-  picks.append(wheelBtn, edgeBtn);
+  picks.append(wheelBtn, edgeBtn, goalBtn);
   foot.append(back, picks, begin);
   chips.append(head, row, foot);
   let selected = null;
@@ -142,16 +143,21 @@ export function createMainMenu(handlers) {
   /** The wheel and House Edge chosen, and how many of each are open. */
   function drawSetup() {
     if (!setup) return;
-    goalLine.textContent = `Your goal: pay debt ${setup.goal}. Pay debt 4 with a set, and the next one opens.`;
+    goalLine.textContent = setup.endless
+      ? 'Endless: no goal. Play until the Cage collects. Pay debt 4 with a set, and the next one opens.'
+      : `Your goal: pay debt ${setup.goal}. Pay debt 4 with a set, and the next one opens.`;
     wheelBtn.hidden = setup.wheels < 2;
     edgeBtn.hidden = setup.edges < 2;
-    picks.hidden = wheelBtn.hidden && edgeBtn.hidden;
+    goalBtn.hidden = !setup.endlessOpen;
+    picks.hidden = wheelBtn.hidden && edgeBtn.hidden && goalBtn.hidden;
     // With the choosers out, a narrow screen drops Begin's second line (CSS).
     chips.classList.toggle('setup', !picks.hidden);
     wheelBtn.querySelector('.label').textContent = `${setup.wheel.name} wheel ▾`;
     edgeBtn.querySelector('.label').textContent = setup.edge.level ? `House Edge ${setup.edge.level} ▾` : 'No House Edge ▾';
     wheelBtn.setAttribute('aria-label', `${setup.wheel.name} wheel. ${setup.wheel.upside} ${setup.wheel.downside} Change the wheel.`);
     edgeBtn.setAttribute('aria-label', `House Edge ${setup.edge.level}: ${setup.edge.text} Change the edge.`);
+    goalBtn.querySelector('.label').textContent = setup.endless ? 'Endless ▾' : `To debt ${setup.goal} ▾`;
+    goalBtn.setAttribute('aria-label', setup.endless ? 'Endless: no goal. Change the goal.' : `Goal: debt ${setup.goal}. Change the goal.`);
   }
 
   function drawSets() {

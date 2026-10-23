@@ -1410,13 +1410,24 @@ img.mark {
   font-size: 1em;
 }
 
-/* The racetrack's number chooser: a grid of numbers, no gashes between. */
+/* The racetrack's number chooser: the numbers laid out as on the felt (the
+   zero down the left, twelve columns of three), or the ten finales in a row;
+   no gashes between. */
+.modal-backdrop.numbers .modal-card {
+  width: 100%;
+}
+
 .modal-backdrop.numbers .modal-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
-  gap: 2px 4px;
+  grid-template-columns: repeat(13, minmax(44px, 1fr));
+  gap: 2px;
   width: 100%;
+  max-width: max(calc(820 * var(--u)), 600px);
   margin-top: calc(14 * var(--u));
+}
+
+.modal-backdrop.numbers.finale .modal-actions {
+  grid-template-columns: repeat(10, minmax(44px, 1fr));
 }
 
 .modal-backdrop.numbers .modal-actions .gash {
@@ -1426,6 +1437,8 @@ img.mark {
 .modal-backdrop.numbers .modal-actions .modal-btn {
   justify-content: center;
   min-width: 44px;
+  min-height: 44px;
+  padding: 0;
 }
 
 .modal-btn.danger .label {

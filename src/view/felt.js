@@ -26,13 +26,13 @@ export const TRACK = { y0: -1.45, y1: -0.15 };
 // The layout's own top, past the racetrack: canvas y = (y + MARGIN + TOP) px.
 const TOP = 1.55;
 export const TRACK_ZONES = [
-  { kind: 'neighbours', x0: 1, x1: 3.1, label: 'NEIGHBOURS' },
-  { kind: 'finale', x0: 3.1, x1: 5, label: 'FINALES' },
-  { kind: 'voisins', x0: 5, x1: 7.4, label: 'VOISINS' },
-  { kind: 'tiers', x0: 7.4, x1: 9.4, label: 'TIERS' },
-  { kind: 'orphelins', x0: 9.4, x1: 11.6, label: 'ORPHELINS' },
-  { kind: 'jeuZero', x0: 11.6, x1: 13.2, label: 'JEU ZÉRO' },
-  { kind: 'snake', x0: 13.2, x1: 14.4, label: 'SNAKE' },
+  { kind: 'neighbours', x0: 1, x1: 3, label: 'NEIGHBOURS' },
+  { kind: 'finale', x0: 3, x1: 4.8, label: 'FINALES' },
+  { kind: 'voisins', x0: 4.8, x1: 6.8, label: 'VOISINS' },
+  { kind: 'tiers', x0: 6.8, x1: 8.6, label: 'TIERS' },
+  { kind: 'orphelins', x0: 8.6, x1: 10.6, label: 'ORPHELINS' },
+  { kind: 'jeuZero', x0: 10.6, x1: 12.4, label: 'JEU ZÉRO' },
+  { kind: 'snake', x0: 12.4, x1: 14, label: 'SNAKE' },
 ];
 const zoneOf = (kind) => TRACK_ZONES.find((z) => z.kind === kind);
 const NUMBERS_BOTTOM = 3;
@@ -83,7 +83,8 @@ function buildSpots() {
       // A racetrack zone: every bet of the kind sits on it.
       const z = zoneOf(bet.kind);
       const rect = { x0: z.x0, y0: TRACK.y0, x1: z.x1, y1: TRACK.y1 };
-      spots.set(bet.id, { type: 'box', x: (z.x0 + z.x1) / 2, y: (TRACK.y0 + TRACK.y1) / 2, rect, track: true });
+      // The chip sits low in the zone, under the lettering.
+      spots.set(bet.id, { type: 'box', x: (z.x0 + z.x1) / 2, y: TRACK.y1 - 0.36, rect, track: true });
       continue;
     }
     switch (bet.kind) {
@@ -383,12 +384,12 @@ export class FeltCanvas {
       }
       ctx.font = `600 ${Math.round(px * (z.label.length > 8 ? 0.26 : 0.3))}px Oswald, "Arial Narrow", sans-serif`;
       ctx.fillStyle = open ? COLORS.ink : 'rgba(224, 204, 152, 0.35)';
-      ctx.fillText(z.label, (x0 + x1) / 2, (y0 + y1) / 2 - (open ? px * 0.1 : 0));
+      ctx.fillText(z.label, (x0 + x1) / 2, open ? y0 + px * 0.3 : (y0 + y1) / 2);
       if (open) {
         ctx.font = `500 ${Math.round(px * 0.2)}px Oswald, "Arial Narrow", sans-serif`;
         ctx.fillStyle = COLORS.line;
         const odds = z.kind === 'finale' ? '9–12' : String(BET_KINDS[z.kind].odds);
-        ctx.fillText(`pays ${odds}`, (x0 + x1) / 2, (y0 + y1) / 2 + px * 0.24);
+        ctx.fillText(`pays ${odds}`, (x0 + x1) / 2, y0 + px * 0.56);
       }
     });
     ctx.restore();

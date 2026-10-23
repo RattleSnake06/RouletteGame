@@ -135,7 +135,16 @@ export async function measure({ view, roles, min }) {
     // While wheel work is being placed only the numbers take a tap (doc 5.4);
     // a bet level takes any spot.
     const level = r.game.picking && r.game.picking.works[0]?.on === 'bet';
-    const ids = [...SPOTS.keys()].filter((id) => !r.game.picking || level || id.startsWith('straight:'));
+    // A racetrack zone holds every bet of its kind (Neighbours of each number)
+    // on one spot: measure it once.
+    const zones = new Set();
+    const ids = [...SPOTS.keys()].filter((id) => !r.game.picking || level || id.startsWith('straight:')).filter((id) => {
+      if (!SPOTS.get(id).track) return true;
+      const kind = id.split(':')[0];
+      if (zones.has(kind)) return false;
+      zones.add(kind);
+      return true;
+    });
     const spots = ids.map((id) => ({ id, ...project(r.table.spotWorldPosition(id)) }));
     for (const s of spots) {
       let gap = Infinity;

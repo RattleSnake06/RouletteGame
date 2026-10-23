@@ -78,6 +78,18 @@ for (const size of SIZES) {
     g.placeChip('c2', 'straight:17');
   });
   await at('felt close-up', 'felt');
+  // Phase 7 (doc 5.3): the racetrack opened, with a chip on a sector, and the
+  // number chooser a Neighbours bet asks for.
+  await at('the racetrack, open', 'felt', () => {
+    const r = window.__roulette;
+    const g = r.game;
+    r.debug.grant('croupiers_glove');
+    g.state = { ...g.state, boons: [...g.state.boons, { uid: 'b-layout', id: 'neighbours_talk', data: {} }] };
+    g.syncAll();
+    g.placeChip('c3', 'voisins');
+  });
+  await at('choosing a neighbour', 'felt', () => window.__roulette.game.placeChip('c2', 'neighbours:17'));
+  await game(() => [...document.querySelectorAll('.modal-backdrop.show button')].find((b) => b.textContent.trim() === '17')?.click());
   await at('cabinet', 'cabinet');
   // Wheel work (doc 5.4): an oddity's card, then choosing where it goes on
   // the felt, with a blank pocket on the wheel so its button shows too.
@@ -159,6 +171,14 @@ for (const size of SIZES) {
     g.openChipSelect();
   });
   await at('choosing the wheel', 'menu', () => window.__roulette.game.chooseWheel());
+  // The Vault open (doc 7.1): every lock, and the goal's chooser for Endless.
+  await at('chip select, the Vault open', 'menu', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    const g = window.__roulette.game;
+    g.profile = { ...g.profile, unlocked: ['normal', 'clay', 'bone', 'glass', 'gold'], locks: 4, vault: true, edge: 5 };
+    g.saveSetup({ endless: true });
+  });
+  await at('choosing the goal', 'menu', () => window.__roulette.game.chooseGoal());
   await ctx.close();
 }
 

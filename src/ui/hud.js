@@ -640,7 +640,8 @@ const designPixel = () => Math.min(2.4, Math.max(0.72, Math.min(window.innerWidt
  *   title    scrawled title; `struck` strikes it out and `after` follows it
  *   lines    paragraphs (trusted HTML built by the game)
  *   ledger   [label, value, className?] rows
- *   actions  { label, primary, danger, keepOpen, value: () => text, onClick }
+ *   actions  { label, primary, danger, keepOpen, value: () => text, onClick, cell }
+ *            `cell` ({ col, row, rows }) places a button in a grid of them.
  *            The primary action carries the swipe; others sit in a row.
  *            An action with `value` is a toggle that shows its current state.
  */
@@ -731,6 +732,10 @@ export function showModal({ kicker, title, struck = false, after, lines = [], le
   function makeButton(a, cls) {
     const b = el('button', `modal-btn ${cls}${a.danger ? ' danger' : ''}`);
     b.type = 'button';
+    if (a.cell) {
+      b.style.gridColumn = String(a.cell.col);
+      b.style.gridRow = `${a.cell.row} / span ${a.cell.rows ?? 1}`;
+    }
     const label = el('span', 'label scrawl fat', escapeHtml(a.label));
     b.appendChild(label);
     let valueNode = null;

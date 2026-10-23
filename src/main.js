@@ -205,6 +205,7 @@ async function init() {
     onSettings: () => game.openSettings(),
     onWheel: () => game.chooseWheel(),
     onEdge: () => game.chooseEdge(),
+    onGoal: () => game.chooseGoal(),
     onBegin: (id) => game.beginRun(id),
     onBack: () => game.menuBack(),
   });

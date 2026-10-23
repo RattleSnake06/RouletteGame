@@ -3,11 +3,14 @@ import { SPECIAL_KINDS, betOf, getBet } from '../../src/core/bets.js';
 import { rollTalismanSlots } from '../../src/core/cabinet.js';
 import { FORTUNES, RECORDS, TALISMANS, getTalisman } from '../../src/core/content/index.js';
 import { openSpecials } from '../../src/core/effects.js';
-import { newProfile, runOptions } from '../../src/core/meta.js';
+import { almanacView, deserializeProfile, endRun, figureCause, newProfile, runOptions, serializeProfile } from '../../src/core/meta.js';
+import { DEVIL } from '../../src/core/devil.js';
+import { spinCostFor } from '../../src/core/economy.js';
+import { eq, format, gt, isBig, lt, mul, num } from '../../src/core/num.js';
 import { evaluate } from '../../src/core/payout.js';
 import { ballsFor } from '../../src/core/resolve.js';
 import { Rng, hashSeed } from '../../src/core/rng.js';
-import { act, createRun, grantTalisman, spinsOf } from '../../src/core/run.js';
+import { act, createRun, grantTalisman, owed, spinsOf } from '../../src/core/run.js';
 import { deserializeRun, serializeRun } from '../../src/core/save.js';
 import { play, setup } from './helpers.js';
 
@@ -223,5 +226,68 @@ describe('saves', () => {
     expect(back).toMatchObject({ version: 9, opened: [], endless: false });
     expect(back.wheelOrder).toHaveLength(38);
     expect(deserializeRun(serializeRun(s))).toEqual(s);
+  });
+});
+
+describe('endless (doc 7.1)', () => {
+  /** The last night of debt `debt` over, with the Cage owed twice over. */
+  const atCage = (s, debt) => {
+    const t = { ...s, debt, round: 3, phase: 'nightOver', stats: { ...s.stats, debtsPaid: debt - 1 } };
+    return { ...t, deposited: mul(owed(t), 2) };
+  };
+
+  it('has no goal: paying debt 8 reaches nothing, and the Cage never lets the player go', () => {
+    const s = createRun({ seed: 'ENDLESS', endless: true, ...runOptions({ ...newProfile(), locks: 4, vault: true }) });
+    expect(s.goal).toBeNull();
+    const r = play(atCage(s, 8), { type: 'endNight' });
+    expect(r.events.some((e) => e.type === 'debtPaid')).toBe(true);
+    expect(r.events.some((e) => e.type === 'goalReached')).toBe(false);
+    expect(r.state.won).toBeNull();
+    expect(act(r.state, { type: 'leave' }).events[0]).toMatchObject({ code: 'notWon' });
+  });
+
+  it('carries big numbers end to end: debts past 1e15, spin costs, a spin, a save', () => {
+    let s = { ...createRun({ seed: 'ENDLESS-BIG', endless: true, locks: 4, vault: true }), coins: num(0) };
+    let last = 0;
+    for (let d = 9; d <= 40; d++) {
+      const r = play(atCage(s, d), { type: 'endNight' });
+      const paid = r.events.find((e) => e.type === 'debtPaid');
+      expect(paid.debt).toBe(d);
+      expect(gt(paid.owed, last)).toBe(true);
+      last = paid.owed;
+      s = r.state;
+    }
+    expect(s.debt).toBe(41);
+    expect(isBig(owed(s))).toBe(true);
+    expect(format(owed(s))).toMatch(/^\d\.\d\de\d+$/);
+    expect(isBig(spinCostFor(80))).toBe(true);
+    // A night and a spin with coins past what a plain number holds (the
+    // Devil kept out of it: by debt 80 he fires on one throw in four).
+    s = { ...s, debt: 80, coins: mul(spinCostFor(80), 1000) };
+    const before = s.coins;
+    const cap = DEVIL.cap;
+    DEVIL.cap = 0;
+    try {
+      s = play(s, { type: 'choosePackage', packageId: 'long' }, { type: 'placeChip', chipId: 'c1', betId: 'red' }, { type: 'spin' }).state;
+    } finally {
+      DEVIL.cap = cap;
+    }
+    expect(lt(s.coins, before)).toBe(true);
+    expect(isBig(s.coins)).toBe(true);
+    const back = deserializeRun(serializeRun(s));
+    expect(eq(back.coins, s.coins)).toBe(true);
+    expect(eq(owed(back), owed(s))).toBe(true);
+    expect(back.endless).toBe(true);
+  });
+
+  it('the profile keeps the deepest endless run, and the figure says it was endless', () => {
+    const p = newProfile();
+    const s = { ...createRun({ seed: 'ENDLESS-END', endless: true, locks: 4, vault: true }), debt: 13, stats: { ...createRun({ seed: 'x' }).stats, debtsPaid: 12 } };
+    const after = endRun(p, s, 'collected');
+    expect(after.stats.deepest).toBe(12);
+    expect(endRun(after, { ...s, endless: false, stats: { ...s.stats, debtsPaid: 20 } }, 'collected').stats.deepest).toBe(12);
+    expect(figureCause(after.figures.at(-1))).toBe('Collected at debt 13, endless');
+    expect(almanacView(after).stats.deepest).toBe(12);
+    expect(deserializeProfile(serializeProfile(after)).stats.deepest).toBe(12);
   });
 });

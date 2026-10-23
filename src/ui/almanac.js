@@ -98,6 +98,7 @@ export function showAlmanac(view, { names = (id) => id, onClose } = {}) {
       ['Stepped out', String(st.left)],
       ['Collected or given up', String(st.lost)],
       ['Most debts paid in a run', String(st.bestDebt)],
+      ...(st.deepest ? [['Deepest endless run', `${st.deepest} debts paid`]] : []),
       ['Best spin', format(st.bestSpin)],
       ['Spins', String(st.spins)],
       ['The Devil fired', String(st.devils)],

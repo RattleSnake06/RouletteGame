@@ -29,7 +29,9 @@ export function effectText(step) {
     case 'hit':
       return n === 0.25 ? '×¼ beside' : `×${n} hit`;
     case 'covers':
-      return 'counts';
+      return n && n !== 1 ? `counts, ×${n}` : 'counts';
+    case 'ball':
+      return n && n !== 1 ? `+1 ball, ×${n}` : '+1 ball';
     case 'chipValue':
       return `+${n} value`;
     case 'chipBase':
