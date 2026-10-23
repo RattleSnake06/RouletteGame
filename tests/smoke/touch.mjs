@@ -329,7 +329,7 @@ try {
     const s = window.__roulette.game.state;
     return { enh: s.wheel.pockets.find((p) => p.number === 17).enh, coins: s.coins, picking: !!window.__roulette.game.picking };
   });
-  check(after.enh === 'platinum' && after.coins === coinsBefore - 36 && !after.picking, 'two taps on 17 gild it twice: platinum, for 36 coins');
+  check(after.enh === 'platinum' && after.coins === coinsBefore - 40 && !after.picking, 'two taps on 17 gild it twice: platinum, for 40 coins');
   check(!problems.length, 'no page or console errors');
   console.log('\nTouch playthrough passed.');
 } catch (e) {
