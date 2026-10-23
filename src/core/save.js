@@ -10,7 +10,7 @@ import { emptyTally } from './tally.js';
 // Runs save as versioned JSON. Big money values are stored as { $d: "1.2e500" };
 // everything else in the run state is plain data.
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export function serializeRun(state) {
   // JSON.stringify calls Decimal#toJSON before the replacer sees the value,
@@ -159,6 +159,10 @@ const MIGRATIONS = {
       cabinet: { ...state.cabinet, slots },
       rng: { ...state.rng, pockets: seedStreams(state.seed).pockets },
     };
+  },
+  // Phase 5's second half: bet levels, all at 1.
+  6(state) {
+    return { ...state, version: 7, levels: {} };
   },
 };
 

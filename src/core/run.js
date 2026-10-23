@@ -33,7 +33,7 @@ export const PHASE = {
   GAME_OVER: 'gameOver',
 };
 
-export const RUN_VERSION = 6;
+export const RUN_VERSION = 7;
 const HISTORY_LENGTH = 40;
 
 const noEvents = () => {};
@@ -63,6 +63,7 @@ export function createRun({ seed, chipSet = MATERIALS[0].id }) {
     placements: {},
     fixed: [], // chips placed tonight that may not move until the night ends (Bone)
     chipTokens: 0, // tokens chips have earned tonight (Gold, capped a night)
+    levels: {}, // each kind of bet's level, where something raised it (doc 5.3)
     wheel: createEuropeanWheel(),
     railHooks: ECONOMY.startHooks,
     rail: [],
@@ -205,6 +206,7 @@ export function copyRun(state) {
     chips: state.chips.map((c) => ({ ...c })),
     placements: { ...state.placements },
     fixed: [...(state.fixed ?? [])],
+    levels: { ...state.levels },
     wheel: { ...state.wheel, pockets: state.wheel.pockets.map((p) => ({ ...p })) },
     rail: state.rail.map((t) => ({ ...t, data: copyData(t.data) })),
     cabinet: copyCabinet(state.cabinet),
@@ -281,6 +283,22 @@ function openInstant(s, def, price, emit) {
   const src = { index: -1, inst, def, as: def, self: inst.data, by: null };
   def.hooks.purchased?.(commitCtx(s, src, emit, 'purchased', { item: inst, isSelf: true }));
   return inst;
+}
+
+/** A new chip in hand, value 1, of this material (six at most: the caller checks). */
+function addChip(s, material, emit) {
+  const chip = { id: `c${s.nextChipId}`, value: 1, material, roundValue: 0 };
+  s.nextChipId += 1;
+  s.chips = [...s.chips, chip];
+  emit({ type: 'chipGained', chipId: chip.id, material });
+  return chip;
+}
+
+/** A record into the crate; it plays at once if nothing is playing. */
+function giveRecord(s, id, emit) {
+  s.records = [...s.records, id];
+  emit({ type: 'recordGained', record: id });
+  if (!s.playing) playOn(s, id, emit);
 }
 
 /** The gramophone plays `id` (or nothing). A record keeps its own data between plays. */
@@ -502,6 +520,8 @@ const HANDLERS = {
     if (!def) return reject(state, 'That compartment is empty.', 'soldOut');
     const price = oddityPrice(state, def);
     if (!gte(state.coins, price)) return reject(state, 'Not enough coins.', 'noCoins');
+    if (def.gives?.chip && state.chips.length >= ECONOMY.maxChips) return reject(state, `Your pockets are full: ${ECONOMY.maxChips} chips at most.`, 'full');
+    if (def.gives?.record && (!offer.record || state.records.includes(offer.record))) return reject(state, 'You own that record already.', 'owned');
     if (targets.length !== def.picks.length) return reject(state, def.picks.length === 1 ? 'Choose where it goes.' : `Choose ${def.picks.length} places for it.`, 'targets');
     const s = copyRun(state);
     const events = [{ type: 'oddityBought', slot, id: def.id, price, targets }];
@@ -511,6 +531,8 @@ const HANDLERS = {
       if (why) return reject(state, why, 'badTarget');
       doWork(s, def.picks[i], targets[i], (e) => events.push(e), by);
     }
+    if (def.gives?.chip) addChip(s, def.gives.chip, (e) => events.push(e));
+    if (def.gives?.record) giveRecord(s, offer.record, (e) => events.push(e));
     s.coins = sub(s.coins, price);
     s.stats.odditiesBought += 1;
     s.cabinet.slots[slot] = { kind: 'oddity', id: null, sold: true };
@@ -598,6 +620,7 @@ const HANDLERS = {
       fortuneCtx(s, def, emit, rng, {
         hang: (talisman) => hang(s, talisman, 0, emit),
         play: (record) => playOn(s, record, emit),
+        chip: (material) => addChip(s, material, emit),
       }),
     );
     s.rng.fortunes = rng.state();

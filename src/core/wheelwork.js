@@ -1,3 +1,4 @@
+import { BET_KINDS, levelOf } from './bets.js';
 import { getEnhancement } from './content/index.js';
 import { defaultColor, indexOfPocket, isBlank } from './wheel.js';
 import { MIN_WIDTH } from './widths.js';
@@ -16,6 +17,10 @@ import { MIN_WIDTH } from './widths.js';
 //   remove     chisels the pocket out (no fewer than 18 stay)
 //   stamp      the pocket reads `number` (a blank one takes that number's colour)
 //
+// One piece of work is done on the table, not the wheel: `level` (on: 'bet')
+// raises a kind of bet a level (the Brass Odds Plate), so that an oddity's
+// picks all go through here.
+//
 // Work never draws randomness; fortunes that work at random pick their
 // pockets on the fortunes stream (oracle.js).
 
@@ -33,6 +38,7 @@ const isNumber = (n) => Number.isInteger(n) && n >= 0 && n <= 36;
 
 /** Why this work cannot act on this target now, or null when it can. */
 export function workRefusal(state, work, target) {
+  if (work.on === 'bet') return BET_KINDS[target] ? null : 'Tap a bet.';
   if (work.on === 'number') {
     if (!isNumber(target)) return 'Choose a number.';
     const pockets = withNumber(state, target);
@@ -69,6 +75,7 @@ export function workRefusal(state, work, target) {
 
 /** Every target this work could act on now: pocket ids, or numbers (not for stamping). */
 export function workTargets(state, work) {
+  if (work.on === 'bet') return Object.keys(BET_KINDS);
   if (work.on === 'number') return Array.from({ length: 37 }, (_, n) => n).filter((n) => !workRefusal(state, work, n));
   // Any pocket can take a stamp; only the number can be refused.
   if (work.op === 'stamp') return state.wheel.pockets.map((p) => p.id);
@@ -82,6 +89,12 @@ export function workTargets(state, work) {
  * The target must have passed workRefusal.
  */
 export function doWork(draft, work, target, emit, by) {
+  if (work.on === 'bet') {
+    const level = levelOf(draft, target) + 1;
+    draft.levels = { ...draft.levels, [target]: level };
+    emit({ type: 'betLevel', kind: target, level, odds: BET_KINDS[target].odds * level, by });
+    return;
+  }
   const wheel = draft.wheel;
   const at = (p) => ({ id: p.id, index: wheel.pockets.indexOf(p) });
   if (work.on === 'number') {

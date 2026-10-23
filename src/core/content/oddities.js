@@ -1,6 +1,6 @@
 // Oddities (design doc 5.11, 6.7): the Curio Cabinet's fourth compartment.
-// For now they are wheel work, a wheel-maker's odds and ends; chips, bet
-// levels and records join them in the second half of Phase 5. Each is data:
+// Wheel work (a wheel-maker's odds and ends), a bet level, chips and records.
+// Each is data:
 //
 //   name, text   as the Cabinet's tag and note say it
 //   rarity       the Cabinet's reroll weights (economy.js)
@@ -10,7 +10,10 @@
 //   picks        what you choose when you buy it, in order: each names the
 //                work (core/wheelwork.js) and what it acts on. `pocket` work
 //                picks one pocket; `number` work acts on every pocket with
-//                that number.
+//                that number; `bet` work picks a kind of bet.
+//   gives        what it puts in your hands: { chip: material } a new chip
+//                (six at most), or { record: true } the record the
+//                compartment was stocked with (one not yet owned)
 //
 // Bought, it does its work at once and is gone: nothing waits in a pocket.
 // The array order is part of determinism: append, never reorder.
@@ -103,5 +106,68 @@ export const ODDITY_LIST = [
     spins: 40,
     text: 'Make a pocket Ember: a chip that wins there gains +1 value, for good.',
     picks: [{ op: 'enhance', enh: 'ember' }],
+  },
+  // Phase 5, second half: a bet level, chips and records.
+  {
+    id: 'odds_plate',
+    name: 'Brass Odds Plate',
+    rarity: 'uncommon',
+    spins: 40,
+    text: 'Raise a kind of bet a level: tap one on the felt. Every bet of that kind pays its base odds once more (a straight-up 36 → 72 → 108).',
+    picks: [{ op: 'level', on: 'bet' }],
+  },
+  {
+    id: 'house_chip',
+    name: 'House Chip',
+    rarity: 'uncommon',
+    spins: 50,
+    text: 'One more chip, the House’s own: value 1, no rule of its own.',
+    picks: [],
+    gives: { chip: 'normal' },
+  },
+  {
+    id: 'clay_chip',
+    name: 'Clay Chip',
+    rarity: 'common',
+    spins: 40,
+    text: 'One more chip, of clay: value 1, pays ×0.75.',
+    picks: [],
+    gives: { chip: 'clay' },
+  },
+  {
+    id: 'bone_chip',
+    name: 'Bone Chip',
+    rarity: 'uncommon',
+    spins: 50,
+    text: 'One more chip, of bone: value 1, pays ×1.15, and stays where it lies until the night ends.',
+    picks: [],
+    gives: { chip: 'bone' },
+  },
+  {
+    id: 'glass_chip',
+    name: 'Glass Chip',
+    rarity: 'rare',
+    spins: 60,
+    text: 'One more chip, of glass: value 1, pays ×1.65.',
+    picks: [],
+    gives: { chip: 'glass' },
+  },
+  {
+    id: 'gold_chip',
+    name: 'Gold Chip',
+    rarity: 'rare',
+    spins: 50,
+    text: 'One more chip, of gold: value 1, pays ×0.6, and +1 token when it wins (three a night from all your gold).',
+    picks: [],
+    gives: { chip: 'gold' },
+  },
+  {
+    id: 'record_sleeve',
+    name: 'A Record',
+    rarity: 'rare',
+    spins: 40,
+    text: 'A record for the gramophone. It plays at once if nothing is playing.',
+    picks: [],
+    gives: { record: true },
   },
 ];

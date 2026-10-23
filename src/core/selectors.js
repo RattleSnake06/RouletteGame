@@ -1,7 +1,7 @@
 import { bellQueue, canAnswer } from './bell.js';
 import { betCovers, getBet } from './bets.js';
-import { RECORDS, getEnhancement, getEngraving, getFortune, getOddity, getRecord, getTalisman } from './content/index.js';
-import { RARITY, priceOf, sellValueOf } from './economy.js';
+import { RECORDS, getEnhancement, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman } from './content/index.js';
+import { ECONOMY, RARITY, priceOf, sellValueOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
 import { copyTarget, echoTarget, sources } from './effects.js';
 import { nudgeFor } from './nudge.js';
@@ -12,7 +12,7 @@ import { canTake, dealOf, rerollCost } from './oracle.js';
 import { restockCost } from './economy.js';
 import { gte, max, sub } from './num.js';
 import { liveWheel } from './widths.js';
-import { tableCell } from './bets.js';
+import { BET_KINDS, levelOf, tableCell } from './bets.js';
 import { createEuropeanWheel, isBlank } from './wheel.js';
 import { doWork, workRefusal, workTargets } from './wheelwork.js';
 
@@ -129,9 +129,21 @@ function oddityOffer(state, slot, offer) {
     affordable: gte(state.coins, price),
     short: max(0, sub(price, state.coins)),
     picks: def.picks,
-    // Its first pick needs somewhere to act; a later one can always take the same pocket again or another.
-    workable: workTargets(state, def.picks[0]).length > 0,
+    // What it puts in your hands: a chip's material, or the record it holds.
+    chip: def.gives?.chip ?? null,
+    record: offer.record ? { id: offer.record, name: getRecord(offer.record)?.name ?? offer.record, rule: getRecord(offer.record)?.rule ?? '' } : null,
+    // Its first pick needs somewhere to act (a later one can always take the
+    // same pocket again or another); a chip needs room in your hands.
+    workable: def.picks.length ? workTargets(state, def.picks[0]).length > 0 : def.gives?.chip ? state.chips.length < ECONOMY.maxChips : !state.records.includes(offer.record),
   };
+}
+
+/**
+ * The payout placard (doc 5.11): every kind of bet with its base odds, its
+ * level and what it pays now, in the felt's order.
+ */
+export function levelsView(state) {
+  return Object.entries(BET_KINDS).map(([kind, k]) => ({ kind, name: k.name, base: k.odds, level: levelOf(state, kind), odds: k.odds * levelOf(state, kind) }));
 }
 
 /**
@@ -247,6 +259,8 @@ export function pickView(state, works, chosen = []) {
   if (!work) return null;
   const numbers = {};
   const blanks = [];
+  // A level is for a kind of bet: every spot on the felt can take it.
+  if (work.on === 'bet') return { work, index, last: index === works.length - 1, numbers, blanks, bets: true, pockets: s.wheel.pockets.length };
   if (work.on === 'number') {
     for (let n = 0; n <= 36; n++) numbers[n] = !workRefusal(s, work, n);
   } else {

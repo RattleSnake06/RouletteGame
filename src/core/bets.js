@@ -100,7 +100,13 @@ export function betCovers(bet, pocket) {
   return bet.numberSet.has(pocket.number);
 }
 
-/** Current odds of a bet (bet levels arrive in a later phase). */
-export function betOdds(bet) {
-  return BET_KINDS[bet.kind].odds;
+/**
+ * Current odds of a bet: its base odds times its kind's level (doc 5.3: each
+ * level adds the base odds again, a straight-up 36 → 72 → 108).
+ */
+export function betOdds(bet, level = 1) {
+  return BET_KINDS[bet.kind].odds * level;
 }
+
+/** A bet kind's level in this run (1 until something raises it). */
+export const levelOf = (state, kind) => state.levels?.[kind] ?? 1;

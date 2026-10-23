@@ -71,7 +71,7 @@ const ENHANCEMENT_BY_ID = new Map(ENHANCEMENTS.map((d) => [d.id, d]));
 /** A pocket's enhancement, or null for a plain pocket (or one the game no longer knows). */
 export const getEnhancement = (id) => (id ? (ENHANCEMENT_BY_ID.get(id) ?? null) : null);
 
-export const ODDITIES = ODDITY_LIST.map((d) => Object.freeze({ ...d, picks: d.picks.map((p) => Object.freeze({ on: 'pocket', ...p })) }));
+export const ODDITIES = ODDITY_LIST.map((d) => Object.freeze({ gives: null, ...d, picks: d.picks.map((p) => Object.freeze({ on: 'pocket', ...p })) }));
 const ODDITY_BY_ID = new Map(ODDITIES.map((d) => [d.id, d]));
 export const getOddity = (id) => ODDITY_BY_ID.get(id) ?? null;
 

@@ -1,4 +1,4 @@
-import { betCovers, betOdds, getBet } from './bets.js';
+import { betCovers, betOdds, getBet, levelOf } from './bets.js';
 import { getEnhancement, getMaterial } from './content/index.js';
 import { sources, srcRef, writeData } from './effects.js';
 import { add, mulFloor } from './num.js';
@@ -133,7 +133,7 @@ export function evaluate(state, landings) {
         const factors = {
           value: chipValue(chip),
           stake: base.stake,
-          odds: betOdds(bet),
+          odds: betOdds(bet, levelOf(state, bet.kind)),
           oddsMult: base.oddsMult,
           pocketMult: 1,
           hitMult: hit.mult,

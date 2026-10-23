@@ -1342,6 +1342,16 @@ export class Game {
         this.hud.toast(!now?.workable ? 'There is nowhere on the wheel it could work now.' : 'Not enough coins.', 1800, 'deny');
         return;
       }
+      // A chip or a record needs no place on the wheel: it is bought from the card.
+      if (!now.picks.length) {
+        const events = this.dispatch({ type: 'buyOddity', slot, targets: [] });
+        if (!events) return;
+        this.audio.buy();
+        this.cabinet.pulse(slot);
+        this.oddityGot(events);
+        this.syncAll();
+        return;
+      }
       this.beginWork({
         title: now.name,
         works: now.picks,
@@ -1358,6 +1368,17 @@ export class Game {
       lines,
       actions: [{ label: `Buy · ${format(v.price)} coins`, primary: true, onClick: buy }, { label: 'Not now' }],
     });
+  }
+
+  /** What a chip or a record oddity put in your hands, in a line. */
+  oddityGot(events) {
+    const chip = events.find((e) => e.type === 'chipGained');
+    const record = events.find((e) => e.type === 'recordGained');
+    if (chip) this.hud.toast(`A ${getMaterial(chip.material).name.toLowerCase()} chip joins your stack.`, 2400);
+    if (record) {
+      this.hud.toast(`${getRecord(record.record).name} goes in the crate${events.some((e) => e.type === 'recordPlayed') ? ', and on the gramophone' : ''}.`, 2600);
+      this.playRecordEvents(events, { quiet: true });
+    }
   }
 
   // ---- Wheel work (doc 5.4, 5.11): oddities and the Number Punches ------------

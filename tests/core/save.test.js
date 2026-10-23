@@ -87,7 +87,7 @@ describe('saves', () => {
     const v1 = asVersion1(advance(createRun({ seed: 'TEST-SAVE' }), [{ type: 'choosePackage', packageId: 'long' }]));
     const a = deserializeRun(JSON.stringify(v1));
     const b = deserializeRun(JSON.stringify(v1));
-    expect(a.version).toBe(6);
+    expect(a.version).toBe(7);
     expect(a.rail).toEqual([]);
     expect(a.railHooks).toBe(6);
     expect(a.cabinet.slots.slice(0, 3).every((s) => s.kind === 'talisman' && s.id)).toBe(true);
@@ -110,7 +110,7 @@ describe('saves', () => {
     ]);
     const v2 = asVersion2(played);
     const a = deserializeRun(JSON.stringify(v2));
-    expect(a.version).toBe(6);
+    expect(a.version).toBe(7);
     expect(a.debtSpins).toBe(2);
     expect(a.leans.debt).toHaveLength(5);
     expect(a.leans.night).toBe(null);

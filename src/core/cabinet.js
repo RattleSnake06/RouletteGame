@@ -1,5 +1,5 @@
-import { ENGRAVINGS, ODDITIES, TALISMANS } from './content/index.js';
-import { RARITY } from './economy.js';
+import { ENGRAVINGS, ODDITIES, RECORDS, TALISMANS } from './content/index.js';
+import { ECONOMY, RARITY } from './economy.js';
 import { Rng } from './rng.js';
 
 // The Curio Cabinet's offers (doc 5.8). Three talisman compartments and a
@@ -64,21 +64,29 @@ export function rollTalismanSlots(rail, rng, debt = 1) {
   });
 }
 
-/** The oddity compartment, by the same rarity reroll (oddities can come again and again). */
-export function rollOdditySlot(rng) {
+/**
+ * The oddity compartment, by the same rarity reroll (oddities can come again
+ * and again). A chip is not offered to a full hand, nor a record when every
+ * record is owned; a record is one not yet owned, drawn here too.
+ */
+export function rollOdditySlot(rng, { owned = [], chips = 0 } = {}) {
+  const left = RECORDS.filter((r) => !owned.includes(r.id));
+  const pool = ODDITIES.filter((d) => !(d.gives?.chip && chips >= ECONOMY.maxChips) && !(d.gives?.record && !left.length));
   let pick = null;
   for (let tries = 0; tries < 64; tries++) {
-    pick = ODDITIES[rng.int(ODDITIES.length)];
+    pick = pool[rng.int(pool.length)];
     if (rng.next() < RARITY[pick.rarity].weight) break;
   }
-  return { kind: 'oddity', id: pick.id, sold: false };
+  const offer = { kind: 'oddity', id: pick.id, sold: false };
+  if (pick.gives?.record) offer.record = left[rng.int(left.length)].id;
+  return offer;
 }
 
 /** Restocks the draft's compartments from its cabinet stream: talismans first, then the oddity. */
 export function restockSlots(draft) {
   const rng = new Rng(draft.rng.cabinet);
   const talismans = rollTalismanSlots(draft.rail, rng, draft.debt);
-  const oddity = rollOdditySlot(rng);
+  const oddity = rollOdditySlot(rng, { owned: draft.records, chips: draft.chips.length });
   // "Until the next restock" (The cabinet owes you): this is the next restock.
   draft.cabinet.discount = 0;
   draft.rng.cabinet = rng.state();

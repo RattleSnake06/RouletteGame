@@ -14,6 +14,7 @@ export const ECONOMY = {
   sitOutTokens: 3, // per sat-out round, paid when the debt is paid
   rewardSpins: 3, // coins worth this many spins at the next debt's cost
   restockGrowth: 1.2, // each paid restock costs 20% more (rounded up), reset each debt
+  maxChips: 6, // chips you can hold: the tray's six places
 };
 
 /** Curio Cabinet prices (tokens) and reroll weights by rarity (doc 5.8). */
