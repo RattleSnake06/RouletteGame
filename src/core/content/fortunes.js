@@ -14,13 +14,14 @@
 //             card with hooks stays as a boon and acts before the rail
 //
 // Cards that need later systems (the Neighbours bet, the figures in the
-// dark) wait for their phase (decision 22). The two chip cards and the two
-// bet-level cards came with Phase 5's second half; a run starts with three
-// chips of value 1, so a chip card is a third more stake for the rest of the
-// run, and they were tuned with the simulator (doc 9.8). Wheel work at random
-// goes through ctx.workRandom (wheelwork.js), on the fortunes stream.
+// dark) wait for their phase (decision 22). The two bet-level cards came with
+// Phase 5's second half. The two chip cards ("Your stack grows heavy", "A new
+// chip in your pocket") were left out at the owner's word (decision 28): a
+// run starts with three chips of value 1, so either was a third more stake
+// for the rest of the run, too strong even once a run; chips come from the
+// Cabinet instead. Wheel work at random goes through ctx.workRandom
+// (wheelwork.js), on the fortunes stream.
 
-import { ECONOMY } from '../economy.js';
 import { getTalisman } from './index.js';
 import { WHEEL, workTargets } from '../wheelwork.js';
 
@@ -33,7 +34,6 @@ const GILD = { op: 'gild', on: 'pocket' };
 const CURSE = { op: 'enhance', on: 'pocket', enh: 'cursed' };
 const canWork = (state, work) => workTargets(state, work).length > 0;
 const zeroPocket = (state) => state.wheel.pockets.find((p) => p.number === 0);
-const handRoom = (state) => state.chips.length < ECONOMY.maxChips;
 const OUTSIDE = ['dozen', 'column', 'red', 'black', 'odd', 'even', 'low', 'high'];
 
 // Tuned with the simulator (doc 9.8): a card a debt is worth a lot, because
@@ -157,34 +157,12 @@ export const FORTUNE_LIST = [
   },
 
   {
-    id: 'stack_heavy',
-    kind: 'white',
-    rarity: 'common',
-    text: 'Your stack grows heavy.',
-    effect: 'Every chip you hold gains +1 value, for good.',
-    lore: 'THE HOUSE WEIGHS EVERYTHING',
-    take(ctx) {
-      ctx.raiseChips(1);
-    },
-  },
-  {
-    id: 'new_chip',
-    kind: 'white',
-    rarity: 'uncommon',
-    text: 'A new chip in your pocket.',
-    effect: 'One more chip, value 1, of a material chosen at random.',
-    lore: 'IT WAS WARM WHEN YOU FOUND IT',
-    requires: handRoom,
-    take(ctx) {
-      ctx.randomChip();
-    },
-  },
-  {
     id: 'outside_safe',
     kind: 'white',
-    rarity: 'uncommon',
+    rarity: 'legendary', // drafted uncommon, any number of times
+    maxPicks: 1,
     text: 'Outside bets are safe bets.',
-    effect: 'Dozens, columns and even-money bets go up a level: they pay their base odds once more.',
+    effect: 'Dozens, columns and even-money bets go up a level: each pays a quarter of its base odds more, for the rest of the run.',
     lore: 'SAFE IS A WORD FOR THE LIVING',
     take(ctx) {
       ctx.levelUp(OUTSIDE);
@@ -193,9 +171,10 @@ export const FORTUNE_LIST = [
   {
     id: 'fortune_bold',
     kind: 'white',
-    rarity: 'uncommon',
+    rarity: 'legendary', // drafted uncommon, any number of times
+    maxPicks: 1,
     text: 'Fortune favours the bold.',
-    effect: 'Straight-ups go up a level: they pay their base odds once more (36 → 72).',
+    effect: 'Straight-ups go up a level: they pay a quarter more, for the rest of the run (36 → 45).',
     lore: 'ONE NUMBER. ONE CHANCE.',
     take(ctx) {
       ctx.levelUp(['straight']);

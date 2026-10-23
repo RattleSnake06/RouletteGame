@@ -1,5 +1,5 @@
-import { BET_KINDS, levelOf } from './bets.js';
-import { FORTUNES, MATERIALS, RECORDS, getTalisman } from './content/index.js';
+import { BET_KINDS, levelOdds, levelOf } from './bets.js';
+import { FORTUNES, RECORDS, getTalisman } from './content/index.js';
 import { rollEngraving } from './cabinet.js';
 import { RARITY } from './economy.js';
 import { mul, num } from './num.js';
@@ -125,23 +125,12 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
         doWork(s, work, pocket.id, emit, { kind: 'fortune', id: def.id });
       }
     },
-    /** A chip of a random material (any of the five), from the fortunes stream. */
-    randomChip() {
-      const material = MATERIALS[rng.int(MATERIALS.length)].id;
-      helpers.chip(material);
-      effect('chip', { material });
-    },
-    /** Every chip in hand gains `n` value, for good. */
-    raiseChips(n) {
-      for (const chip of s.chips) chip.value += n;
-      effect('chipsRaised', { amount: n, count: s.chips.length });
-    },
     /** These kinds of bet go up a level each (doc 5.3). */
     levelUp(kinds) {
       for (const kind of kinds) {
         const level = levelOf(s, kind) + 1;
         s.levels = { ...s.levels, [kind]: level };
-        emit({ type: 'betLevel', kind, level, odds: BET_KINDS[kind].odds * level, by: { kind: 'fortune', id: def.id } });
+        emit({ type: 'betLevel', kind, level, odds: levelOdds(kind, level), by: { kind: 'fortune', id: def.id } });
       }
       effect('levels', { kinds });
     },

@@ -16,6 +16,7 @@
 //   npm run sim -- --set debt.2=240       override what a debt owes
 
 import { MATERIALS, TALISMANS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getTalisman } from '../src/core/content/index.js';
+import { getBet } from '../src/core/bets.js';
 import { DEVIL, devilLive } from '../src/core/devil.js';
 import { DEBT_TABLE, ECONOMY, priceOf } from '../src/core/economy.js';
 import { LUCK, nudgeFor, nudgeLandings } from '../src/core/nudge.js';
@@ -440,6 +441,15 @@ function bestTarget(s, work, ctx) {
     if (gain > 1e-9 && (!best || gain > best.gain)) best = { target, gain };
   };
   const evWith = (wNew, payNew = pay) => payNew.reduce((t, x, i) => t + x * wNew[i], 0) / wNew.reduce((a, b) => a + b, 0);
+  // A level: only the kinds the bot's chips are on can gain.
+  if (work.on === 'bet') {
+    const kinds = new Set(Object.values(s.placements).map((id) => getBet(id).kind));
+    for (const kind of kinds) {
+      const up = { ...s, levels: { ...s.levels, [kind]: (s.levels?.[kind] ?? 1) + 1 } };
+      consider(kind, payVector(up, ctx.tokenCoins).ev - ev);
+    }
+    return best;
+  }
   if (work.on === 'number') {
     const step = work.op === 'widen' ? 0.5 : -0.5;
     for (const n of candidates) {
@@ -493,7 +503,26 @@ function wheelShop(s, bot, log) {
   const price = toNumber(offer.price);
   if (lt(sub(s.coins, offer.price), costOf(s, 'long'))) return s;
   const ctx = { tokenCoins: toNumber(spinCost(s)) * TOKEN_SPINS, horizon: spinsAhead(s) };
-  let probe = { ...copyRun(s), placements: placementsFor(s, layoutFor(s, bot.layout)) };
+  const layout = layoutFor(s, bot.layout);
+  let probe = { ...copyRun(s), placements: placementsFor(s, layout) };
+  // A record: bought when it is one the bot would rather play than what it has.
+  if (offer.record) {
+    const rank = RECORD_RANK[recordFamily(s, bot)].filter(notSkipped);
+    const best = rank.find((id) => s.records.includes(id));
+    const at = rank.indexOf(offer.record.id);
+    if (at < 0 || (best && rank.indexOf(best) <= at)) return s;
+    return chooseRecord(step(s, { type: 'buyOddity', slot: 3, targets: [] }, log), bot);
+  }
+  // A chip: what one more chip of its material adds to the layout.
+  if (offer.chip) {
+    const ev0 = payVector(probe, ctx.tokenCoins).ev;
+    const more = copyRun(s);
+    more.chips = [...more.chips, { id: 'c-probe', value: 1, material: offer.chip, roundValue: 0 }];
+    more.placements = placementsFor(more, layout);
+    const gain = payVector(more, ctx.tokenCoins).ev - ev0;
+    if (gain * ctx.horizon < price * WHEEL_MARGIN) return s;
+    return step(s, { type: 'buyOddity', slot: 3, targets: [] }, log);
+  }
   const targets = [];
   let gain = 0;
   for (const pick of offer.picks) {
@@ -571,7 +600,10 @@ function visitOracle(s, bot, log) {
   if (!view.dealt) s = step(s, { type: 'pullLever' }, log);
   const rank = (v) => {
     const list = (v.kind === 'black' ? BLACK_RANK : WHITE_RANK).filter(notSkipped);
-    const order = recordFamily(s, bot) === 'red' && v.kind === 'white' ? ['reds_run_warm', ...list] : list;
+    // Each family's own card first: levels for the bets it makes, paint for red.
+    const family = recordFamily(s, bot);
+    const own = { red: ['outside_safe', 'reds_run_warm'], outside: ['outside_safe'], inside: ['fortune_bold'] }[family];
+    const order = v.kind === 'white' ? [...own.filter(notSkipped), ...list.filter((id) => !own.includes(id))] : list;
     return v.cards.filter((c) => c.takeable && order.includes(c.id)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))[0] ?? null;
   };
   let pick = rank(oracleView(s));

@@ -1,4 +1,4 @@
-import { BET_KINDS, levelOf } from './bets.js';
+import { BET_KINDS, levelOdds, levelOf } from './bets.js';
 import { getEnhancement } from './content/index.js';
 import { defaultColor, indexOfPocket, isBlank } from './wheel.js';
 import { MIN_WIDTH } from './widths.js';
@@ -92,7 +92,7 @@ export function doWork(draft, work, target, emit, by) {
   if (work.on === 'bet') {
     const level = levelOf(draft, target) + 1;
     draft.levels = { ...draft.levels, [target]: level };
-    emit({ type: 'betLevel', kind: target, level, odds: BET_KINDS[target].odds * level, by });
+    emit({ type: 'betLevel', kind: target, level, odds: levelOdds(target, level), by });
     return;
   }
   const wheel = draft.wheel;

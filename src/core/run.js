@@ -620,7 +620,6 @@ const HANDLERS = {
       fortuneCtx(s, def, emit, rng, {
         hang: (talisman) => hang(s, talisman, 0, emit),
         play: (record) => playOn(s, record, emit),
-        chip: (material) => addChip(s, material, emit),
       }),
     );
     s.rng.fortunes = rng.state();

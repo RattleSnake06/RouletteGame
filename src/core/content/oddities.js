@@ -111,9 +111,9 @@ export const ODDITY_LIST = [
   {
     id: 'odds_plate',
     name: 'Brass Odds Plate',
-    rarity: 'uncommon',
-    spins: 40,
-    text: 'Raise a kind of bet a level: tap one on the felt. Every bet of that kind pays its base odds once more (a straight-up 36 → 72 → 108).',
+    rarity: 'rare',
+    spins: 80,
+    text: 'Raise a kind of bet a level: tap one on the felt. Every bet of that kind pays a quarter of its base odds more (a straight-up 36 → 45 → 54).',
     picks: [{ op: 'level', on: 'bet' }],
   },
   {

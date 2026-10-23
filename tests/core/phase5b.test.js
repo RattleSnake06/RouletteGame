@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORTUNES, MATERIALS, RECORDS } from '../../src/core/content/index.js';
+import { FORTUNES, RECORDS } from '../../src/core/content/index.js';
 import { rollOdditySlot } from '../../src/core/cabinet.js';
 import { ECONOMY } from '../../src/core/economy.js';
 import { evaluate } from '../../src/core/payout.js';
@@ -10,8 +10,8 @@ import { cabinetView, levelsView, previewBet } from '../../src/core/selectors.js
 import { play, setup } from './helpers.js';
 
 // Phase 5, second half (design doc 5.3, 5.11, 6.2, 6.7): bet levels, chips
-// and records from the Cabinet's fourth compartment, and the cards that came
-// with them.
+// and records from the Cabinet's fourth compartment, and the two bet-level
+// cards. The two chip cards were left out (decision 28).
 
 const at = (s, n) => s.wheel.pockets.findIndex((p) => p.number === n);
 const paysOn = (s, n) => evaluate(s, [{ ball: 0, pocketIndex: at(s, n) }]).lines.map((l) => l.amount);
@@ -20,16 +20,17 @@ const dealt = (state, id) => ({ ...state, oracle: { debt: state.debt, kind: FORT
 const take = (state, id) => play(dealt(state, id), { type: 'takeFortune', index: 0 });
 
 describe('bet levels', () => {
-  it('each level adds the base odds again: a straight-up 36, 72, 108', () => {
+  it('each level adds a quarter of the base odds: a straight-up 36, 45, 54', () => {
     let s = setup({ chips: { c1: 'straight:17', c2: 'red' } });
     expect(paysOn(s, 17)).toEqual([36]);
     s = { ...s, levels: { straight: 2 } };
-    expect(paysOn(s, 17)).toEqual([72]);
-    s = { ...s, levels: { straight: 3, red: 2 } };
-    expect(paysOn(s, 17)).toEqual([108]);
-    expect(paysOn(s, 32)).toEqual([4]);
-    expect(previewBet(s, 'straight:5').odds).toBe(108);
-    expect(levelsView(s).find((k) => k.kind === 'straight')).toMatchObject({ base: 36, level: 3, odds: 108 });
+    expect(paysOn(s, 17)).toEqual([45]);
+    s = { ...s, levels: { straight: 3, red: 3 } };
+    expect(paysOn(s, 17)).toEqual([54]);
+    // Red at level 3 pays 3 for a chip of value 1 (2 × 1.5).
+    expect(paysOn(s, 32)).toEqual([3]);
+    expect(previewBet(s, 'straight:5').odds).toBe(54);
+    expect(levelsView(s).find((k) => k.kind === 'straight')).toMatchObject({ base: 36, level: 3, odds: 54 });
   });
 
   it('the Brass Odds Plate raises the kind of bet tapped', () => {
@@ -37,8 +38,8 @@ describe('bet levels', () => {
     expect(act(s, { type: 'buyOddity', slot: 3, targets: ['nonsense'] }).events[0]).toMatchObject({ code: 'badTarget' });
     const r = play(s, { type: 'buyOddity', slot: 3, targets: ['dozen'] });
     expect(r.state.levels).toEqual({ dozen: 2 });
-    expect(r.events.find((e) => e.type === 'betLevel')).toMatchObject({ kind: 'dozen', level: 2, odds: 6 });
-    expect(r.state.coins).toBe(1000 - 40);
+    expect(r.events.find((e) => e.type === 'betLevel')).toMatchObject({ kind: 'dozen', level: 2, odds: 3.75 });
+    expect(r.state.coins).toBe(1000 - 80);
   });
 });
 
@@ -81,20 +82,7 @@ describe('chips and records from the Cabinet', () => {
   });
 });
 
-describe('the cards', () => {
-  it('Your stack grows heavy: every chip +1 value, for good', () => {
-    const r = take(setup(), 'stack_heavy');
-    expect(r.state.chips.map((c) => c.value)).toEqual([2, 2, 2]);
-  });
-
-  it('A new chip in your pocket: one more chip, of a random material; not dealt to a full hand', () => {
-    const r = take(setup(), 'new_chip');
-    expect(r.state.chips).toHaveLength(4);
-    expect(MATERIALS.map((m) => m.id)).toContain(r.state.chips[3].material);
-    const full = { ...setup(), chips: Array.from({ length: ECONOMY.maxChips }, (_, i) => ({ id: `c${i + 1}`, value: 1, material: 'normal', roundValue: 0 })) };
-    expect(act(dealt(full, 'new_chip'), { type: 'takeFortune', index: 0 }).events[0]).toMatchObject({ code: 'notUsable' });
-  });
-
+describe('the bet-level cards', () => {
   it('Outside bets are safe bets and Fortune favours the bold raise their kinds a level', () => {
     let s = take(setup(), 'outside_safe').state;
     expect(s.levels).toEqual({ dozen: 2, column: 2, red: 2, black: 2, odd: 2, even: 2, low: 2, high: 2 });
@@ -115,5 +103,12 @@ describe('saves', () => {
   it('levels and new chips round-trip', () => {
     const s = { ...setup(), levels: { straight: 3 }, chips: [...setup().chips, { id: 'c4', value: 2, material: 'gold', roundValue: 0 }], nextChipId: 5 };
     expect(deserializeRun(serializeRun(s))).toEqual(s);
+  });
+});
+
+describe('cards left out', () => {
+  it('the two chip cards are never dealt (decision 28)', () => {
+    expect(FORTUNES.map((f) => f.id)).not.toContain('stack_heavy');
+    expect(FORTUNES.map((f) => f.id)).not.toContain('new_chip');
   });
 });

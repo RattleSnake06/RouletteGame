@@ -12,7 +12,7 @@ import { canTake, dealOf, rerollCost } from './oracle.js';
 import { restockCost } from './economy.js';
 import { gte, max, sub } from './num.js';
 import { liveWheel } from './widths.js';
-import { BET_KINDS, levelOf, tableCell } from './bets.js';
+import { BET_KINDS, levelOdds, levelOf, tableCell } from './bets.js';
 import { createEuropeanWheel, isBlank } from './wheel.js';
 import { doWork, workRefusal, workTargets } from './wheelwork.js';
 
@@ -143,7 +143,7 @@ function oddityOffer(state, slot, offer) {
  * level and what it pays now, in the felt's order.
  */
 export function levelsView(state) {
-  return Object.entries(BET_KINDS).map(([kind, k]) => ({ kind, name: k.name, base: k.odds, level: levelOf(state, kind), odds: k.odds * levelOf(state, kind) }));
+  return Object.entries(BET_KINDS).map(([kind, k]) => ({ kind, name: k.name, base: k.odds, level: levelOf(state, kind), odds: levelOdds(kind, levelOf(state, kind)) }));
 }
 
 /**
