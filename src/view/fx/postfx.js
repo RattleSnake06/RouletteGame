@@ -14,6 +14,10 @@ const FilmShader = {
     uGrain: { value: 0.06 },
     uVignette: { value: 1.0 },
     uFade: { value: 0 },
+    // The crunch filter (decision 3, Settings): blocks of uPixel device
+    // pixels, a reduced palette and ordered dithering.
+    uCrunch: { value: 0 },
+    uPixel: { value: 3 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -29,7 +33,18 @@ const FilmShader = {
     uniform float uGrain;
     uniform float uVignette;
     uniform float uFade;
+    uniform float uCrunch;
+    uniform float uPixel;
     varying vec2 vUv;
+
+    // A 4x4 Bayer matrix by formula: 0 to 1 across each 4-pixel cell.
+    float bayer2(vec2 a) {
+      a = floor(a);
+      return fract(dot(a, vec2(0.5, a.y * 0.75)));
+    }
+    float bayer4(vec2 a) {
+      return bayer2(0.5 * a) * 0.25 + bayer2(a);
+    }
 
     float hash(vec2 p) {
       p = fract(p * vec2(123.34, 456.21));
@@ -38,15 +53,19 @@ const FilmShader = {
     }
 
     void main() {
-      vec2 d = vUv - 0.5;
+      // Crunch: every pixel of a block reads the block's centre.
+      vec2 blocks = uResolution / uPixel;
+      vec2 cell = floor(vUv * blocks);
+      vec2 uv = uCrunch > 0.5 ? (cell + 0.5) / blocks : vUv;
+      vec2 d = uv - 0.5;
       float r2 = dot(d, d);
 
       // A little lens fringing toward the corners.
       vec2 off = d * r2 * 0.012;
       vec3 col;
-      col.r = texture2D(tDiffuse, vUv + off).r;
-      col.g = texture2D(tDiffuse, vUv).g;
-      col.b = texture2D(tDiffuse, vUv - off).b;
+      col.r = texture2D(tDiffuse, uv + off).r;
+      col.g = texture2D(tDiffuse, uv).g;
+      col.b = texture2D(tDiffuse, uv - off).b;
 
       // Cool, teal-leaning shadows; neutral-warm highlights; a touch desaturated.
       float l = dot(col, vec3(0.299, 0.587, 0.114));
@@ -58,11 +77,19 @@ const FilmShader = {
       float v = smoothstep(0.9, 0.12, length(d * vec2(1.05, 1.25)));
       col *= mix(1.0, mix(0.08, 1.0, v), uVignette);
 
-      // Film grain, stronger in the mids.
-      float g = hash(vUv * uResolution + fract(uTime * 7.31) * 517.0) - 0.5;
+      // Film grain, stronger in the mids (by the block, under crunch).
+      vec2 grainAt = uCrunch > 0.5 ? cell : vUv * uResolution;
+      float g = hash(grainAt + fract(uTime * 7.31) * 517.0) - 0.5;
       col += g * uGrain * (0.35 + 0.65 * smoothstep(0.0, 0.35, l));
 
       col *= 1.0 - uFade;
+      // Crunch: few shades per channel, the steps broken up by the dither.
+      // Stepped on the square root, so the dark room keeps its finer steps.
+      if (uCrunch > 0.5) {
+        float levels = 9.0;
+        vec3 q = floor(sqrt(max(col, 0.0)) * levels + bayer4(cell)) / levels;
+        col = q * q;
+      }
       gl_FragColor = vec4(max(col, 0.0), 1.0);
     }
   `,

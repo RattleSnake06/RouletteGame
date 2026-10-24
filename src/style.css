@@ -999,6 +999,62 @@ img.mark {
   color: var(--blood);
 }
 
+/* A first-time tip (Phase 8): a small card under the debt that lets taps
+   through and fades on its own. */
+.hud-tip {
+  position: absolute;
+  left: 50%;
+  top: calc(112 * var(--u) + var(--safe-t));
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(calc(760 * var(--u)), calc(100% - 220px));
+  padding: calc(6 * var(--u)) calc(14 * var(--u));
+  background: rgba(8, 5, 4, 0.82);
+  border-left: 2px solid var(--blood);
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.hud-tip.show {
+  opacity: 1;
+}
+
+.hud-tip .tip-title {
+  display: inline;
+  margin-right: 0.45em;
+  font-size: calc(24 * var(--u));
+  color: var(--bone);
+}
+
+.hud-tip .tip-text {
+  display: inline;
+  font-size: calc(16 * var(--u));
+  line-height: 1.4;
+  color: var(--bone-dim);
+}
+
+html.text-large .hud-tip .tip-text {
+  font-size: calc(19 * var(--u));
+}
+
+/* The edge tab toward where a tip points beckons. */
+.hud-nav.pulse {
+  animation: nav-beckon 1.2s ease-in-out infinite;
+}
+
+@keyframes nav-beckon {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+    color: var(--blood);
+  }
+}
+
 /* Toast: a typed line; a refusal gets a red scratch under it. */
 .hud-toast {
   position: absolute;
@@ -2203,4 +2259,37 @@ img.mark {
   flex-direction: column;
   align-items: flex-start;
   gap: 0;
+}
+
+/* ---- Large text (Settings, doc 8.7) ----
+   The reading grows by about a fifth: notes, cards, toasts, hints and the
+   books. Titles, buttons and the room's own lettering stay as they are. */
+html.text-large .note-body {
+  font-size: calc(30 * var(--u));
+}
+
+html.text-large .modal-line {
+  font-size: calc(23 * var(--u));
+}
+
+html.text-large .modal-kicker {
+  font-size: calc(18 * var(--u));
+}
+
+html.text-large .hud-toast {
+  font-size: calc(22 * var(--u));
+}
+
+html.text-large .hud-hint {
+  font-size: calc(20 * var(--u));
+}
+
+html.text-large .alm-entry span,
+html.text-large .alm-row span,
+html.text-large .alm-note {
+  font-size: 16px;
+}
+
+html.text-large .guide-section p {
+  font-size: 17px;
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { createFloorTextures, createRadialTexture, createWallTexture } from './textures.js';
+import { createFloorTextures } from './floor.js';
+import { createRadialTexture, createWallTexture } from './textures.js';
 
 export const LIGHT_POS = new THREE.Vector3(2.4, 14, 0.2);
 export const LIGHT_TARGET = new THREE.Vector3(-0.7, 0, 3.0);
@@ -107,14 +108,15 @@ const dustFragment = /* glsl */ `
   }
 `;
 
-export function createRoom({ renderer }) {
+/** `floorPixels`: the floor texture's size, smaller for the phone preset (Settings). */
+export function createRoom({ renderer, floorPixels = 2048 }) {
   const room = new THREE.Group();
   room.name = 'room';
 
   // ---- Floor ------------------------------------------------------------
   const floorSize = 70;
   const tileMeters = 9.2;
-  const { map, bump } = createFloorTextures();
+  const { map, bump } = createFloorTextures({ size: floorPixels });
   for (const t of [map, bump]) {
     t.repeat.set(floorSize / tileMeters, floorSize / tileMeters);
     t.anisotropy = renderer.capabilities.getMaxAnisotropy();

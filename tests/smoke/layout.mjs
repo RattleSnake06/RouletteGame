@@ -141,14 +141,37 @@ for (const size of SIZES) {
     document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
     window.__roulette.game.toggleMenu();
   });
+  // Phase 8: Settings and the Info book, then the same card in large text.
+  await at('settings', 'table', () => {
+    const g = window.__roulette.game;
+    g.toggleMenu();
+    g.openSettings();
+  });
+  await at('the Info book', 'table', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    window.__roulette.game.openGuide();
+  });
+  await at('the Info book, the controls', 'table', () => document.querySelector('.alm-tab[data-page="controls"]')?.click());
   await at('a talisman card', 'table', () => {
     const r = window.__roulette;
-    r.game.toggleMenu();
+    r.game.guide?.close();
     r.game.openTalisman(r.game.state.rail[0].uid);
+  });
+  await at('a talisman card, large text', 'table', () => {
+    const r = window.__roulette;
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    r.game.toggleTextSize();
+    r.game.openTalisman(r.game.state.rail[0].uid);
+  });
+  await at('settings, large text', 'table', () => {
+    document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    window.__roulette.game.openSettings();
   });
   // Phase 6 (doc 7): the Almanac, the goal's card and stepping out.
   await at('the Almanac', 'table', () => {
     document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
+    // Back to normal text for the rest.
+    window.__roulette.game.toggleTextSize();
     window.__roulette.game.openAlmanac();
   });
   await at('the Almanac, the figures', 'table', () => document.querySelector('.alm-tab[data-page="figures"]')?.click());

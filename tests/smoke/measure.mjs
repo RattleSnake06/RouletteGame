@@ -159,8 +159,8 @@ export async function measure({ view, roles, min }) {
   }
   // HUD text that stays on screen (the clusters, the hint) lets taps through,
   // but drawn over a control it still hides it. Passing lines (toasts, the
-  // flavour line, popups, notes) are left out.
-  const PASSING = ['hud-toast', 'hud-flavor', 'hud-payout', 'hud-popups', 'hud-note'];
+  // flavour line, popups, notes, first-time tips) are left out.
+  const PASSING = ['hud-toast', 'hud-flavor', 'hud-payout', 'hud-popups', 'hud-note', 'hud-tip'];
   const painted = [...document.querySelectorAll('.hud > *')].filter((el) => {
     if (PASSING.some((c) => el.classList.contains(c)) || el.matches('button')) return false;
     const b = el.getBoundingClientRect();

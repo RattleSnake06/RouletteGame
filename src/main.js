@@ -48,13 +48,16 @@ async function init() {
   const touch = isTouchScreen();
   document.documentElement.classList.toggle('touch', touch);
 
+  // Text, levels, graphics and the crunch filter are Phase 8's (doc 8.7, 9.10).
+  const settings = loadSettings({ muted: false, fast: false, flashes: true, music: 1, effects: 1, text: 'normal', quality: 'high', crunch: false, tips: true });
   const canvas = document.getElementById('scene');
-  const stage = createStage(canvas);
+  // The phone preset paints the floor at half size (a change shows from the next launch).
+  const stage = createStage(canvas, { floorPixels: settings.quality === 'low' ? 1024 : 2048 });
   const { scene, camera, renderer, post, wheel, room, layout } = stage;
-
-  const settings = loadSettings({ muted: false, fast: false, flashes: true });
   const audio = new WheelAudio();
   audio.muted = settings.muted;
+  audio.setLevels({ music: settings.music, effects: settings.effects });
+  document.documentElement.classList.toggle('text-large', settings.text === 'large');
   const hud = createHud();
   const interaction = new Interaction(canvas, camera);
   const director = new CameraDirector(camera);
@@ -213,15 +216,42 @@ async function init() {
   const profile = deserializeProfile(platform.load('profile'));
   game = new Game({ stage, table, cage, rail, bell, cabinet, oracle, ball, spin, director, hud, audio, platform, settings, lighting, sparks, touch, menu, profile, vault, figures, extraBalls });
   game.onSettingsChanged = saveSettings;
+  game.onGraphicsChanged = applyGraphics;
 
-  // ---- Sizing and camera anchors ---------------------------------------------
+  // ---- Sizing, graphics quality and camera anchors -----------------------------
+  // Graphics quality (Settings, doc 9.10): Low is the phone preset, at one
+  // pixel per CSS pixel with no shadows and no bloom.
+  const QUALITY = {
+    high: { pixelRatio: 2, shadows: true, bloom: true },
+    medium: { pixelRatio: 1.5, shadows: true, bloom: true },
+    low: { pixelRatio: 1, shadows: false, bloom: false },
+  };
+  const quality = () => QUALITY[(game?.settings ?? settings).quality] ?? QUALITY.high;
+
+  /** Puts the quality and the crunch filter in force, after a change in Settings. */
+  function applyGraphics() {
+    const q = quality();
+    if (renderer.shadowMap.enabled !== q.shadows) {
+      renderer.shadowMap.enabled = q.shadows;
+      // Every material compiled with (or without) shadows is rebuilt.
+      scene.traverse((o) => {
+        for (const m of [o.material].flat()) if (m) m.needsUpdate = true;
+      });
+    }
+    post.bloom.enabled = q.bloom;
+    post.film.uniforms.uCrunch.value = (game?.settings ?? settings).crunch ? 1 : 0;
+    resize();
+  }
+
   function resize() {
     const w = Math.max(1, canvas.clientWidth);
     const h = Math.max(1, canvas.clientHeight);
-    const pr = Math.min(window.devicePixelRatio, 2);
+    const pr = Math.min(window.devicePixelRatio, quality().pixelRatio);
     renderer.setPixelRatio(pr);
     renderer.setSize(w, h, false);
     post.setSize(w, h, pr);
+    // The crunch filter's blocks stay about 3 CSS pixels whatever the density.
+    post.film.uniforms.uPixel.value = Math.max(2, Math.round(3 * pr));
     room.setPixelRatio(pr);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -229,7 +259,7 @@ async function init() {
       director.setAnchor(name, anchor);
     }
   }
-  resize();
+  applyGraphics();
   new ResizeObserver(resize).observe(canvas);
 
   // A tap on nothing closes an open note (touch has no pointer to leave it).

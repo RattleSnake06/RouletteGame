@@ -1,5 +1,8 @@
 import { Gramophone } from './records.js';
 
+// The ball's speed level 1 is 8 rad/s on the track (view/ball.js): orbits a second.
+const ORBITS_PER_SECOND = 8 / (2 * Math.PI);
+
 // All sound is synthesised with WebAudio: a low room tone, the whirr of the
 // rotor, pocket ticks, the ball's rattle and bounces, chips, coins and the
 // Cage, and the gramophone's records (records.js). Nothing plays until
@@ -8,6 +11,9 @@ export class WheelAudio {
   constructor() {
     this.ctx = null;
     this.muted = false;
+    // Settings (doc 8.7): the records' level and the room's, 0 to 1 each.
+    this.musicLevel = 1;
+    this.effectsLevel = 1;
     this.lastTickTime = 0;
     this.gramophone = null;
     this.tune = null; // the record playing, kept until there is sound
@@ -31,6 +37,13 @@ export class WheelAudio {
     this.master = ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 0.9;
     this.master.connect(ctx.destination);
+    // Two buses under the master: the room's sounds and the gramophone.
+    this.fx = ctx.createGain();
+    this.fx.gain.value = this.effectsLevel;
+    this.fx.connect(this.master);
+    this.music = ctx.createGain();
+    this.music.gain.value = this.musicLevel;
+    this.music.connect(this.master);
 
     const len = ctx.sampleRate * 2;
     const white = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -48,7 +61,7 @@ export class WheelAudio {
     this.whirFilter.Q.value = 1.2;
     this.whirGain = ctx.createGain();
     this.whirGain.gain.value = 0;
-    whirSrc.connect(this.whirFilter).connect(this.whirGain).connect(this.master);
+    whirSrc.connect(this.whirFilter).connect(this.whirGain).connect(this.fx);
     whirSrc.start();
 
     // Room tone: brown noise, very low and very quiet.
@@ -68,7 +81,7 @@ export class WheelAudio {
     const roomGain = ctx.createGain();
     roomGain.gain.value = 0;
     roomGain.gain.linearRampToValueAtTime(0.14, ctx.currentTime + 4);
-    roomSrc.connect(roomLP).connect(roomGain).connect(this.master);
+    roomSrc.connect(roomLP).connect(roomGain).connect(this.fx);
     roomSrc.start();
 
     // Ball rattle: bright noise, chopped by a fast random flutter.
@@ -81,11 +94,26 @@ export class WheelAudio {
     rollBP.Q.value = 0.9;
     this.rollGain = ctx.createGain();
     this.rollGain.gain.value = 0;
-    rollSrc.connect(rollBP).connect(this.rollGain).connect(this.master);
+    rollSrc.connect(rollBP).connect(this.rollGain).connect(this.fx);
     rollSrc.start();
     this.rollFilter = rollBP;
+    this.rollPhase = 0; // the orbit's angle, for the sweep and the diamonds
+    this.rollAt = 0;
 
-    this.gramophone = new Gramophone(ctx, this.master, white);
+    // The tension riser: a low reed that climbs and swells as the ball
+    // slows, and stops dead when it drops.
+    this.riser = ctx.createOscillator();
+    this.riser.type = 'sawtooth';
+    this.riser.frequency.value = 70;
+    const riserLP = ctx.createBiquadFilter();
+    riserLP.type = 'lowpass';
+    riserLP.frequency.value = 420;
+    this.riserGain = ctx.createGain();
+    this.riserGain.gain.value = 0;
+    this.riser.connect(riserLP).connect(this.riserGain).connect(this.fx);
+    this.riser.start();
+
+    this.gramophone = new Gramophone(ctx, this.music, white);
     this.gramophone.play(this.tune);
   }
 
@@ -104,7 +132,7 @@ export class WheelAudio {
     g.gain.setValueAtTime(0, now);
     g.gain.linearRampToValueAtTime(gain, now + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0005, now + decay);
-    src.connect(f).connect(g).connect(this.master);
+    src.connect(f).connect(g).connect(this.fx);
     // Start late enough in the 2 s noise buffer that the tail is not cut off;
     // a burst longer than the buffer loops it.
     const length = decay + 0.05;
@@ -124,15 +152,17 @@ export class WheelAudio {
     g.gain.setValueAtTime(0, now);
     g.gain.linearRampToValueAtTime(gain, now + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0005, now + decay);
-    osc.connect(g).connect(this.master);
+    osc.connect(g).connect(this.fx);
     osc.start(now);
     osc.stop(now + decay + 0.05);
   }
 
-  /** A clay chip set down on felt. */
+  /** A clay chip set down on felt: the clack of its edge, then the felt's thud. */
   chip() {
-    this._burst({ freq: 2400, q: 3, gain: 0.22, decay: 0.05 });
-    this._tone({ freq: 380, to: 220, gain: 0.12, decay: 0.07 });
+    this._burst({ freq: 3100, q: 5, gain: 0.2, decay: 0.035 });
+    this._burst({ freq: 2200, q: 3, gain: 0.1, decay: 0.03, at: 0.018 });
+    this._burst({ freq: 220, q: 0.8, gain: 0.16, decay: 0.07, type: 'lowpass' });
+    this._tone({ freq: 380, to: 220, gain: 0.08, decay: 0.07 });
   }
 
   /** A card dealt or picked up. */
@@ -140,13 +170,29 @@ export class WheelAudio {
     this._burst({ freq: 1800, q: 0.7, gain: 0.12, decay: 0.12, type: 'highpass' });
   }
 
-  /** Ball rolling on the track, level 0..1. */
+  /**
+   * Ball rolling on the track, level 0..1 (its speed). The rattle brightens
+   * with speed and sweeps once an orbit as the ball comes round; it clicks
+   * over the bowl's eight diamonds; and as it slows the riser climbs.
+   */
   roll(level) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
+    const dt = Math.min(0.1, Math.max(0, now - this.rollAt));
+    this.rollAt = now;
+    const before = this.rollPhase;
+    this.rollPhase += dt * level * ORBITS_PER_SECOND;
+    const sweep = Math.sin(this.rollPhase * Math.PI * 2);
     const flutter = 0.6 + Math.random() * 0.4;
-    this.rollGain.gain.setTargetAtTime(level * 0.11 * flutter, now, 0.03);
-    this.rollFilter.frequency.setTargetAtTime(2200 + level * 2200, now, 0.05);
+    this.rollGain.gain.setTargetAtTime(level * 0.11 * flutter * (0.85 + 0.15 * sweep), now, 0.03);
+    this.rollFilter.frequency.setTargetAtTime(2200 + level * 2200 + sweep * 260 * level, now, 0.05);
+    if (level > 0.08 && Math.floor(this.rollPhase * 8) !== Math.floor(before * 8)) {
+      this._burst({ freq: 4200 + Math.random() * 600, q: 6, gain: 0.025 + level * 0.03, decay: 0.02 });
+    }
+    // The riser: silent at full speed, swelling below half.
+    const tension = level > 0 ? Math.max(0, 0.55 - level) / 0.55 : 0;
+    this.riserGain.gain.setTargetAtTime(this.muted ? 0 : tension * 0.045, now, tension ? 0.25 : 0.04);
+    this.riser.frequency.setTargetAtTime(70 + tension * 70, now, 0.3);
   }
 
   /** The ball hitting a fret or pocket, strength 0..1. */
@@ -157,15 +203,19 @@ export class WheelAudio {
 
   /** The ball dropping into its final pocket. */
   settle() {
+    // The riser stops dead as the ball drops.
+    if (this.ctx) this.riserGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.02);
     this._burst({ freq: 1400, q: 2, gain: 0.3, decay: 0.08 });
     this._tone({ freq: 520, to: 260, gain: 0.18, decay: 0.12 });
   }
 
-  /** One payout; `step` raises the pitch through a run of wins. */
+  /** One payout; `step` raises the pitch through a run of wins. A coin rings inharmonic, like struck metal. */
   coin(step = 0) {
     const f = 1700 * 2 ** (Math.min(step, 12) / 12);
-    this._tone({ freq: f, gain: 0.09, decay: 0.35, type: 'triangle' });
-    this._tone({ freq: f * 2.01, gain: 0.03, decay: 0.2 });
+    this._burst({ freq: 6000, q: 3, gain: 0.04, decay: 0.02 });
+    this._tone({ freq: f, gain: 0.08, decay: 0.4, type: 'triangle' });
+    this._tone({ freq: f * 2.32, gain: 0.03, decay: 0.25 });
+    this._tone({ freq: f * 3.86, gain: 0.012, decay: 0.12 });
   }
 
   /** Nothing paid. */
@@ -361,7 +411,7 @@ export class WheelAudio {
     g.gain.setValueAtTime(0, now);
     g.gain.linearRampToValueAtTime(vol, now + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0008, now + 0.045);
-    src.connect(bp).connect(g).connect(this.master);
+    src.connect(bp).connect(g).connect(this.fx);
     src.start(now, Math.random() * 1.5, 0.06);
 
     const osc = ctx.createOscillator();
@@ -371,7 +421,7 @@ export class WheelAudio {
     const og = ctx.createGain();
     og.gain.setValueAtTime(vol * 0.5, now);
     og.gain.exponentialRampToValueAtTime(0.0008, now + 0.06);
-    osc.connect(og).connect(this.master);
+    osc.connect(og).connect(this.fx);
     osc.start(now);
     osc.stop(now + 0.07);
   }
@@ -382,6 +432,15 @@ export class WheelAudio {
     const s = Math.min(speed / 12, 1);
     this.whirGain.gain.setTargetAtTime(s * 0.22, now, 0.08);
     this.whirFilter.frequency.setTargetAtTime(110 + s * 650, now, 0.08);
+  }
+
+  /** The records' and the room's levels, 0 to 1 (Settings). */
+  setLevels({ music = this.musicLevel, effects = this.effectsLevel } = {}) {
+    this.musicLevel = music;
+    this.effectsLevel = effects;
+    if (!this.ctx) return;
+    this.music.gain.setTargetAtTime(music, this.ctx.currentTime, 0.05);
+    this.fx.gain.setTargetAtTime(effects, this.ctx.currentTime, 0.05);
   }
 
   toggleMute() {

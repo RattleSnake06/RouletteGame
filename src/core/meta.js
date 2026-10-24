@@ -13,6 +13,7 @@ import { deserialize, max, serialize } from './num.js';
 //                    a level opens the next
 //   figures          the runs that ended without stepping out: they stand in
 //                    the dark, the newest twelve; older ones fade out of it
+//   taught           the first-time tips already shown (doc 8.4, ui/tips.js)
 //   seen, achievements, stats   the Almanac (doc 7.4); stats.deepest is the
 //                    most debts an endless run has paid (doc 7.1)
 //
@@ -39,6 +40,7 @@ export function newProfile() {
     vault: false,
     edge: 0,
     figures: [{ ...STRANGER }],
+    taught: [],
     seen: emptySeen(),
     achievements: [],
     stats: emptyStats(),
@@ -114,6 +116,12 @@ export function opensLine(def) {
 
 /** What a new run takes from the profile (core/run.js createRun). */
 export const runOptions = (profile) => ({ locks: profile.locks, vault: profile.vault, figures: standingFigures(profile).length, opened: openedContent(profile) });
+
+/** A first-time tip has been shown (the same profile when it already was). */
+export function markTaught(profile, id) {
+  const taught = profile.taught ?? [];
+  return taught.includes(id) ? profile : { ...profile, taught: [...taught, id] };
+}
 
 /** Endless (doc 7.1): a run with no goal, once the Vault has opened. */
 export const endlessOpen = (profile) => profile.vault;
@@ -340,6 +348,7 @@ export function deserializeProfile(json) {
       vault: data.vault === true,
       edge: count(data.edge, MAX_EDGE),
       figures,
+      taught: strings(data.taught),
       seen,
       achievements: strings(data.achievements),
       stats,

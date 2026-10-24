@@ -43,7 +43,7 @@ export function createLayout() {
   return { player, facing, left, eye, tablePos, tableYaw, cagePos, cageYaw, cabinetPos, cabinetYaw, oraclePos, oracleYaw };
 }
 
-export function createStage(canvas) {
+export function createStage(canvas, { floorPixels } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
@@ -58,7 +58,7 @@ export function createStage(canvas) {
   const camera = new THREE.PerspectiveCamera(WIDE_FOV, 1, 0.05, 200);
 
   const envMap = createEnvMap(renderer);
-  const room = createRoom({ renderer });
+  const room = createRoom({ renderer, floorPixels });
   scene.add(room.group);
   const wheel = createWheel({ envMap });
   scene.add(wheel.group);

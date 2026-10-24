@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BET_KINDS, getBet } from './core/bets.js';
 import { ACHIEVEMENTS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from './core/content/index.js';
-import { almanacView, applyRun, chipSets, edgeChoices, endRun, endlessOpen, goalFor, isUnlocked, runOptions, serializeProfile, standingFigures, wheelChoices } from './core/meta.js';
+import { almanacView, applyRun, chipSets, edgeChoices, endRun, endlessOpen, goalFor, isUnlocked, markTaught, runOptions, serializeProfile, standingFigures, wheelChoices } from './core/meta.js';
 import { nightTokensFor } from './core/house.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
@@ -16,6 +16,7 @@ import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
 import { showAlmanac } from './ui/almanac.js';
 import { showGuide } from './ui/guide.js';
+import { TIPS } from './ui/tips.js';
 import { showModal } from './ui/hud.js';
 import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, placardNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
 
@@ -31,6 +32,12 @@ const VIEW_NAMES = { oracle: 'Madame Zero', cage: 'Cage', table: 'Table', cabine
 const FOCUS_BETS = ['red', 'black', 'odd', 'even', 'low', 'high', 'dozen:1', 'dozen:2', 'dozen:3', 'column:1', 'column:2', 'column:3'];
 const wait = (s) => new Promise((r) => setTimeout(r, s * 1000));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+// First-time tips, most pressing first, and how long one stays up.
+const TIP_ORDER = ['lean', 'pity', 'devil', 'bank', 'nightOver', 'zero', 'cabinet', 'talisman', 'bell', 'record'];
+const TIP_SECONDS = 14;
+// The steps Music and Effects go through in Settings.
+const LEVELS = [1, 0.75, 0.5, 0.25, 0];
+const levelText = (v) => (v ? `${Math.round(v * 100)}%` : 'off');
 /** "a, b and c". */
 const listOf = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 // The hint line (doc 8.4). [Key] marks a key. On a touch screen the hints
@@ -121,6 +128,8 @@ export class Game {
     this.power = 1; // room light, 0 when the Cage collects
     this.menuClose = null;
     this.seen = new Set(); // one-time hints already shown this session
+    this.tipShown = null; // the first-time tip on screen (ui/tips.js), and its timer
+    this.tipTimer = null;
     this.focus = null; // keyboard focus: { view, key } (see focusKey)
     this.noteTarget = null; // the object whose note is up
     this.lifted = null; // the rail talisman raised by keyboard focus
@@ -394,9 +403,52 @@ export class Game {
         { label: 'Done', primary: true, onClick: () => onDone?.() },
         { label: 'Fast spins', keepOpen: true, value: () => (this.settings.fast ? 'on' : 'off'), onClick: () => this.toggleFast() },
         { label: 'Sound', keepOpen: true, value: () => (this.settings.muted ? 'off' : 'on'), onClick: () => this.toggleMute() },
+        { label: 'Music', keepOpen: true, value: () => levelText(this.settings.music), onClick: () => this.cycleLevel('music') },
+        { label: 'Effects', keepOpen: true, value: () => levelText(this.settings.effects), onClick: () => this.cycleLevel('effects') },
+        { label: 'Text', keepOpen: true, value: () => this.settings.text, onClick: () => this.toggleTextSize() },
+        { label: 'Graphics', keepOpen: true, value: () => this.settings.quality, onClick: () => this.cycleQuality() },
+        { label: 'Crunch', keepOpen: true, value: () => (this.settings.crunch ? 'on' : 'off'), onClick: () => this.toggleCrunch() },
         { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
+        { label: 'Tips', keepOpen: true, value: () => (this.settings.tips ? 'on' : 'off'), onClick: () => this.toggleTips() },
       ],
     });
+  }
+
+  /** The first-time tips (doc 8.4): off hides the one showing and keeps the rest away. */
+  toggleTips() {
+    this.settings.tips = !this.settings.tips;
+    if (!this.settings.tips) this.hideTip();
+    this.saveSettings();
+  }
+
+  /** Music or effects, a step down each press (100%, 75%, 50%, 25%, off), then back to full. */
+  cycleLevel(kind) {
+    const at = LEVELS.indexOf(this.settings[kind]);
+    this.settings[kind] = LEVELS[(at + 1) % LEVELS.length];
+    this.audio.setLevels({ [kind]: this.settings[kind] });
+    this.saveSettings();
+  }
+
+  /** Normal or large text for the HUD's reading, the cards and the books. */
+  toggleTextSize() {
+    this.settings.text = this.settings.text === 'large' ? 'normal' : 'large';
+    document.documentElement.classList.toggle('text-large', this.settings.text === 'large');
+    this.saveSettings();
+  }
+
+  /** High, medium or low (the phone preset): main.js puts it in force. */
+  cycleQuality() {
+    const order = ['high', 'medium', 'low'];
+    this.settings.quality = order[(order.indexOf(this.settings.quality) + 1) % order.length];
+    this.onGraphicsChanged?.();
+    this.saveSettings();
+  }
+
+  /** The low-resolution crunch filter (decision 3), off unless chosen. */
+  toggleCrunch() {
+    this.settings.crunch = !this.settings.crunch;
+    this.onGraphicsChanged?.();
+    this.saveSettings();
   }
 
   dispatch(action) {
@@ -445,6 +497,71 @@ export class Game {
     this.syncStatus();
     this.syncLuck();
     this.syncWheel();
+    this.checkTips();
+  }
+
+  // ---- First-time tips (doc 8.4) ---------------------------------------------
+
+  /** The first tip due that this profile has not been shown, if the moment is calm. */
+  checkTips() {
+    const s = this.state;
+    if (!s || !this.settings.tips || this.atMenu || this.busy || this.tipShown || s.phase === PHASE.GAME_OVER) return;
+    if (document.querySelector('.modal-backdrop.show')) return;
+    const taught = new Set(this.profile.taught ?? []);
+    const due = TIP_ORDER.find((id) => !taught.has(id) && this.tipDue(id));
+    if (due) this.showTip(due);
+  }
+
+  /** Whether the moment a tip is about has come. */
+  tipDue(id) {
+    const s = this.state;
+    switch (id) {
+      case 'lean':
+        return this.view === 'table' && this.leanShown === true;
+      case 'pity':
+        return this.view === 'table' && s.phase === PHASE.BETTING && luckView(s).pity > 0;
+      case 'devil':
+        return luckView(s).devil.live;
+      case 'bank':
+        return (s.lastSpin?.wins?.length ?? 0) > 0 && gt(s.coins, 0);
+      case 'nightOver':
+        return s.phase === PHASE.NIGHT_OVER;
+      case 'zero':
+        return (s.round >= 2 || s.debt >= 2) && oracleView(s).taken === null;
+      case 'cabinet':
+        return this.view === 'cabinet';
+      case 'talisman':
+        return s.rail.some((t) => !getTalisman(t.id)?.cursed);
+      case 'bell':
+        return !!bellView(s).head;
+      case 'record':
+        return s.records.length > 0;
+      default:
+        return false;
+    }
+  }
+
+  /** Shows a tip once for this profile; it fades by itself, or when a spin starts. */
+  showTip(id) {
+    const tip = TIPS[id];
+    const here = VIEWS.indexOf(this.view);
+    const there = tip.toward ? VIEWS.indexOf(tip.toward) : here;
+    this.hud.setTip(tip, { pulse: there < here ? 'left' : there > here ? 'right' : null });
+    this.tipShown = id;
+    this.profile = markTaught(this.profile, id);
+    this.saveProfile();
+    clearTimeout(this.tipTimer);
+    this.tipTimer = setTimeout(() => this.hideTip(), TIP_SECONDS * 1000);
+  }
+
+  hideTip() {
+    clearTimeout(this.tipTimer);
+    this.tipTimer = null;
+    if (!this.tipShown) return;
+    this.tipShown = null;
+    this.hud.setTip(null);
+    // The next one waits for the next calm moment.
+    setTimeout(() => this.checkTips(), 1200);
   }
 
   /**
@@ -649,6 +766,7 @@ export class Game {
     if (view === 'cabinet') this.seen.add('cabinet');
     this.updateHint();
     this.updateNav();
+    this.checkTips();
   }
 
   turn(dir) {
@@ -2062,6 +2180,7 @@ export class Game {
 
   async spinSequence() {
     this.busy = true;
+    this.hideTip();
     this.setLocked(true);
     this.clearFocus();
     this.clearNote();

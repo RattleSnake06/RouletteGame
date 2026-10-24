@@ -91,6 +91,7 @@ export function createHud(root = document.body) {
     <div class="hud-note" data-k="tooltip" aria-live="polite"><div class="note-body"></div></div>
     <div class="hud-toast typed" data-k="toast"><span></span></div>
     <div class="hud-hint typed" data-k="hint"></div>
+    <div class="hud-tip" data-k="tip" role="status" aria-live="polite"><div class="tip-title scrawl fat"></div><div class="tip-text typed"></div></div>
     <div class="hud-popups" data-k="popups"></div>
   `;
   root.appendChild(hud);
@@ -115,6 +116,7 @@ export function createHud(root = document.body) {
     tokens: $('tokens'),
     payout: $('payout'),
     flavor: $('flavor'),
+    tip: $('tip'),
     navLeft: $('navLeft'),
     navRight: $('navRight'),
     menu: $('menu'),
@@ -400,6 +402,19 @@ export function createHud(root = document.body) {
     }
   }
 
+  /**
+   * A first-time tip (doc 8.4, ui/tips.js) under the debt, letting taps
+   * through; `pulse` ('left' or 'right') makes that edge tab beckon toward
+   * where the tip points. null puts it away.
+   */
+  function setTip(spec, { pulse = null } = {}) {
+    refs.tip.querySelector('.tip-title').textContent = spec?.title ?? '';
+    refs.tip.querySelector('.tip-text').textContent = spec?.text ?? '';
+    refs.tip.classList.toggle('show', !!spec);
+    refs.navLeft.classList.toggle('pulse', !!spec && pulse === 'left');
+    refs.navRight.classList.toggle('pulse', !!spec && pulse === 'right');
+  }
+
   // ---- Popups and the bet note --------------------------------------------------
   function popup(text, x, y, kind = 'win') {
     const p = el('div', `hud-popup scrawl fat ${kind}`);
@@ -606,6 +621,7 @@ export function createHud(root = document.body) {
     setTokens,
     setDebt,
     setHint,
+    setTip,
     setNav,
     showPayout,
     flavor,
