@@ -100,13 +100,18 @@ on a real phone. The builds pass (decision 32) is done: doc 6.8 names every
 build (engine, pieces, endgame), the Pyre was added (talismans sold or used
 up feed it; `useUp` in `core/effects.js` is the one used-up path, and the
 Phoenix Feather catches the first each debt), and each build got the piece
-it lacked: 79 talismans, 31 cards, 16 records. **Ask the owner before
-building any new build or piece.** Next is Phase 9 (store releases). The
-best simulator bot at each debt pays debts 1–4 in about 97%, 71%, 49% and
-15% of runs with a new player's pool (`--pool start`, decision 27's
-targets), and debts 5–8 in about 10%, 6%, 3% and 1% with everything open
-(the default pool, the gentle tail); debts 2 and 4 sit near their floors
-and debt 3 near its ceiling. Debts 2 and 4 owe 370 and 2,664,
+it lacked. Decision 33 gave the Bell, Sectors, Zero and Timing a
+legendary multiplier each (the Carillon, the Tote Board, the Patience Jar,
+the Grandfather Clock, one per Vault lock), and the interest build stays as
+the way deep into Endless: 83 talismans, 31 cards, 16 records. **Ask the
+owner before building any new build or piece.** `npm run sim -- --bot
+builds` plays one bot per build (`--kit` hangs its core from the first
+spin). Next is Phase 9 (store releases). The best simulator bot at each
+debt pays debts 1–4 in about 97%, 71%, 49% and 15% of runs with a new
+player's pool (`--pool start`, decision 27's targets), and debts 5–8 in
+about 10%, 5%, 2% and 1% with everything open (the default pool, the
+gentle tail); debts 2, 4 and 8 sit near their floors and debt 3 near its
+ceiling. Debts 2 and 4 owe 370 and 2,664,
 debts 5–8 8,000 to 95,000. See `npm run sim`, which grades the best
 Lean-playing bot at each debt on that debt's pool; `--no-oracle` keeps the
 bots away from Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b`
