@@ -399,6 +399,7 @@ const rank = (list, id) => {
 
 /** Buys what the bot wants, trading in its weakest talisman when the rail is full. */
 function shop(s, bot, log) {
+  let cranked = 0;
   for (let guard = 0; guard < 6; guard++) {
     let list = NO_NEW ? bot.wants(s).filter((id) => !LUCK_ITEMS.includes(id)) : bot.wants(s);
     if (OLD_POOL) list = list.filter((id) => !NEWER.includes(id));
@@ -438,7 +439,10 @@ function shop(s, bot, log) {
     const cheapest = Math.min(...list.filter((id) => !owns(s, id)).map((id) => priceOf(getTalisman(id).rarity)));
     const cost = nextRestockCost(s);
     const reserve = add(costOf(s, 'long'), cost);
-    if (s.tokens >= cheapest && gte(s.coins, reserve) && s.phase !== PHASE.GAME_OVER) {
+    // A build bot's list is short: it turns the crank once a visit, not until
+    // the coins run out hunting one legendary.
+    if (s.tokens >= cheapest && gte(s.coins, reserve) && s.phase !== PHASE.GAME_OVER && !(bot.pieces && cranked >= 1)) {
+      cranked += 1;
       s = step(s, { type: 'restock' }, log);
       continue;
     }
