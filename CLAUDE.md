@@ -145,6 +145,13 @@ change.
   be captured; use CDP touches (`Input.dispatchTouchEvent`) for touch tests.
 - `npm run smoke` plays a debt end to end in headless Chromium; set
   `CHROME_PATH` (in the cloud container: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
+- Bug-hunting bots (doc 9.8): `npm run fuzz` (random and odd core actions over
+  thousands of runs, with invariants; `--deep` for later debts),
+  `npm run monkey -- --persona masher|clicker|wanderer|reloader|touch` (a
+  restless player in the browser), `npm run marathon` (every talisman, card,
+  record and oddity through the real flows) and `npm run tour` (each card,
+  oddity and talisman once). The browser ones take `CHROME_PATH` and run slowly
+  in software WebGL; run at most two at once on four cores.
 - In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`,
   `grant(id)` (hang a talisman for free, cursed ones included), `lean(n)` (a
   Lean on the next spin), `misses(n)` (to try pity), and `devil()` / `calm()`

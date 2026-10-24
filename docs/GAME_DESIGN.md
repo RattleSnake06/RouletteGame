@@ -1940,6 +1940,18 @@ play back strictly left to right. Every hook that changes something emits a
   - Spin resolution is deterministic per seed.
   - The payout formula matches hand-worked examples.
   - Save and load round-trip.
+- **Bug-hunting bots** (built at the owner's request; they found eight bugs, all
+  fixed): `npm run fuzz` plays thousands of runs of random and odd actions against
+  the core (`--deep` keeps them alive into later debts) and checks that money and
+  tokens stay finite and non-negative, the rail fits its hooks, ids stay unique,
+  every bet is one the wheel can take, `act()` never changes its input and a save
+  reloads the same. `npm run monkey -- --persona masher|clicker|wanderer|reloader|touch`
+  lets a restless player loose in headless Chromium (mashed keys, random taps and
+  drags, menus mid-spin, resizes and rotations, a hidden tab, reloads at awkward
+  moments and corrupted saves, the back gesture) and watches for errors, stuck
+  sequences and broken state. `npm run marathon` hangs every talisman in turn
+  and plays cards, records, the Bell and oddities through the real flows; `npm
+  run tour` takes every card, oddity and talisman through its flow once.
 - **Balance simulator** (`npm run sim`): plays thousands of runs headless with a few
   bot strategies (outside bettor, straight-up hunter, greedy buyer) and reports the
   share of runs clearing each debt, median coins, and most-picked talismans.
