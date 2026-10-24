@@ -2051,12 +2051,12 @@ play back strictly left to right. Every hook that changes something emits a
     | Streaks | 4 / 0.1 / 0% | 8 | 81 / 2 / 0% | 9 |
     | Interest | 2.4 / 0.9 / 0.9% | 14 | 45 / 40 / 40% | 14 |
     | Inside lines | 2 / 0 / 0% | 6 | 100 / 1.4 / 0% | 9 |
-    | Timing | 2 / 0 / 0% | 7 | 23 / 0 / 0% | 6 |
-    | Zero | 1.7 / 0 / 0% | 5 | 20 / 0 / 0% | 7 |
+    | Timing | 2 / 0 / 0% | 6 | 97 / 1.8 / 0% (23 / 0 / 0% before the Grandfather Clock) | 9 |
+    | Zero | 1.6 / 0 / 0% | 5 | 90 / 1.4 / 0% (20 / 0 / 0% before the Patience Jar) | 9 |
     | Multi-ball | 1.6 / 0 / 0% | 7 | 83 / 1 / 0% | 8 |
     | The Pyre | 0.8 / 0 / 0% | 6 | 74 / 7 / 0.2% | 10 |
-    | The Bell | 0.6 / 0 / 0% | 4 | 7 / 0 / 0% | 5 |
-    | Sectors | 0.5 / 0 / 0% | 5 | 3 / 0 / 0% | 5 |
+    | The Bell | 1.0 / 0 / 0% | 5 | 100 / 2.8 / 0% (7 / 0 / 0% before the Carillon) | 9 |
+    | Sectors | 0.3 / 0 / 0% | 4 | 53 / 0 / 0% (3 / 0 / 0% before the Tote Board) | 7 |
     | The Devil | 0.5 / 0 / 0% | 5 | 99 / 8 / 0% | 9 |
     | Tokens | 0.2 / 0 / 0% | 4 | 83 / 18 / 5% | 10 |
 
@@ -2066,9 +2066,12 @@ play back strictly left to right. Every hook that changes something emits a
     and the Beckoning Cat pays three nights of that again when three chips
     win, so the Cage grows about ×15–20 a debt, past debts 5–9 (×2–3 each)
     and Endless's ×6 and ×12; it fades from debt 13. Once a finished
-    interest build pays debt 4, it pays debt 10 almost every time. The
-    Bell, Sectors, Zero and Timing kits have little multiplier of their
-    own and lean on another build.
+    interest build pays debt 4, it pays debt 10 almost every time; the
+    owner keeps it so, as the way deep into Endless. The Bell, Sectors,
+    Zero and Timing kits had little multiplier of their own; each got a
+    legendary (decision 33), and their kits rows show both. Found in the
+    Cabinet they barely move: each new piece waits behind a lock and is
+    legendary, so few runs see it, and the four kits now carry it.
     The starting wheels against the European, everything open (500 runs):
     Gilded 78/61/29% at debts 2–4, Bone 74/59/30%, Mirror 81/61/27%, all
     within a few points, and each inside the tail at debts 5–8 but the
