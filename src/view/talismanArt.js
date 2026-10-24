@@ -2742,7 +2742,285 @@ const PAINTERS = {
     line(ctx, [[18, -10], [8, 34], [30, 70]], '#8a6a14', 3);
     line(ctx, [[8, 34], [66, 44]], '#8a6a14', 3);
   },
+
+  // ---- The builds pass (doc 6.8) ----
+
+  kindling(ctx) {
+    // A bundle of split sticks, tied with twine, a small flame at the top.
+    flame(ctx, 0, -18, 0.8);
+    for (const [x, a] of [[-26, -0.5], [0, 0], [26, 0.5], [-12, -0.22], [12, 0.22]]) {
+      ctx.save();
+      ctx.translate(x * 0.7, 30);
+      ctx.rotate(a * 0.45);
+      rrect(ctx, -9, -56, 18, 98, 6);
+      fill(ctx, linear(ctx, -9, 0, 9, 0, [
+        [0, C.woodDeep],
+        [0.5, '#a8683a'],
+        [1, '#3a1c0c'],
+      ]), C.soot, 4);
+      ctx.restore();
+    }
+    rrect(ctx, -40, 34, 80, 12, 4);
+    fill(ctx, C.paperShade, C.soot, 3);
+  },
+
+  funeral_urn(ctx) {
+    // A brass urn with two handles and a lid.
+    ctx.beginPath();
+    ctx.moveTo(-24, -44);
+    ctx.bezierCurveTo(-64, -20, -60, 40, -26, 58);
+    ctx.lineTo(26, 58);
+    ctx.bezierCurveTo(60, 40, 64, -20, 24, -44);
+    ctx.closePath();
+    fill(ctx, brassFill(ctx, -44, 58), C.soot, 5);
+    for (const sx of [-1, 1]) {
+      ctx.beginPath();
+      ctx.arc(sx * 50, -16, 16, sx > 0 ? -1.6 : 1.6 - Math.PI, sx > 0 ? 1.2 : Math.PI - 1.2, sx < 0);
+      ctx.strokeStyle = C.soot;
+      ctx.lineWidth = 11;
+      ctx.stroke();
+      ctx.strokeStyle = C.brass;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+    rrect(ctx, -30, 58, 60, 14, 4);
+    fill(ctx, C.brassDeep, C.soot, 4);
+    rrect(ctx, -28, -58, 56, 16, 6);
+    fill(ctx, C.brass, C.soot, 4);
+    circle(ctx, 0, -66, 8);
+    fill(ctx, C.brassLight, C.soot, 3);
+    seg(ctx, -44, 8, 44, 8, C.brassDeep, 4);
+  },
+
+  phoenix_feather(ctx) {
+    // A long flame-coloured feather, its tip burning.
+    ctx.save();
+    ctx.rotate(0.55);
+    ctx.beginPath();
+    ctx.moveTo(0, 74);
+    ctx.bezierCurveTo(-36, 30, -34, -40, 0, -80);
+    ctx.bezierCurveTo(34, -40, 36, 30, 0, 74);
+    ctx.closePath();
+    fill(ctx, linear(ctx, 0, 74, 0, -80, [
+      [0, C.bloodDeep],
+      [0.45, C.blood],
+      [0.8, C.amber],
+      [1, '#ffe08a'],
+    ]), C.soot, 4);
+    for (let i = 0; i < 6; i++) {
+      const y = 50 - i * 20;
+      seg(ctx, 0, y, -26 + i * 2, y - 14, 'rgba(5, 4, 4, 0.45)', 2.5);
+      seg(ctx, 0, y, 26 - i * 2, y - 14, 'rgba(5, 4, 4, 0.45)', 2.5);
+    }
+    seg(ctx, 0, 92, 0, -70, C.soot, 7);
+    seg(ctx, 0, 92, 0, -70, C.bone, 3);
+    ctx.restore();
+  },
+
+  the_pyre(ctx) {
+    // Logs stacked crosswise, a tall fire roaring off them.
+    flame(ctx, 0, -6, 1.7);
+    for (const [y, a] of [[40, 0.18], [40, -0.18], [56, 0]]) {
+      ctx.save();
+      ctx.translate(0, y);
+      ctx.rotate(a);
+      rrect(ctx, -66, -10, 132, 20, 10);
+      fill(ctx, linear(ctx, 0, -10, 0, 10, [
+        [0, '#a8683a'],
+        [1, C.woodDeep],
+      ]), C.soot, 4);
+      for (const sx of [-1, 1]) {
+        circle(ctx, sx * 60, 0, 7);
+        fill(ctx, '#c88a52', C.woodDeep, 2);
+      }
+      ctx.restore();
+    }
+  },
+
+  pair_of_dice(ctx) {
+    // Two bone dice, one tipped behind the other.
+    const die = (x, y, a, pips) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      rrect(ctx, -32, -32, 64, 64, 12);
+      fill(ctx, linear(ctx, -32, -32, 32, 32, [
+        [0, C.bone],
+        [1, C.boneDim],
+      ]), C.soot, 5);
+      for (const [px, py] of pips) {
+        circle(ctx, px * 18, py * 18, 7);
+        fill(ctx, C.bloodDeep);
+      }
+      ctx.restore();
+    };
+    die(26, -24, 0.35, [[-1, -1], [0, 0], [1, 1]]);
+    die(-24, 26, -0.2, [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]]);
+  },
+
+  savings_book(ctx) {
+    // A bank passbook in oxblood cloth, a brass coin on its cover.
+    rrect(ctx, -54, -66, 108, 132, 8);
+    fill(ctx, linear(ctx, -54, 0, 54, 0, [
+      [0, C.bloodDeep],
+      [0.6, '#a81c24'],
+      [1, '#5a0a10'],
+    ]), C.soot, 5);
+    seg(ctx, -42, -66, -42, 66, '#4a080c', 5);
+    rrect(ctx, -26, -50, 66, 18, 3);
+    fill(ctx, C.paper, C.soot, 2.5);
+    for (let i = 0; i < 3; i++) seg(ctx, -20, -44 + i * 4 + 2, 34 - i * 10, -44 + i * 4 + 2, C.ink, 1.6);
+    circle(ctx, 8, 18, 30);
+    fill(ctx, brassFill(ctx, -12, 48), C.soot, 4);
+    circle(ctx, 8, 18, 21);
+    ctx.strokeStyle = C.brassDeep;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = typedFont(30);
+    ctx.fillStyle = C.brassDeep;
+    ctx.fillText('%', 8, 20);
+  },
+
+  gold_tooth(ctx) {
+    // A gold molar, its roots forked.
+    ctx.beginPath();
+    ctx.moveTo(-52, -46);
+    ctx.bezierCurveTo(-60, -76, -20, -78, 0, -62);
+    ctx.bezierCurveTo(20, -78, 60, -76, 52, -46);
+    ctx.bezierCurveTo(48, -6, 44, 20, 34, 64);
+    ctx.bezierCurveTo(26, 78, 14, 70, 12, 48);
+    ctx.bezierCurveTo(8, 22, -8, 22, -12, 48);
+    ctx.bezierCurveTo(-14, 70, -26, 78, -34, 64);
+    ctx.bezierCurveTo(-44, 20, -48, -6, -52, -46);
+    ctx.closePath();
+    fill(ctx, linear(ctx, -50, -70, 40, 60, [
+      [0, '#fff0b0'],
+      [0.35, C.brassLight],
+      [0.7, C.brass],
+      [1, C.brassDeep],
+    ]), C.soot, 5);
+    line(ctx, [[-30, -48], [-14, -40], [0, -50], [14, -40], [30, -48]], C.brassDeep, 3);
+    ellipse(ctx, -24, -30, 9, 16, 0.3);
+    fill(ctx, 'rgba(255, 250, 225, 0.7)');
+  },
+
+  pocket_calendar(ctx) {
+    // A tear-off calendar leaf, one day ringed in red.
+    rrect(ctx, -56, -66, 112, 132, 6);
+    fill(ctx, C.paper, C.soot, 5);
+    rrect(ctx, -56, -66, 112, 32, 6);
+    fill(ctx, C.bloodDeep);
+    for (const x of [-30, 0, 30]) {
+      circle(ctx, x, -66, 6);
+      fill(ctx, C.brass, C.soot, 2.5);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = typedFont(64);
+    ctx.fillStyle = C.ink;
+    ctx.fillText('7', 0, 14);
+    ellipse(ctx, 0, 14, 36, 34, -0.15);
+    ctx.strokeStyle = C.blood;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+    ctx.setLineDash([3, 4]);
+    seg(ctx, -50, 54, 50, 54, C.paperShade, 2);
+    ctx.setLineDash([]);
+  },
+
+  hand_bell(ctx) {
+    // A small brass hand bell on a turned wooden handle.
+    rrect(ctx, -11, -84, 22, 46, 10);
+    fill(ctx, linear(ctx, -11, 0, 11, 0, [
+      [0, C.woodDeep],
+      [0.5, '#a8683a'],
+      [1, '#3a1c0c'],
+    ]), C.soot, 4);
+    ctx.beginPath();
+    ctx.moveTo(-22, -40);
+    ctx.bezierCurveTo(-30, -10, -40, 30, -64, 46);
+    ctx.lineTo(64, 46);
+    ctx.bezierCurveTo(40, 30, 30, -10, 22, -40);
+    ctx.closePath();
+    fill(ctx, brassFill(ctx, -40, 46), C.soot, 5);
+    ellipse(ctx, 0, 46, 64, 12);
+    fill(ctx, C.brassDeep, C.soot, 4);
+    circle(ctx, 0, 62, 11);
+    fill(ctx, C.brass, C.soot, 4);
+    seg(ctx, -14, -28, -30, 30, 'rgba(255, 240, 200, 0.55)', 5);
+  },
+
+  racing_form(ctx) {
+    // A folded racing paper, a runner ringed in red.
+    ctx.save();
+    ctx.rotate(-0.12);
+    rrect(ctx, -60, -70, 120, 140, 4);
+    fill(ctx, C.paper, C.soot, 5);
+    rrect(ctx, -60, -70, 120, 30, 4);
+    fill(ctx, C.ink);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = typedFont(22);
+    ctx.fillStyle = C.paper;
+    ctx.fillText('FORM', 0, -55);
+    for (let i = 0; i < 5; i++) {
+      const y = -24 + i * 20;
+      seg(ctx, -48, y, -36, y, C.ink, 5);
+      seg(ctx, -28, y, 44 - (i % 2) * 18, y, C.paperShade, 4);
+    }
+    ellipse(ctx, 0, 16, 56, 14, -0.04);
+    ctx.strokeStyle = C.blood;
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  raven_feather(ctx) {
+    // A black raven's feather, its sheen blue-violet.
+    ctx.save();
+    ctx.rotate(-0.55);
+    ctx.beginPath();
+    ctx.moveTo(0, 74);
+    ctx.bezierCurveTo(-34, 26, -30, -44, 0, -82);
+    ctx.bezierCurveTo(30, -44, 32, 26, 0, 74);
+    ctx.closePath();
+    fill(ctx, linear(ctx, -30, 0, 30, 0, [
+      [0, '#121018'],
+      [0.45, '#3a3550'],
+      [0.6, '#1c1a26'],
+      [1, '#08070b'],
+    ]), C.boneDim, 4);
+    for (let i = 0; i < 6; i++) {
+      const y = 50 - i * 20;
+      seg(ctx, 0, y, -24 + i * 2, y - 16, 'rgba(120, 112, 160, 0.4)', 2.5);
+      seg(ctx, 0, y, 24 - i * 2, y - 16, 'rgba(120, 112, 160, 0.4)', 2.5);
+    }
+    seg(ctx, 0, 92, 0, -72, C.bone, 3.5);
+    ctx.restore();
+  },
 };
+
+/** A tongue of fire rising from (x, y), for the Pyre's curios. */
+function flame(ctx, x, y, size) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size, size);
+  ctx.beginPath();
+  ctx.moveTo(-24, 22);
+  ctx.bezierCurveTo(-40, -6, -6, -18, 0, -48);
+  ctx.bezierCurveTo(10, -20, 40, -8, 24, 22);
+  ctx.closePath();
+  fill(ctx, C.blood, C.soot, 3);
+  ctx.beginPath();
+  ctx.moveTo(-12, 22);
+  ctx.bezierCurveTo(-18, 2, -2, -6, 0, -26);
+  ctx.bezierCurveTo(8, -6, 20, 4, 12, 22);
+  ctx.closePath();
+  fill(ctx, C.amber);
+  ctx.restore();
+}
 
 // Anything without a painter yet (a content id from a later phase): a plain
 // charm with a scrawled question mark, so it still reads as a talisman.
@@ -2755,6 +3033,8 @@ function paintUnknown(ctx) {
 // Warm light some curios throw onto the enamel around them.
 const GLOWS = {
   matchbook: { x: 43, y: -52, r: 52, color: 'rgba(235, 162, 50, 0.32)' },
+  the_pyre: { x: 0, y: -30, r: 70, color: 'rgba(235, 162, 50, 0.3)' },
+  kindling: { x: 0, y: -40, r: 44, color: 'rgba(235, 162, 50, 0.28)' },
 };
 
 // ---- Ink treatment ------------------------------------------------------------------

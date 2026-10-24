@@ -18,7 +18,9 @@ cards and 12 records, the special bets on a racetrack, multi-ball, what the
 locks and feats open, Endless after the Vault, and a simulator curve that
 runs to debt 8. Phase 8 (polish) is built (decision 31): an Info book on
 the menus, fuller Settings, first-time tips, a synthesised audio pass and the
-floor painted off the main thread. Phase 9 (store releases) comes next.
+floor painted off the main thread. The builds pass (decision 32, 6.8) added
+the Pyre and the piece each build lacked: 79 talismans, 31 cards and 16
+records. Phase 9 (store releases) comes next.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -736,7 +738,7 @@ a free slot. Danse Macabre is built (6.3).
 
 A first pool to build from. Names and numbers are drafts.
 
-### 6.1 Talismans (68 built)
+### 6.1 Talismans (79 built)
 
 **Built in Phase 2 (15):** Red Ribbon, Horseshoe, Matchbook, Lucky Penny, Crumpled
 Receipt, Pawn Ticket (common); Brass Knuckles, Croupier's Rake, Ledger, Abacus
@@ -899,20 +901,49 @@ last spin only).
 | Bag of Marbles | Legendary | Two more balls every spin, each paying ×½ | feat: The Vault |
 | Usurer's Seal | Legendary | Interest doubled (the talismans to its left included) | feat: A Full Rail |
 
+**Built in the builds pass (11, decision 32).** The Pyre, a new build, and
+the talismans the other builds lacked (6.8). The Racing Form waits for the
+Vault's first lock with the other sector openers, so a new player's Cabinet
+now offers 63.
+
+| Talisman | Rarity | Effect | Build | Opens with |
+|---|---|---|---|---|
+| Kindling | Common | When sold: +2 tokens | The Pyre | |
+| Hand Bell | Common | Each debt, the leftmost Bell talisman gets +1 charge | The Bell | |
+| Funeral Urn | Uncommon | +1 Stake for every talisman sold this run, up to +4 | The Pyre | |
+| Pair of Dice | Uncommon | Two balls on the same colour: chips ×2 | Multi-ball | |
+| Savings Book | Uncommon | +1% interest for every debt paid, up to +5% | Interest | |
+| Raven Feather | Uncommon | Black chips +1 Stake | Colour (black) | |
+| Racing Form | Uncommon | Opens the Neighbours | Sectors | lock 1 |
+| Phoenix Feather | Rare | The first talisman used up each debt comes back, as new | The Pyre | |
+| Pocket Calendar | Rare | Marks one spin each night, drawn from the seed: chips ×3 on it | Timing | |
+| The Pyre | Legendary | Chips +×0.5 for every talisman sold or used up this run | The Pyre | |
+| Gold Tooth | Legendary | Chips ×(1 + tokens ÷ 20) | Coins and tokens | |
+
+"Used up" is one path in the core (`useUp`): a Bell talisman smashed, a
+purse emptied, a clover wilted, a Holy Water shattered. Each counts for the
+Pyre, and the Phoenix Feather catches the first of each debt and hangs it
+back fresh (its charges and counters reset). Selling counts too, a trade-in
+at the Cabinet included. The Pocket Calendar's spin is shown on its note,
+so a player can load chips onto it.
+
 **Every family at every rarity** (a talisman counts for each family its tags
 name; `tests/core/phase7.test.js` checks it):
 
 | Family | Common | Uncommon | Rare | Legendary |
 |---|---|---|---|---|
-| Colour | Red Ribbon, Matchbook, Black Cat | Ledger, Domino, Saint's Medal | Rose Brooch | Loaded Wheel |
+| Colour | Red Ribbon, Matchbook, Black Cat | Ledger, Domino, Saint's Medal, Raven Feather, Pair of Dice | Rose Brooch | Loaded Wheel |
 | Straight-up hunting (Nudge) | Pocket Watch, Lodestone, Wind-Up Key, Hamsa, Four-Leaf Clover | Rabbit's Foot, Dowsing Rod, Weathervane, Fortune Cookie | Compass | Metronome |
-| Wheel geometry and sectors | Brass Scales | Croupier's Rake, Mirror Shard | Compass, Gilder's Knife, Snakeskin, Croupier's Glove | Number Punches, Loaded Wheel |
+| Wheel geometry and sectors | Brass Scales | Croupier's Rake, Mirror Shard, Racing Form | Compass, Gilder's Knife, Snakeskin, Croupier's Glove | Number Punches, Loaded Wheel |
 | Table geometry (inside bets) | Horseshoe, Lucky Penny, Lodestone, Wind-Up Key | Brass Knuckles, Croupier's Rake, Ledger, Mousetrap, Fortune Cookie | Wheel of Fortune, Thirteen Ball, Table Map | House Key, Ouroboros, Surveyor's Chain |
 | Streaks and repeats | Tally Stick | Ledger, Abacus, Mousetrap | Rose Brooch, Hot Coals | Ouroboros |
 | Zero | Green Thread | Saint's Medal | Zero's Coin | House Key |
-| Multi-ball | Marble | Juggler's Ball | Ivory Ball | Bag of Marbles |
-| Economy and interest | Lucky Penny, Pawn Ticket, Grandmother's Purse, Lost Wallet, Chalk Stub, Wishbone | Beckoning Cat, Hourglass | Piggy Bank | Usurer's Seal |
+| Multi-ball | Marble | Juggler's Ball, Pair of Dice | Ivory Ball | Bag of Marbles |
+| Economy and interest | Lucky Penny, Pawn Ticket, Grandmother's Purse, Lost Wallet, Chalk Stub, Wishbone, Kindling | Beckoning Cat, Hourglass, Savings Book | Piggy Bank | Usurer's Seal, Gold Tooth |
 | Devil and risk | Salt Cellar, Wishbone | Evil Eye, Holy Water | Brimstone | Golden Ball |
+| Sacrifice (the Pyre) | Kindling | Funeral Urn | Phoenix Feather | The Pyre |
+| Timing | Pocket Watch, Hamsa, Marble | Weathervane, Juggler's Ball, Hourglass | Pocket Calendar | Metronome |
+| The Bell | Hand Bell | Dowsing Rod | Glass Eye, Wheel of Fortune, Piggy Bank | Number Punches |
 
 ### 6.2 Fortunes
 
@@ -988,6 +1019,18 @@ Almanac's ledger as "Sent away by Madame Zero".
 the decks (the four rows marked Phase 7), bringing them to 25. Three of the
 five wait behind a lock or a feat (7.1).
 
+*The builds pass (decision 32):* six cards, one for each build that had
+none (6.8), bringing the decks to 31: 19 white, 12 black.
+
+| Card | Colour | Effect | Rarity | Max picks | Build |
+|---|---|---|---|---|---|
+| "The table remembers." | White | Splits, streets, corners and six-lines +1 level | Legendary | 1 | Inside lines |
+| "Hot hands." | White | The first spin each night that pays nothing does not break a streak (Hot Coals, Boogie-Woogie); dealt only while one is owned | Uncommon | 1 | Streaks |
+| "A spare ball." | White | A second ball on each of the next 5 spins | Common | none | Multi-ball |
+| "Compound interest." | White | +3% interest for the rest of the run | Uncommon | 2 | Interest |
+| "The night is young." | White | +1 spin on every night of this debt that has spins | Uncommon | none | Timing |
+| "Burn it all." | Black | Every talisman that can come off the rail is sold, for all it cost | Rare | none | The Pyre |
+
 ### 6.3 Records
 
 *As built (Phase 4):* all but Danse Macabre, which waited for the figures
@@ -1016,6 +1059,17 @@ on every night costs more than its Nudge wins back.
 | Danse Macabre | +1% interest for each figure standing in the dark |
 | Habanera | The special bets are open while it plays; their chips +1 Stake (Phase 7; opens with lock 1) |
 | Two-Step | A second ball every spin; every payout ×0.6 (Phase 7; opens with lock 2, the gramophone's second slot) |
+| Requiem | Selling pays double (the builds pass; the Pyre) |
+| Stride Piano | Split, street, corner and six-line chips +1 Stake; straight-ups ×½ (the builds pass; inside lines) |
+| Bolero | A green zero pays every chip on the table (the builds pass; zero) |
+| Midnight Blues | Black payouts ×2; red payouts ×0.5 (the builds pass; black, Red Light Tango's mirror) |
+
+*The builds pass (decision 32):* four records, one for each build that had
+none (6.8), bringing the crate to 16. Each has its own synthesised loop:
+a slow organ lament for Requiem, a leaping left hand for Stride Piano, the
+snare's one rhythm for Bolero and a walking bass for Midnight Blues. Bolero
+pays every chip at its own odds when the first ball lands on a green zero
+(Saint's Medal's rule, for every bet).
 
 ### 6.4 Engravings
 
@@ -1129,6 +1183,44 @@ weights. Tuned with the simulator (9.8): the lacquers paint 3 pockets
 | Glass Chip | One more chip, Glass | Rare | 60 |
 | Gold Chip | One more chip, Gold (its tokens count toward the night's 3) | Rare | 50 |
 | A Record | A record not yet owned, for the crate (it plays if nothing does) | Rare | 50 |
+
+### 6.8 Builds and engines
+
+A build is the engine a run grows into: pieces that multiply each other
+rather than add. A winning chip pays chip value × Stake × odds × Odds mult ×
+pocket mult × each talisman's × (5.5). Stake adds up and the ×s multiply, so
+an engine joins three things: **hit rate** (Nudge, widths, wheel work,
+balls, the Glass Eye), **multipliers** (Stake, × talismans, gilded and glass
+pockets, bet levels) and **money that compounds** (interest, growth that
+lasts the run). Twin Mirrors, the Tuning Fork, the Echo engraving and
+"Something carved in brass" amplify any engine.
+
+*Decision 32 (the builds pass):* the Pyre was added as a new build, and
+each build was given the piece it lacked (a card, a record or a talisman),
+as the owner chose. The Bell and Chip value have no record of their own:
+the Bell's talismans already answer when rung, and chip value is the
+material's rule (6.6); Chip value has no card either (decision 28). The
+owner approves each new build or piece before it is built.
+
+| Build | How it works | Talismans | Cards | Records | Endgame |
+|---|---|---|---|---|---|
+| **Colour** | Red and black alternate round the wheel, so +1 Nudge makes nearly every colour chip win; paint and widen the colour, then stack Stake and ×s on it | Red Ribbon, Matchbook, Black Cat (C); Ledger, Domino, Saint's Medal, Raven Feather (U); Rose Brooch (R); Loaded Wheel (L) | "The reds run warm", "The blacks run cold", "Outside bets are safe bets" | Red Light Tango; Midnight Blues for black | Stake 5 with Rose Brooch, Tango and the Golden Ball: 120 per chip value on a near-certain hit |
+| **Straight-up hunting** | Straight-ups spread round the wheel; each point of Nudge reaches two more pockets; load the Lean spins | Pocket Watch, Lodestone, Wind-Up Key, Hamsa, Four-Leaf Clover (C); Rabbit's Foot, Dowsing Rod, Weathervane, Fortune Cookie (U); Compass (R); Metronome (L) | "Ask the figures", "A candle for the dark", "Fortune favours the bold" | Waltz in Green, Carousel | 18 Nudge reaches every pocket: the ball always finds the best number, on a glass or platinum pocket with straight-ups levelled |
+| **Inside lines** | Splits, streets and corners cover felt neighbours; the Mirror wheel puts them side by side | Horseshoe, Lucky Penny (C); Brass Knuckles, Croupier's Rake, Mousetrap (U); Wheel of Fortune, Thirteen Ball, Table Map (R); Surveyor's Chain, House Key (L) | "The table remembers." | Stride Piano | A levelled corner with Stride's Stake, Brass Knuckles ×2 and Surveyor's Chain ×3, on a Mirror wheel |
+| **Wheel sculpting and sectors** | The wheel is the deck: widen, cast and stamp your numbers, chisel the rest down to 18, bet the racetrack | Brass Scales (C); Croupier's Rake, Mirror Shard, Racing Form (U); Compass, Gilder's Knife, Snakeskin, Croupier's Glove (R); Number Punches, Loaded Wheel (L) | "Neighbours talk.", "Gold finds gold", "Borrowed gold", "Break the wheel" | Habanera, Carousel | Voisins on an 18-pocket wheel wins about 17 spins in 18, at ×1.5 and +1 Stake, over gilded pockets |
+| **Streaks and repeats** | Pay more for winning again, on a bet that rarely misses | Tally Stick (C); Ledger, Abacus, Mousetrap (U); Rose Brooch, Hot Coals (R); Ouroboros (L) | "Hot hands." | Boogie-Woogie | Hot Coals at ×4 with Boogie's and the Tally's Stake, and "Hot hands." forgiving a night's first miss |
+| **Zero** | Take the House's pocket: fatten and cast zeros, then let a zero pay everything | Green Thread (C); Saint's Medal (U); Zero's Coin (R); House Key (L) | "Feed the zero", "Zero smiles on you" | Bolero | Four or five wide zeros land about one spin in seven, and each pays every chip on the table, ×2 for "Feed the zero" |
+| **Multi-ball** | Each ball lands and is nudged on its own; every chip pays for every ball on its bet | Marble (C); Juggler's Ball, Pair of Dice (U); Ivory Ball (R); Bag of Marbles (L) | "A spare ball.", "The ball has a twin" | Two-Step | Four or five balls a spin, Pair of Dice doubling the spins they agree on colour |
+| **Interest** | Bank early; the Cage's interest compounds every night | Pawn Ticket, Grandmother's Purse (C); Savings Book (U); Usurer's Seal (L) | "Compound interest." | Danse Macabre | 5% base, the Pawn Ticket, the Purse, the Savings Book, two "Compound interest." cards, Thrifty and Danse Macabre, doubled by the Seal: past ×5 a debt |
+| **Coins and tokens** | Fuel for the other engines; the Gold Tooth turns a hoard into a multiplier | Lucky Penny, Lost Wallet, Chalk Stub, Wishbone, Crumpled Receipt (C); Beckoning Cat, Hourglass, Magpie (U); Piggy Bank, Zero's Coin (R); Gold Tooth (L) | "A stranger tips well", "The cabinet owes you", "Burn the ledger" | Funeral March | 40 tokens held under the Gold Tooth is ×3 on every chip, and Magpie's Stake on top |
+| **The Devil's bargain** | Take Devil chance for big ×s and bank after every spin, or silence him with Lullaby | Salt Cellar (C); Evil Eye, Holy Water (U); Brimstone (R); Golden Ball (L); Bone Dice, Black Candle (cursed) | "Roll the bones", "A candle for the dark", "Shake the Devil's hand" | Overture of Excess, Lullaby for Zero | Golden Ball ×3 (×9 mirrored), Brimstone ×2 and the Bone Dice's +4 Stake |
+| **Timing** | Some spins are known to be big: put the heaviest bets there | Pocket Watch, Hamsa, Marble (C); Weathervane, Juggler's Ball, Hourglass (U); Pocket Calendar (R); Metronome (L) | "The night is young." | Nocturne | The Calendar's spin, the Metronome's 4th and Nocturne's last, each loaded; more spins a night means more of them |
+| **The Bell** | Actives, rung when they matter most | Hand Bell (C); Dowsing Rod (U); Glass Eye, Wheel of Fortune, Piggy Bank (R); Number Punches (L) | "The bell rings twice" | (any; the Bell has no record of its own) | The Glass Eye rung, every chip straight-up on the number it shows: a sure jackpot each charge, and the Hand Bell adds one |
+| **Chip value** | Chips that grow | Matchbook (C); String of Pearls, Domino, Magpie (U) | | | Ember pockets and the chip oddities: the only growth that lasts the run (chip cards are out, decision 28) |
+| **The Pyre** (new) | Feeds on talismans sold or used up: buy cheap commons and burn them | Kindling (C); Funeral Urn (U); Phoenix Feather (R); The Pyre (L) | "Burn it all." | Requiem | The Pyre's +×0.5 per talisman never stops growing: 20 burned is ×11 on every chip. Kindling buys for 3 and sells for 3, so with Requiem playing each one is a token's profit as well as fuel |
+
+The bots in the simulator play colour, outside bets, inside bets,
+straight-up hunting and the Pyre (9.8).
 
 ---
 
@@ -1910,6 +2002,22 @@ play back strictly left to right. Every hook that changes something emits a
     at 2 and 3, adaptive at 4). Everything open, debts 5–8: 12.8/6.3/3.0/1.2%
     (the outside builder at debt 5, adaptive after); debts 1–4 there run
     97.5/79.2/58.9/27.6%. All eight inside their targets.
+    *The builds pass (decision 32):* the bots learned the new pieces (each
+    in its family's list; Raven Feather plays Black like the Black Cat;
+    Midnight Blues for a black layout, Stride Piano and "The table
+    remembers." for corners; the Hand Bell only beside a Bell talisman),
+    and a **Pyre builder** plays red, buys the Pyre's pieces first, sells
+    each Kindling as soon as it hangs and plays Requiem. "Burn it all." is
+    taken by no bot: it sells the Pyre with the rest. Nothing was retuned:
+    eleven more talismans thin a new player's Cabinet a little.
+    *Results:* a new player's pool, debts 1–4 (3,000 runs for the two best
+    bots): 96.8/71.0/48.7/15.4% (adaptive at debts 1 and 4, the inside
+    builder at 2 and 3), debts 2 and 4 near their floors. Everything open,
+    debts 5–8 (1,000 runs): 9.6/5.7/2.7/1.4%, all adaptive. The Pyre
+    builder runs level with the red builder (18.4% at debt 4, 7.5/4.1/1.7/
+    0.7% at debts 5–8 with everything open): the Pyre itself is legendary
+    and found in few runs, so the build's ceiling shows only in long runs
+    and Endless.
     The starting wheels against the European, everything open (500 runs):
     Gilded 78/61/29% at debts 2–4, Bone 74/59/30%, Mirror 81/61/27%, all
     within a few points, and each inside the tail at debts 5–8 but the
@@ -2248,3 +2356,4 @@ Built (decision 30), in two halves:
 | 29 | Phase 6 | **The Mirror wheel mirrors the felt**: the numbers run 0 to 36 round the rim, since a reversed wheel keeps every pocket's neighbours. **Locks open starting wheels now, items later**: lock 1 the American, lock 2 the Gilded and the gramophone's second slot, lock 3 the Bone, lock 4 the Mirror; reaching the goal opens the next House Edge level; the Almanac's feats are kept but unlock nothing until Phase 7's new talismans and records, so today's pool and balance stay as they are. Both chosen by the owner. Tuned with the simulator to sit near the European wheel: the American gives +2 tokens per paid debt (not a night), the Gilded owes ×1.25, the Bone has six Bone pockets, House Edge 3 is a token less per paid debt; House Edge 1's "+1 zero" is a green pocket with no number, so a straight-up on 0 gains nothing from it. (7, 9.8) |
 | 30 | Phase 7 | **A gentle tail past debt 4**: the best bot pays debt 5 in 8–15% of runs, debt 6 in 4–10%, debt 7 in 2–6%, debt 8 in 1–4%, so every lock of the Vault can be earned; debts 1–4 keep decision 27's targets, graded on a new player's pool, and debts 5–8 on the full pool. **Multi-ball is built**: up to two extra ivory balls in the view, and a multi-ball talisman at each rarity (Marble, Juggler's Ball, Ivory Ball, Bag of Marbles). **The special bets are built** on a racetrack across the felt; the Croupier's Glove, Snakeskin and "Neighbours talk." open them, and join the pool with the Vault's first lock. **Endless is a mode after the Vault**: once it has opened, the chip select offers Endless (no goal, play until collected), and the Almanac keeps the deepest. The new content opens with the locks and the feats (7.1). All four chosen by the owner. Outcome after the simulator: six new talismans strengthened, debt 2 at 370 and debts 5–9 at 8,000 / 18,000 / 40,000 / 95,000 / 250,000, the American wheel at +1 token per paid debt; 97/71/49/18% at debts 1–4 (a new player's pool) and 12.8/6.3/3.0/1.2% at debts 5–8 (everything open). (5.2, 5.3, 5.5, 6.1–6.3, 7.1, 9.8) |
 | 31 | Phase 8 | **An Info button on the main menu** that explains the idea, the goal and every mechanic with examples (also on the pause menu), and **Settings** on both menus, asked for by the owner. Settings adds **text size, music and effects volume and graphics quality** (not a reduced-motion switch). The first debt teaches with **one-time tips in the room**, once per profile, never forcing the player. The audio pass **keeps synthesised sound** (no audio files). The **crunch filter is off by default**, a Settings toggle. All chosen by the owner. (7.5, 8.4–8.7, 9.9) |
+| 32 | Builds (synergies) | **Every build is named with its engine, its pieces and its endgame (6.8)**, at the owner's request, and **the owner approves each new build or piece before it is built.** Added: **the Pyre**, a sacrifice build (Kindling, Funeral Urn, Phoenix Feather, The Pyre; "Burn it all."; Requiem); and the piece each build lacked: "The table remembers." and Stride Piano (+1 Stake on splits, streets, corners and six-lines, straight-ups ×½) for inside lines, "Hot hands." for streaks, Bolero for zero, "A spare ball." and Pair of Dice for multi-ball, "Compound interest." (+3%, twice at most) and the Savings Book (+1% per debt paid, up to +5%) for interest, the Gold Tooth for tokens, the Pocket Calendar (a marked spin ×3) and "The night is young." for timing, the Hand Bell for the Bell, the Racing Form for sectors, Midnight Blues and the Raven Feather for black. **No Moneylender** (borrowing at the Cage), and no Midas, Glass or Collector builds. All chosen by the owner. Outcome after the simulator, nothing retuned: 97/71/49/15% at debts 1–4 (a new player's pool) and 9.6/5.7/2.7/1.4% at debts 5–8 (everything open). (6.1–6.3, 6.8, 9.8) |

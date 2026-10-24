@@ -96,11 +96,17 @@ crunch filter (off by default) and tips; one-time tips in the room for the
 first debt (`ui/tips.js`, kept in `profile.taught`); a synthesised audio
 pass; and the floor painted in a worker and kept in IndexedDB
 (`view/floor.js`). Still open: a playtest with a new player, and frame rate
-on a real phone. Next is Phase 9 (store releases). The best simulator bot at each debt pays debts 1–4
-in about 97%, 71%, 49% and 18% of runs with a new player's pool (`--pool
-start`, decision 27's targets), and debts 5–8 in about 13%, 6%, 3% and 1%
-with everything open (the default pool, the gentle tail); debt 2 sits near
-its floor and debt 3 near its ceiling. Debts 2 and 4 owe 370 and 2,664,
+on a real phone. The builds pass (decision 32) is done: doc 6.8 names every
+build (engine, pieces, endgame), the Pyre was added (talismans sold or used
+up feed it; `useUp` in `core/effects.js` is the one used-up path, and the
+Phoenix Feather catches the first each debt), and each build got the piece
+it lacked: 79 talismans, 31 cards, 16 records. **Ask the owner before
+building any new build or piece.** Next is Phase 9 (store releases). The
+best simulator bot at each debt pays debts 1–4 in about 97%, 71%, 49% and
+15% of runs with a new player's pool (`--pool start`, decision 27's
+targets), and debts 5–8 in about 10%, 6%, 3% and 1% with everything open
+(the default pool, the gentle tail); debts 2 and 4 sit near their floors
+and debt 3 near its ceiling. Debts 2 and 4 owe 370 and 2,664,
 debts 5–8 8,000 to 95,000. See `npm run sim`, which grades the best
 Lean-playing bot at each debt on that debt's pool; `--no-oracle` keeps the
 bots away from Madame Zero, `--old-pool` plays the Phase 3 pool, `--skip a,b`

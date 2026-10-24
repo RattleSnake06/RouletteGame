@@ -91,6 +91,8 @@ const WORK_PROMPT = {
 };
 // A kind of bet as the placard and the toasts name it.
 const BET_NAME = { straight: 'Straight-ups', split: 'Splits', street: 'Streets', corner: 'Corners', firstFour: 'First Fours', sixLine: 'Six Lines', dozen: 'Dozens', column: 'Columns', red: 'Red bets', black: 'Black bets', odd: 'Odd bets', even: 'Even bets', low: '1–18 bets', high: '19–36 bets' };
+// A card that levels a group of bets names the group, by its first kind.
+const LEVEL_GROUPS = { dozen: 'dozens, columns and even-money bets', split: 'splits, streets, corners and six-lines' };
 const describePocket = (o) => `${o.color ?? 'blank'} · ${enhName(o.enh)}${o.width !== 1 ? ` · ${o.width} wide` : ''}`;
 function workLine(works) {
   const said = works.map((e) => {
@@ -1272,6 +1274,7 @@ export class Game {
           ...(events.some((e) => e.type === 'chargesRefilled') ? [['Bell charges', 'refilled']] : []),
           // The toast for a talisman used up at dawn is hidden under this modal.
           ...events.filter((e) => e.type === 'talismanDestroyed').map((e) => [getTalisman(e.id)?.name ?? e.id, e.reason]),
+          ...events.filter((e) => e.type === 'talismanRevived').map((e) => [getTalisman(e.id)?.name ?? e.id, 'came back']),
         ],
         actions: goal
           ? [
@@ -1484,7 +1487,8 @@ export class Game {
       else if (e.effect === 'engraved') parts.push(`${getTalisman(this.state.rail.find((t) => t.uid === e.uid)?.id)?.name ?? 'a talisman'} is engraved`);
       else if (e.effect === 'offersEngraved') parts.push('the Cabinet’s talismans are engraved');
       else if (e.effect === 'hung') parts.push(`${getTalisman(e.talisman).name} hangs on the rail`);
-      else if (e.effect === 'levels') parts.push(`${e.kinds.length > 1 ? 'dozens, columns and even-money bets' : BET_NAME[e.kinds[0]].toLowerCase()} go up a level`);
+      else if (e.effect === 'levels') parts.push(`${LEVEL_GROUPS[e.kinds[0]] ?? BET_NAME[e.kinds[0]].toLowerCase()} go up a level`);
+      else if (e.effect === 'soldAll') parts.push('the rail burns: every talisman sold for all it cost');
     }
     // Wheel work a card did (Gold finds gold, Feed the zero): the pockets it changed.
     const works = events.filter((e) => e.type === 'wheelWork');
@@ -2103,6 +2107,8 @@ export class Game {
     this.audio.bell('ding');
     const name = getTalisman(rung.id).name;
     const smashed = events.find((e) => e.type === 'talismanDestroyed');
+    const back = this.announceGone(events.filter((e) => e.type === 'talismanRevived'));
+    if (back) this.hud.toast(back, 2600);
     for (const e of events) {
       if (e.type === 'trigger') this.rail.pulse(e.src.uid);
       if (e.type === 'trigger' && e.effect === 'armed') this.hud.toast(`${name} is armed: if the next spin pays nothing, the ball is thrown again.`, 2600);
@@ -2347,7 +2353,9 @@ export class Game {
     // A Glass pocket that broke under the ball (doc 6.5).
     const shattered = detail.find((e) => e.type === 'pocketShattered');
     if (shattered) this.audio.shatter();
-    const said = [shattered && `The glass pocket shatters: ${shattered.number} is a blank now.`, gone].filter(Boolean).join(' ');
+    // "Hot hands." kept a streak through this miss (doc 6.8).
+    const held = detail.some((e) => e.type === 'trigger' && e.src?.id === 'hot_hands') && 'Hot hands: the streak holds.';
+    const said = [shattered && `The glass pocket shatters: ${shattered.number} is a blank now.`, gone, held].filter(Boolean).join(' ');
     if (said) this.hud.toast(said, 2800);
 
     this.busy = false;
@@ -2458,10 +2466,14 @@ export class Game {
   announceGone(events) {
     const VERB = { crumbled: 'is empty. It crumbles.', wilted: 'wilts.', spent: 'is used up.' };
     const gone = events.filter((e) => e.type === 'talismanDestroyed' && VERB[e.reason]);
-    if (!gone.length) return null;
+    // The Phoenix Feather brings one back instead (doc 6.8).
+    const back = events.filter((e) => e.type === 'talismanRevived');
+    if (!gone.length && !back.length) return null;
     this.audio.crumble();
-    const line = gone.map((e) => `${getTalisman(e.id)?.name ?? e.id} ${VERB[e.reason]}`).join(' ');
-    return line;
+    return [
+      ...gone.map((e) => `${getTalisman(e.id)?.name ?? e.id} ${VERB[e.reason]}`),
+      ...back.map((e) => `${getTalisman(e.id)?.name ?? e.id} burns, and the Phoenix Feather brings it back.`),
+    ].join(' ');
   }
 
   async playDevil(result, fast) {

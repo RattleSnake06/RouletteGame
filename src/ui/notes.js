@@ -66,6 +66,10 @@ export function effectText(step) {
       return `${plural(step.count, 'pocket')} +${n} wide`;
     case 'gone':
       return 'used up';
+    case 'revive':
+      return 'brings it back';
+    case 'charge':
+      return `+${plural(n, 'charge')}`;
     case 'anchor':
       return `holds ${n}`;
     default:

@@ -172,7 +172,7 @@ function layoutFor(s, fallback) {
   if (owns(s, 'abacus')) return 'outside';
   if (owns(s, 'brass_scales') || owns(s, 'string_of_pearls')) return 'even';
   if (owns(s, 'red_ribbon')) return 'red';
-  if (owns(s, 'black_cat')) return 'black';
+  if (owns(s, 'black_cat') || owns(s, 'raven_feather')) return 'black';
   return fallback;
 }
 
@@ -186,7 +186,7 @@ function extraLayouts(s) {
   if (owns(s, 'ouroboros')) out.push('chase');
   if (owns(s, 'thirteen_ball')) out.push('thirteen');
   if (owns(s, 'seesaw')) out.push('seesaw');
-  if (owns(s, 'black_cat')) out.push('black');
+  if (owns(s, 'black_cat') || owns(s, 'raven_feather')) out.push('black');
   if (owns(s, 'brass_scales') || owns(s, 'string_of_pearls')) out.push('even');
   return out;
 }
@@ -201,12 +201,14 @@ const NEWER = ['tuning_fork', 'brass_scales', 'string_of_pearls', 'wind_up_key',
 // ones and the Hourglass help any layout; the Glove and Snakeskin turn the
 // outside builder to the racetrack.
 const LISTS = {
-  red: ['golden_ball', 'loaded_wheel', 'bag_of_marbles', 'red_ribbon', 'rose_brooch', 'mousetrap', 'domino', 'ivory_ball', 'matchbook', 'twin_mirrors', 'tuning_fork', 'hot_coals', 'glass_eye', 'magpie', 'hourglass', 'beckoning_cat', 'rabbits_foot', 'saints_medal', 'ledger', 'black_cat', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
-  even: ['golden_ball', 'bag_of_marbles', 'string_of_pearls', 'brass_scales', 'tuning_fork', 'ivory_ball', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'hot_coals', 'magpie', 'hourglass', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'lucky_penny', 'lost_wallet'],
-  outside: ['golden_ball', 'bag_of_marbles', 'number_punches', 'croupiers_glove', 'snakeskin', 'abacus', 'seesaw', 'ivory_ball', 'matchbook', 'domino', 'hot_coals', 'ledger', 'twin_mirrors', 'tuning_fork', 'hourglass', 'glass_eye', 'rabbits_foot', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
-  inside: ['ouroboros', 'golden_ball', 'bag_of_marbles', 'number_punches', 'surveyors_chain', 'metronome', 'croupiers_rake', 'horseshoe', 'lodestone', 'fortune_cookie', 'thirteen_ball', 'house_key', 'ivory_ball', 'twin_mirrors', 'tuning_fork', 'mirror_shard', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'hourglass', 'dowsing_rod', 'weathervane', 'table_map', 'zeros_coin', 'lucky_penny', 'wheel_of_fortune', 'pocket_watch', 'hamsa', 'jugglers_ball', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
+  red: ['golden_ball', 'loaded_wheel', 'bag_of_marbles', 'red_ribbon', 'rose_brooch', 'gold_tooth', 'mousetrap', 'domino', 'pair_of_dice', 'ivory_ball', 'matchbook', 'twin_mirrors', 'tuning_fork', 'hot_coals', 'glass_eye', 'pocket_calendar', 'magpie', 'hourglass', 'beckoning_cat', 'rabbits_foot', 'saints_medal', 'ledger', 'savings_book', 'black_cat', 'raven_feather', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'hand_bell', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
+  even: ['golden_ball', 'bag_of_marbles', 'string_of_pearls', 'brass_scales', 'gold_tooth', 'tuning_fork', 'ivory_ball', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'hot_coals', 'magpie', 'pocket_calendar', 'hourglass', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'savings_book', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'lucky_penny', 'lost_wallet'],
+  outside: ['golden_ball', 'bag_of_marbles', 'number_punches', 'croupiers_glove', 'snakeskin', 'abacus', 'gold_tooth', 'seesaw', 'ivory_ball', 'matchbook', 'domino', 'hot_coals', 'ledger', 'twin_mirrors', 'tuning_fork', 'pocket_calendar', 'hourglass', 'glass_eye', 'rabbits_foot', 'savings_book', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
+  inside: ['ouroboros', 'golden_ball', 'bag_of_marbles', 'number_punches', 'surveyors_chain', 'metronome', 'croupiers_rake', 'horseshoe', 'lodestone', 'fortune_cookie', 'thirteen_ball', 'house_key', 'gold_tooth', 'ivory_ball', 'twin_mirrors', 'tuning_fork', 'mirror_shard', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'pocket_calendar', 'hourglass', 'dowsing_rod', 'weathervane', 'table_map', 'zeros_coin', 'lucky_penny', 'wheel_of_fortune', 'hand_bell', 'pocket_watch', 'hamsa', 'jugglers_ball', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
   luck: ['ouroboros', 'bag_of_marbles', 'number_punches', 'metronome', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'ivory_ball', 'mirror_shard', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'hourglass', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'jugglers_ball', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
 };
+// The Pyre (doc 6.8): the engine first, then Kindling to buy and burn.
+LISTS.pyre = ['the_pyre', 'phoenix_feather', 'funeral_urn', ...LISTS.red.slice(0, 8), 'kindling', ...LISTS.red.slice(8)];
 const OLD_LISTS = {
   red: ['red_ribbon', 'matchbook', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'pocket_watch', 'lucky_penny'],
   outside: ['abacus', 'matchbook', 'ledger', 'twin_mirrors', 'glass_eye', 'rabbits_foot', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'lucky_penny'],
@@ -218,14 +220,19 @@ if (OLD_POOL) {
   // The Cabinet deals from this same array; getTalisman's lookup is unaffected.
   for (let i = TALISMANS.length - 1; i >= 0; i--) if (NEWER.includes(TALISMANS[i].id)) TALISMANS.splice(i, 1);
 }
+// The Pyre burns its Kindling at once; a full rail's trade-in burns too.
+const FUEL = ['kindling'];
 const TIER = OLD_POOL
   ? ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny']
-  : ['ouroboros', 'golden_ball', 'bag_of_marbles', 'loaded_wheel', 'surveyors_chain', 'number_punches', 'ivory_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
+  : ['ouroboros', 'golden_ball', 'bag_of_marbles', 'loaded_wheel', 'surveyors_chain', 'number_punches', 'ivory_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'raven_feather', 'gold_tooth', 'the_pyre', 'pocket_calendar', 'pair_of_dice', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
 const FAMILY_OF = {
   red_ribbon: 'red',
   matchbook: 'red',
   domino: 'red',
   black_cat: 'red',
+  raven_feather: 'red',
+  pair_of_dice: 'red',
+  the_pyre: 'pyre',
   brass_scales: 'even',
   string_of_pearls: 'even',
   abacus: 'outside',
@@ -257,6 +264,7 @@ const BOTS = {
   'outside builder': { layout: 'outside', leans: true, wants: (s) => withSafety(s, LISTS.outside) },
   'inside builder': { layout: 'inside', leans: true, wants: (s) => withSafety(s, LISTS.inside) },
   'luck builder': { layout: 'spread', leans: true, wants: (s) => withSafety(s, LISTS.luck) },
+  'pyre builder': { layout: 'red', leans: true, burns: true, wants: (s) => withSafety(s, LISTS.pyre) },
   adaptive: {
     layout: 'red',
     leans: true,
@@ -351,6 +359,8 @@ function shop(s, bot, log) {
     if (OLD_POOL) list = list.filter((id) => !NEWER.includes(id));
     if (SKIP.length) list = list.filter((id) => !SKIP.includes(id));
     if (NO_WHEEL) list = list.filter((id) => id !== 'number_punches');
+    // The Hand Bell charges a Bell talisman, so it waits for one.
+    if (!s.rail.some((t) => getTalisman(t.id).charges)) list = list.filter((id) => id !== 'hand_bell');
     if (!list.length) return s;
     const view = cabinetView(s);
     const offers = view.slots.filter((o) => o.kind === 'talisman' && o.id && list.includes(o.id));
@@ -374,6 +384,7 @@ function shop(s, bot, log) {
       break;
     }
     if (bought) {
+      if (bot.burns || owns(s, 'the_pyre')) for (const t of s.rail.filter((t) => FUEL.includes(t.id))) s = step(s, { type: 'sell', uid: t.uid }, log);
       s = arrangeMirrors(s, list);
       continue;
     }
@@ -554,7 +565,7 @@ function wheelShop(s, bot, log) {
   let probe = { ...copyRun(s), placements: placementsFor(s, layout) };
   // A record: bought when it is one the bot would rather play than what it has.
   if (offer.record) {
-    const rank = RECORD_RANK[recordFamily(s, bot)].filter(notSkipped);
+    const rank = ranksFor(s, bot).filter(notSkipped);
     const best = rank.find((id) => s.records.includes(id));
     const at = rank.indexOf(offer.record.id);
     if (at < 0 || (best && rank.indexOf(best) <= at)) return s;
@@ -617,19 +628,28 @@ function punch(s, bot, log, inst) {
 // --- Madame Zero and the gramophone -------------------------------------------
 
 // Which card a bot takes: the first in its colour's list that was dealt.
-const WHITE_RANK = ['twin_ball', 'record_left', 'carved_in_brass', 'gold_finds_gold', 'stranger_tips', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'zero_smiles', 'bell_rings_twice'];
+const WHITE_RANK = ['twin_ball', 'record_left', 'carved_in_brass', 'gold_finds_gold', 'spare_ball', 'compound_interest', 'stranger_tips', 'night_is_young', 'reds_run_warm', 'blacks_run_cold', 'another_hook', 'cabinet_owes', 'hot_hands', 'zero_smiles', 'bell_rings_twice'];
 const BLACK_RANK = ['feed_zero', 'borrowed_gold', 'devils_hand', 'ask_figures', 'shiny_things', 'burn_ledger', 'break_the_wheel', 'roll_bones', 'bargain', 'give_it_back', 'candle'];
+// "Burn it all." is in no list: it sells the Pyre with the rest.
 // Which record a bot plays, by the bets it makes. None plays Waltz in Green:
 // nights at half again the price cost every bot more than its Nudge won back.
 // Danse Macabre pays only with figures in the dark, so it comes last.
 const RECORD_RANK = {
-  red: ['red_light_tango', 'overture_of_excess', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'habanera', 'danse_macabre'],
-  outside: ['overture_of_excess', 'habanera', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
-  inside: ['carousel', 'overture_of_excess', 'two_step', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'habanera', 'danse_macabre'],
+  red: ['red_light_tango', 'overture_of_excess', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'bolero', 'static', 'funeral_march', 'lullaby_for_zero', 'habanera', 'danse_macabre'],
+  black: ['midnight_blues', 'overture_of_excess', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'bolero', 'static', 'funeral_march', 'lullaby_for_zero', 'habanera', 'danse_macabre'],
+  outside: ['overture_of_excess', 'habanera', 'two_step', 'boogie_woogie', 'carousel', 'nocturne', 'bolero', 'static', 'funeral_march', 'lullaby_for_zero', 'red_light_tango', 'danse_macabre'],
+  inside: ['carousel', 'overture_of_excess', 'two_step', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'bolero', 'red_light_tango', 'habanera', 'danse_macabre'],
+  lines: ['stride_piano', 'carousel', 'overture_of_excess', 'two_step', 'nocturne', 'boogie_woogie', 'static', 'funeral_march', 'lullaby_for_zero', 'bolero', 'red_light_tango', 'habanera', 'danse_macabre'],
+};
+// The Pyre plays Requiem first, for its sales.
+const ranksFor = (s, bot) => {
+  const list = RECORD_RANK[recordFamily(s, bot)];
+  return bot.burns ? ['requiem', ...list] : list;
 };
 const recordFamily = (s, bot) => {
   const layout = layoutFor(s, bot.layout);
-  return layout === 'red' || layout === 'black' ? 'red' : layout === 'inside' || layout === 'spread' || layout === 'corner' ? 'inside' : 'outside';
+  if (layout === 'corner') return 'lines';
+  return layout === 'red' || layout === 'black' ? layout : layout === 'inside' || layout === 'spread' ? 'inside' : 'outside';
 };
 const notSkipped = (id) => !SKIP.includes(id);
 const ORACLE_REROLLS = 5;
@@ -651,7 +671,7 @@ function visitOracle(s, bot, log) {
     const list = (v.kind === 'black' ? BLACK_RANK : WHITE_RANK).filter(notSkipped);
     // Each family's own card first: levels for the bets it makes, paint for red.
     const family = recordFamily(s, bot);
-    const own = { red: ['outside_safe', 'reds_run_warm'], outside: ['outside_safe'], inside: ['fortune_bold'] }[family];
+    const own = { red: ['outside_safe', 'reds_run_warm'], black: ['outside_safe', 'blacks_run_cold'], outside: ['outside_safe'], inside: ['fortune_bold'], lines: ['table_remembers'] }[family];
     const order = v.kind === 'white' ? [...own.filter(notSkipped), ...list.filter((id) => !own.includes(id))] : list;
     return v.cards.filter((c) => c.takeable && order.includes(c.id)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))[0] ?? null;
   };
@@ -668,7 +688,7 @@ function visitOracle(s, bot, log) {
 /** The best records in the crate for the bot's bets: one, or two once the gramophone has a second slot. */
 function chooseRecord(s, bot) {
   if (!s.records.length) return s;
-  const [best = null, next = null] = RECORD_RANK[recordFamily(s, bot)].filter(notSkipped).filter((id) => s.records.includes(id));
+  const [best = null, next = null] = ranksFor(s, bot).filter(notSkipped).filter((id) => s.records.includes(id));
   const want = s.gramophoneSlots > 1 ? [best, next] : [best];
   if (want.every((id, slot) => id === [s.playing, s.playing2][slot])) return s;
   // Lift both needles first, so no record is asked to play in two slots at once.
