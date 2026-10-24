@@ -11,6 +11,7 @@
     "fuzz": "node sim/fuzz.js",
     "monkey": "node tests/smoke/monkey.mjs",
     "marathon": "node tests/smoke/marathon.mjs",
+    "tour": "node tests/smoke/tour.mjs",
     "sim": "node sim/run-sim.js",
     "smoke": "node tests/smoke/smoke.mjs",
     "layout": "node tests/smoke/layout.mjs",
