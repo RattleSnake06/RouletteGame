@@ -16,7 +16,9 @@ wheels and House Edge levels, the figures in the dark and the Almanac.
 Phase 7 (content and balance) is built (decision 30): 68 talismans, 25
 cards and 12 records, the special bets on a racetrack, multi-ball, what the
 locks and feats open, Endless after the Vault, and a simulator curve that
-runs to debt 8. Phase 8 (polish) comes next.
+runs to debt 8. Phase 8 (polish) is built (decision 31): an Info book on
+the menus, fuller Settings, first-time tips, a synthesised audio pass and the
+floor painted off the main thread. Phase 9 (store releases) comes next.
 Phones are the main platform and Steam the second (9.10); see [10](#10-roadmap). Every number here is a first draft meant to be tuned with the
 balance simulator described in [9.8](#98-testing-and-the-balance-simulator).
 
@@ -1280,6 +1282,17 @@ starting wheel and the House Edge (7.2). It names the run's goal.
   The pause menu's **Main menu** takes the place of "Abandon run": a run is
   given up from the menu's Play, which asks.
 
+*Phase 8 (decision 31):* the menu reads Continue, Play, **Info**, Almanac and
+Settings; on a short screen the items go two to a row. **Info** opens a book
+on the Almanac's card, "How to play" (`ui/guide.js`): a page each for the
+idea and the goal, nights and the Cage, bets (and the racetrack), luck
+(Nudge, the Lean, pity), the Devil, talismans with the Cabinet and the Bell,
+Madame Zero, records, building the wheel, what carries between runs, and the
+controls, each mechanic with an example. Its numbers are the game's; a rule
+changed here is changed there too. The pause menu offers Resume, Settings,
+Info, Almanac, Step out of the light (past the goal) and Main menu; Settings
+and Info opened from it come back to it.
+
 ---
 
 ## 8. Presentation
@@ -1480,6 +1493,16 @@ bounces, never the result.
   debt is struck out with "paid" after it), figures sit in a ledger with nicked
   leaders, the main action rides a swipe of paint, and toggles show their current
   state ringed in chalk.
+- **First-time tips** (*Phase 8, decision 31*): the first time each thing
+  matters, a small card under the debt says what it is and why it matters,
+  in two lines: a Lean announced, a first win to bank, pity building, the
+  night's end, the Cabinet, the first talisman, a Bell talisman, Madame Zero,
+  the Devil waking, a first record (`ui/tips.js`). One at a time, most
+  pressing first, only in a calm moment (no spin, no card open); each shows
+  once per profile (`taught` in the profile) and fades after 14 s or when a
+  spin starts. It lets taps through, and when it is about another station the
+  edge tab toward it beckons in red. The hint line still says what to tap;
+  the tips say why. Settings can turn them off.
 - **Cards and signs in the room** are lettered in the same hand: the night cards
   are black card stock with bone words and a blood swipe under the spin count.
   They stand propped on the felt, leaning toward the player's eye, and are lit
@@ -1506,6 +1529,11 @@ bounces, never the result.
 - Add an **optional low-resolution "crunch" filter**: a lower internal render
   resolution, ordered dithering and a reduced palette, for Clover Pit's lo-fi
   texture. It can be the default or an option (see open decisions).
+  *As built (Phase 8, decision 31):* a toggle in Settings, **off by default**.
+  The film pass reads the frame in blocks of about 3 CSS pixels, steps each
+  channel to 9 levels on its square root (so the dark hall keeps its finer
+  steps) and breaks the steps up with a 4×4 Bayer dither; the grain follows
+  the blocks.
 - Palette: black, bulb white, mahogany, brass, ivory, oxblood felt, number red and
   black, and green reserved for the House.
 
@@ -1528,7 +1556,14 @@ bounces, never the result.
   needle up, the room tone carries a low mains hum. Her lines are subtitled
   (a toast) for now; her processed voice comes later.
 - Dynamic: the rattle's pitch follows ball speed, and a tension riser plays as the
-  ball slows.
+  ball slows. *As built (Phase 8, decision 31: synthesised, no files):* the
+  rattle brightens and swells with the ball's speed and sweeps once an orbit
+  as the ball comes round, and clicks lightly over the bowl's eight
+  diamonds; a low reed climbs and swells once the ball is below half speed
+  and stops dead at the drop. A chip set down is the clack of its edge, a
+  second softer one and the felt's thud; a coin rings with inharmonic
+  partials. The records play on their own bus and the room's sounds on
+  another, each with its level in Settings.
 
 ### 8.7 Accessibility
 
@@ -1542,6 +1577,15 @@ bounces, never the result.
   wheel and on the felt.
 - Text size, subtitles, full keyboard play, reduced motion, hold or toggle for
   fast mode.
+- *As built (Phase 8, decision 31):* **Settings** (main menu and pause menu)
+  holds Fast spins, Sound, **Music** and **Effects** (100%, 75%, 50%, 25%,
+  off), **Text** (normal or large: notes, cards, toasts, hints, tips and the
+  books grow by about a fifth), **Graphics** (9.9), **Crunch** (8.5),
+  Flashing lights and **Tips** (8.4), all kept with the settings. Madame
+  Zero's lines are already shown as text, every action has a key (the Info
+  book lists them), F toggles fast spins and holding SPIN speeds one up.
+  Reduced motion follows the system setting for the camera; a switch of its
+  own was not chosen.
 
 ---
 
@@ -1893,6 +1937,18 @@ play back strictly left to right. Every hook that changes something emits a
     Worker with OffscreenCanvas and cache the results.
   - Target 60 fps on integrated graphics, with a quality setting for shadows and
     render scale.
+  - *As built (Phase 8):* a profile of the boot showed the floor (2,048 px
+    square, about 13 noise lookups a pixel) as most of the texture time, with
+    three.js compiling shaders the rest. The floor is now painted in a worker
+    on an OffscreenCanvas while the game boots (`view/floor.js`,
+    `floorWorker.js`; the noise in `noise.js`, the painting in
+    `floorPaint.js`), shown as a plain dark floor until it arrives, and kept
+    in IndexedDB as two WebP images, so a later launch only decodes it.
+    Without workers it is painted on the main thread just after the first
+    frame. **Graphics** in Settings: High (pixel ratio up to 2, shadows,
+    bloom), Medium (up to 1.5) and Low, the phone preset (1, no shadows, no
+    bloom, the floor painted at 1,024 px from the next launch). Holding 60 fps
+    on a mid-range phone is still to be measured on a device (M2).
 - **Platform:** see 9.10.
 
 ### 9.10 Platforms: phones first, Steam second
@@ -1932,7 +1988,9 @@ expensive.
   orientation lock, and the audio session (silent switch, other apps' music).
 - **Performance** (M2): a phone quality preset (render scale, shadows, the
   procedural textures cached), holding 60 fps on a mid-range phone without
-  overheating, and loading in a few seconds.
+  overheating, and loading in a few seconds. *Phase 8:* the preset and the
+  floor's worker and cache are built (9.9); the frame rate waits for a
+  device.
 - **Price:** a one-time purchase. Premium: no ads, no in-app purchases, no
   accounts.
 - **Store side** (M5, Phase 9): Apple's developer program ($99 a year, and
@@ -1983,7 +2041,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **5. Building the wheel** (done; decisions 27, 28) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** (done; decision 29) | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** (done; decision 30) | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
-| **8. Polish** | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game |
+| **8. Polish** (built; decision 31) | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game (to be confirmed by a playtest; 60 fps to be measured on a phone) |
 | **9. Store releases** | Capacitor builds for iOS and Android (M3: native saves, pause and resume, haptics, the orientation lock, the audio session); Game Center and Play Games (M4, optional); App Store and Play Store listings, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset) | The game installs from TestFlight and a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
 
 ### Phase 1 breakdown
@@ -2099,6 +2157,23 @@ Built (decision 29):
    pocket on the felt, the wheel, the board and the chalkboard; checked by
    `npm run layout`, `npm run touch` and `npm run smoke`.
 
+### Phase 8 breakdown
+
+Built (decision 31):
+
+1. The Info book on the main menu and the pause menu (`ui/guide.js`), and
+   the main menu two to a row on a short screen (7.5).
+2. Settings: music and effects levels, large text, graphics quality, the
+   crunch filter (off by default) and tips (8.7, 8.5, 9.9).
+3. First-time tips for the first debt and after (`ui/tips.js`), once per
+   profile (8.4).
+4. The audio pass, synthesised (8.6).
+5. The floor painted in a worker and kept in IndexedDB; the Low preset
+   (9.9).
+6. Checked by `npm run layout` (now also Settings, the Info book and large
+   text), `npm run touch` and `npm run smoke`. Still open: a playtest with a
+   new player for the done-when, and frame rate on a real mid-range phone.
+
 ### Phase 7 breakdown
 
 Built (decision 30), in two halves:
@@ -2172,3 +2247,4 @@ Built (decision 30), in two halves:
 | 28 | Phase 5, second half | **No Lead or Wax chips**: the five materials are enough. **The two chip cards ("Your stack grows heavy", "A new chip in your pocket") are left out**: chips come from the Cabinet's chip oddities. **A bet level adds a quarter of the base odds** (straight-up 36 → 45 → 54), not the whole; the two level cards are legendary and once a run. All chosen by the owner after the simulator. Outcome: 97/72/50/16% for the best bot. (5.3, 6.2, 6.6, 6.7, 9.8) |
 | 29 | Phase 6 | **The Mirror wheel mirrors the felt**: the numbers run 0 to 36 round the rim, since a reversed wheel keeps every pocket's neighbours. **Locks open starting wheels now, items later**: lock 1 the American, lock 2 the Gilded and the gramophone's second slot, lock 3 the Bone, lock 4 the Mirror; reaching the goal opens the next House Edge level; the Almanac's feats are kept but unlock nothing until Phase 7's new talismans and records, so today's pool and balance stay as they are. Both chosen by the owner. Tuned with the simulator to sit near the European wheel: the American gives +2 tokens per paid debt (not a night), the Gilded owes ×1.25, the Bone has six Bone pockets, House Edge 3 is a token less per paid debt; House Edge 1's "+1 zero" is a green pocket with no number, so a straight-up on 0 gains nothing from it. (7, 9.8) |
 | 30 | Phase 7 | **A gentle tail past debt 4**: the best bot pays debt 5 in 8–15% of runs, debt 6 in 4–10%, debt 7 in 2–6%, debt 8 in 1–4%, so every lock of the Vault can be earned; debts 1–4 keep decision 27's targets, graded on a new player's pool, and debts 5–8 on the full pool. **Multi-ball is built**: up to two extra ivory balls in the view, and a multi-ball talisman at each rarity (Marble, Juggler's Ball, Ivory Ball, Bag of Marbles). **The special bets are built** on a racetrack across the felt; the Croupier's Glove, Snakeskin and "Neighbours talk." open them, and join the pool with the Vault's first lock. **Endless is a mode after the Vault**: once it has opened, the chip select offers Endless (no goal, play until collected), and the Almanac keeps the deepest. The new content opens with the locks and the feats (7.1). All four chosen by the owner. Outcome after the simulator: six new talismans strengthened, debt 2 at 370 and debts 5–9 at 8,000 / 18,000 / 40,000 / 95,000 / 250,000, the American wheel at +1 token per paid debt; 97/71/49/18% at debts 1–4 (a new player's pool) and 12.8/6.3/3.0/1.2% at debts 5–8 (everything open). (5.2, 5.3, 5.5, 6.1–6.3, 7.1, 9.8) |
+| 31 | Phase 8 | **An Info button on the main menu** that explains the idea, the goal and every mechanic with examples (also on the pause menu), and **Settings** on both menus, asked for by the owner. Settings adds **text size, music and effects volume and graphics quality** (not a reduced-motion switch). The first debt teaches with **one-time tips in the room**, once per profile, never forcing the player. The audio pass **keeps synthesised sound** (no audio files). The **crunch filter is off by default**, a Settings toggle. All chosen by the owner. (7.5, 8.4–8.7, 9.9) |

@@ -89,7 +89,14 @@ talk." or the Habanera opens them; multi-ball (`balls` hooks, up to two
 extra ivory balls in the view); content opened by the Vault's locks and the
 feats (`unlock`, `state.opened`, doc 7.1); and Endless, chosen on the chip
 select once the Vault is open (`goal: null`; the profile keeps the deepest).
-Next is Phase 8 (polish). The best simulator bot at each debt pays debts 1–4
+Phase 8 (polish) is built (decision 31): an Info book ("How to play",
+`ui/guide.js`) on the main menu and the pause menu; Settings with music and
+effects levels, large text, graphics quality (Low is the phone preset), the
+crunch filter (off by default) and tips; one-time tips in the room for the
+first debt (`ui/tips.js`, kept in `profile.taught`); a synthesised audio
+pass; and the floor painted in a worker and kept in IndexedDB
+(`view/floor.js`). Still open: a playtest with a new player, and frame rate
+on a real phone. Next is Phase 9 (store releases). The best simulator bot at each debt pays debts 1–4
 in about 97%, 71%, 49% and 18% of runs with a new player's pool (`--pool
 start`, decision 27's targets), and debts 5–8 in about 13%, 6%, 3% and 1%
 with everything open (the default pool, the gentle tail); debt 2 sits near
@@ -183,7 +190,10 @@ change.
   `vault` and `figures` are the Vault door and the figures; `game.profile`
   is the meta profile, `game.openAlmanac()`, `game.chooseWheel()`,
   `game.chooseEdge()` and `game.stepOut()` drive Phase 6's screens;
-  `game.chooseGoal()` picks Endless once `profile.vault` is set, and
+  `game.openGuide()` opens the Info book and `game.openSettings()` the
+  settings; `game.showTip(id)` shows a first-time tip (they fade after 14 s,
+  which is a few frames in software WebGL, so show one just before a
+  screenshot); `game.chooseGoal()` picks Endless once `profile.vault` is set, and
   `game.placeChip(id, 'neighbours:17')` opens the racetrack's number
   chooser when the Neighbours are open.
   `game.picking` is set while wheel work is being placed; `game.pickBet(betId)`
