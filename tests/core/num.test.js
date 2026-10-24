@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { add, deserialize, floor, format, gte, isBig, lt, mul, num, ratio, serialize, sub } from '../../src/core/num.js';
+import { add, decimalText, deserialize, floor, format, gte, isBig, lt, mul, num, ratio, serialize, sub } from '../../src/core/num.js';
 
 describe('money values', () => {
   it('stays exact in the everyday range', () => {
@@ -54,5 +54,27 @@ describe('money values', () => {
     expect(ratio(5, 0)).toBe(0);
     expect(ratio(num('3e500'), num('6e500'))).toBeCloseTo(0.5, 10);
     expect(ratio(10, num('1e400'))).toBe(0);
+  });
+});
+
+describe('just under a power of ten', () => {
+  it('formats with three digits at most, never carrying up', () => {
+    expect(format(9999999999)).toBe('9.99B');
+    expect(format(99999999999)).toBe('99.9B');
+    expect(format(999999999999)).toBe('999B');
+    expect(format(999999999999999)).toBe('999T');
+    expect(format(num('9.99999999999999e15'))).toBe('9.99e15');
+    expect(format(num('9.99999999999999e40'))).toBe('9.99e40');
+    expect(format(9999999999, { scientific: true })).toBe('9.99e9');
+    // Float noise still keeps its digit.
+    expect(format(4560000)).toBe('4.56M');
+    expect(format(num('4.56e20'))).toBe('4.56e20');
+  });
+
+  it('keeps a big value’s mantissa in [1, 10), so a save reloads the same', () => {
+    const r = add(num('9.99999999999999e23'), 1e8);
+    expect(r.mantissa).toBeGreaterThanOrEqual(1);
+    expect(r.mantissa).toBeLessThan(10);
+    expect(decimalText(num(decimalText(r)))).toBe(decimalText(r));
   });
 });

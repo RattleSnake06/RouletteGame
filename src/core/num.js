@@ -18,7 +18,16 @@ export const isBig = isDec;
 const toDec = (x) => (isDec(x) ? x : new Decimal(x));
 
 function norm(x) {
-  if (isDec(x)) return x.abs().lt(LIMIT) ? Math.round(x.toNumber()) : x;
+  if (isDec(x)) {
+    if (x.abs().lt(LIMIT)) return Math.round(x.toNumber());
+    // break_infinity can leave the mantissa a hair under 1 when a sum rounds
+    // across a power of ten (log10 of 99999999999999.99 comes out as 14).
+    // Put it back in [1, 10), or a save's text changes when it is reloaded.
+    const m = x.mantissa;
+    if (m !== 0 && Math.abs(m) < 1) return Decimal.fromMantissaExponent_noNormalize(m * 10, x.exponent - 1);
+    if (Math.abs(m) >= 10) return Decimal.fromMantissaExponent_noNormalize(m / 10, x.exponent + 1);
+    return x;
+  }
   if (Math.abs(x) >= LIMIT || !Number.isFinite(x)) return new Decimal(x);
   return x;
 }
@@ -148,9 +157,13 @@ export function format(a, { scientific = false } = {}) {
 
 function trimFixed(x, digits) {
   // Truncate rather than round, so 9,999,999 reads 9.99M and never "10.0M".
-  // The epsilon keeps float noise (4.56 × 100 = 455.999…) from losing a digit.
+  // The epsilon keeps float noise (4.56 × 100 = 455.999…) from losing a
+  // digit; it must not carry a value just under the next power of ten up to
+  // it, so three significant digits are the most it shows (999, never 1000).
   const f = 10 ** digits;
-  return (Math.trunc(x * f + Math.sign(x) * 1e-7) / f).toFixed(digits);
+  let t = Math.trunc(x * f + Math.sign(x) * 1e-7);
+  if (Math.abs(t) > 999) t = Math.sign(t) * 999;
+  return (t / f).toFixed(digits);
 }
 
 /** JSON-safe form: numbers stay numbers, Decimals become { $d: "1.2e500" }. */

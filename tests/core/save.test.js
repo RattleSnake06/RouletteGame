@@ -173,3 +173,18 @@ describe('malformed saves', () => {
     }
   });
 });
+
+describe('a save with impossible values', () => {
+  it('starts a new run rather than loading broken', () => {
+    const good = serializeRun(createRun({ seed: 'BAD-VALUES' }));
+    const broken = [
+      good.replace(/"coins":\d+/, '"coins":"abc"'),
+      good.replace(/"coins":\d+/, '"coins":-50'),
+      good.replace(/"phase":"\w+"/, '"phase":"nowhere"'),
+      good.replace(/"chips":\[[^\]]*\]/, '"chips":[]'),
+      good.replace(/"tokens":\d+/, '"tokens":2.5'),
+    ];
+    for (const json of broken) expect(deserializeRun(json)).toBeNull();
+    expect(deserializeRun(good.replace(/"coins":\d+/, '"coins":{"$d":"5e300"}'))).not.toBeNull();
+  });
+});

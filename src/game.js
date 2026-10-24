@@ -889,6 +889,8 @@ export class Game {
   }
 
   placeChip(chipId, betId) {
+    // A chip picked up before a spin began and let go during it goes back.
+    if (this.busy) return this.table.syncChips(this.state);
     // The Neighbours and Finales zones of the racetrack hold a bet for every
     // number: once open, a chip there asks which one.
     const kind = getBet(betId).kind;
@@ -920,24 +922,27 @@ export class Game {
       kicker: kind === 'neighbours' ? 'The racetrack · Neighbours' : 'The racetrack · Finales',
       title: kind === 'neighbours' ? 'Which number?' : 'Which digit?',
       lines: [kind === 'neighbours' ? `The number and the two pockets either side of it on the wheel. Pays ${BET_KINDS.neighbours.odds}.` : 'Every number ending in the digit. Pays 9, or 12 on 7, 8 and 9.'],
-      actions: [{ label: 'Never mind', primary: true }, ...actions],
+      // A chip dragged onto the zone goes back if no number is chosen.
+      actions: [{ label: 'Never mind', primary: true, onClick: () => this.table.syncChips(this.state) }, ...actions],
     });
   }
 
   placeChipOn(chipId, betId) {
-    if (this.dispatch({ type: 'placeChip', chipId, betId })) {
+    if (!this.busy && this.dispatch({ type: 'placeChip', chipId, betId })) {
       this.audio.chip();
-      this.table.syncChips(this.state);
       this.updateHint();
     }
+    // Placed, or refused (a fixed chip, a closed bet, mid-spin): either way
+    // the chip shows where the run has it, not where it was let go.
+    this.table.syncChips(this.state);
   }
 
   removeChip(chipId) {
-    if (this.dispatch({ type: 'removeChip', chipId })) {
+    if (!this.busy && this.dispatch({ type: 'removeChip', chipId })) {
       this.audio.chip();
-      this.table.syncChips(this.state);
       this.updateHint();
     }
+    this.table.syncChips(this.state);
   }
 
   /**

@@ -2,7 +2,7 @@ import { emptyCabinet, restockSlots } from './cabinet.js';
 import { getEngraving, getFortune, getRecord, getStartingWheel, getTalisman } from './content/index.js';
 import { ECONOMY, PACKAGES, sellValueOf } from './economy.js';
 import { decimalText, isBig, num } from './num.js';
-import { newStats } from './run.js';
+import { newStats, PHASE } from './run.js';
 import { rollDebtLeans } from './nudge.js';
 import { seedStreams } from './rng.js';
 import { emptyTally } from './tally.js';
@@ -48,10 +48,25 @@ export function deserializeRun(json) {
   }
 }
 
-/** The fields every phase of the game reads without checking. */
+/** Coins as the game keeps them: a plain non-negative number or a big one. */
+const isMoney = (v) => (isBig(v) ? !v.lt(0) && Number.isFinite(v.exponent) : typeof v === 'number' && Number.isFinite(v) && v >= 0);
+const isCount = (v) => Number.isInteger(v) && v >= 0;
+
+/** The fields every phase of the game reads without checking, and the values it trusts. */
 function wellFormed(state) {
   return (
+    Object.values(PHASE).includes(state.phase) &&
+    isMoney(state.coins) &&
+    isMoney(state.deposited) &&
+    isCount(state.tokens) &&
+    isCount(state.spinsLeft) &&
+    Number.isInteger(state.debt) &&
+    state.debt >= 1 &&
+    Number.isInteger(state.round) &&
+    state.round >= 1 &&
+    state.round <= ECONOMY.roundsPerDebt &&
     Array.isArray(state.chips) &&
+    state.chips.length > 0 &&
     Array.isArray(state.rail) &&
     Array.isArray(state.cabinet?.slots) &&
     Array.isArray(state.wheel?.pockets) &&
