@@ -317,7 +317,7 @@ for (step = 1; step <= STEPS; step++) {
   await frames(rand() < 0.3 ? 1 : 1 + Math.floor(rand() * 6));
   if (step % 5 === 0) await health();
   if (step % 50 === 0) {
-    const s = await page.evaluate(() => { const g = window.__roulette.game; const s = g.state; return s ? `debt ${s.debt} night ${s.round} ${s.phase}, ${s.rail.length} talismans` : 'menu'; }).catch(() => '?');
+    const s = await page.evaluate(() => { const g = window.__roulette.game; const s = g.state; const cards = document.querySelectorAll('.modal-backdrop:not([inert])').length; return s && !g.atMenu ? `debt ${s.debt} night ${s.round} ${s.phase}, ${s.rail.length} talismans, at the ${g.view}${cards ? `, ${cards} card(s) open` : ''}` : 'menu'; }).catch(() => '?');
     console.log(`  step ${step}: ${s}`);
   }
 }
