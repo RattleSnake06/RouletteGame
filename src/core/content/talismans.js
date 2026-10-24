@@ -43,6 +43,9 @@ const lastSpin = (state) => {
 };
 const half = (n) => (n >= 1 && n <= 18 ? 'low' : n >= 19 ? 'high' : null);
 /** Names the night under way, so state kept for one night goes stale at dawn by itself. */
+// Plain words for a share of the pay and a widening (the text follows the tuning).
+const share = (x) => (x === 0.5 ? 'half' : x === 0.25 ? 'a quarter' : `×${x}`);
+const grows = (x) => (x === 0.5 ? 'grows half a pocket wider' : x === 1 ? 'grows a whole pocket wider' : `grows wider by ${Math.round(x * 100)}% of a pocket`);
 const tonight = (state) => `${state.debt}.${state.round}`;
 const CAT = { winners: 3, nights: 3 };
 /** What the Beckoning Cat would pay: three nights' interest on the Cage, at tonight's rate. */
@@ -147,7 +150,7 @@ export const TALISMAN_LIST = [
     name: 'Horseshoe',
     rarity: 'common',
     tags: ['inside'],
-    text: 'Straight-ups: odds +12.',
+    text: 'Straight-up chips pay 12 more (48 instead of 36).',
     hooks: {
       chipOdds(ctx) {
         if (ctx.bet.kind === 'straight') ctx.addOdds(12);
@@ -159,7 +162,7 @@ export const TALISMAN_LIST = [
     name: 'Matchbook',
     rarity: 'common',
     tags: ['scaling', 'colour', 'outside'],
-    text: 'A chip that wins gains +1 value until the night ends.',
+    text: 'Each time a chip wins, it gains +1 value until the night ends.',
     hooks: {
       chipPaid(ctx) {
         if (ctx.firstLineOfChip) ctx.addChipValue(1);
@@ -171,7 +174,7 @@ export const TALISMAN_LIST = [
     name: 'Lucky Penny',
     rarity: 'common',
     tags: ['economy', 'inside'],
-    text: 'Each chip that loses refunds 1 coin.',
+    text: 'Each chip that loses gives back 1 coin.',
     hooks: {
       chipLost(ctx) {
         ctx.bonusCoins(1);
@@ -219,7 +222,7 @@ export const TALISMAN_LIST = [
     name: "Croupier's Rake",
     rarity: 'uncommon',
     tags: ['inside', 'wheel'],
-    text: 'Straight-ups on the two pockets beside the result also pay, at ×¼.',
+    text: 'Straight-up chips on the two pockets next to where the ball lands also win, at a quarter of the pay.',
     hooks: {
       hits(ctx) {
         for (const step of [-1, 1]) {
@@ -233,7 +236,7 @@ export const TALISMAN_LIST = [
     name: 'Ledger',
     rarity: 'uncommon',
     tags: ['streaks', 'colour', 'outside', 'inside'],
-    text: 'A number already seen this debt pays ×2.',
+    text: 'When the ball lands on a number that already came up this debt, chips pay ×2.',
     status: (data, state) => {
       const seen = Object.keys(state.tally.debt.numbers).length;
       return `${seen} number${seen === 1 ? '' : 's'} seen this debt`;
@@ -249,7 +252,7 @@ export const TALISMAN_LIST = [
     name: 'Abacus',
     rarity: 'uncommon',
     tags: ['outside', 'streaks'],
-    text: 'Dozen and column chips: +1 Odds for each earlier hit on that dozen or column tonight.',
+    text: 'Dozen and column chips get +1 Odds for each time that dozen or column has already won tonight.',
     status: (data, state) => {
       const { dozens, columns } = state.tally.round;
       return `dozens ${dozens.join('·')}, columns ${columns.join('·')}`;
@@ -267,7 +270,7 @@ export const TALISMAN_LIST = [
     name: 'Wheel of Fortune',
     rarity: 'rare',
     tags: ['active', 'inside'],
-    text: 'Bell, twice a debt: if the next spin pays nothing, the ball is thrown again.',
+    text: 'Ring the Bell (twice a debt): if the next spin pays nothing, the ball is thrown again.',
     copyable: false,
     charges: { max: 2, refill: 'debt' },
     status: (data, state, inst) => (state.armed.rethrow?.by === inst.uid ? 'armed for the next spin' : null),
@@ -284,7 +287,7 @@ export const TALISMAN_LIST = [
     name: 'Glass Eye',
     rarity: 'rare',
     tags: ['active'],
-    text: 'Bell, once a debt: see where the next ball lands.',
+    text: 'Ring the Bell (once a debt): see where the next ball will land before you bet.',
     copyable: false,
     charges: { max: 1, refill: 'debt' },
     status: (data, state, inst) => {
@@ -306,7 +309,7 @@ export const TALISMAN_LIST = [
     name: 'Piggy Bank',
     rarity: 'rare',
     tags: ['active', 'economy'],
-    text: 'Gains 1 coin each spin. Ring the Bell at it to smash it for twice what it holds.',
+    text: 'Saves 1 coin every spin. Ring the Bell on it to break it open for twice what it holds.',
     copyable: false,
     init: () => ({ value: 0 }),
     status: (data) => `holds ${format(data.value)}`,
@@ -330,7 +333,7 @@ export const TALISMAN_LIST = [
     name: 'Twin Mirrors',
     rarity: 'legendary',
     tags: ['combo'],
-    text: 'Copies the talisman to its right (not Bell abilities).',
+    text: 'Copies the talisman to its right (but not Bell abilities).',
     copies: 'right',
   },
   {
@@ -338,7 +341,7 @@ export const TALISMAN_LIST = [
     name: 'House Key',
     rarity: 'legendary',
     tags: ['zero', 'inside'],
-    text: 'When zero hits, every chip on the table wins.',
+    text: 'When the ball lands on zero, every chip on the table wins.',
     echoable: false,
     hooks: {
       covers(ctx) {
@@ -376,7 +379,7 @@ export const TALISMAN_LIST = [
     name: 'Salt Cellar',
     rarity: 'common',
     tags: ['safety'],
-    text: "The Devil's chance −0.5%.",
+    text: 'Lowers the Devil’s chance by 0.5%.',
     status: (data, state) => asleep(state),
     hooks: {
       devilChance(ctx) {
@@ -389,7 +392,7 @@ export const TALISMAN_LIST = [
     name: 'Evil Eye',
     rarity: 'uncommon',
     tags: ['safety'],
-    text: "Halves the Devil's chance.",
+    text: 'Cuts the Devil’s chance in half.',
     status: (data, state) => asleep(state),
     hooks: {
       devilChance(ctx) {
@@ -402,7 +405,7 @@ export const TALISMAN_LIST = [
     name: 'Compass',
     rarity: 'rare',
     tags: ['luck', 'wheel'],
-    text: '+3 Nudge, but the ball only hops clockwise.',
+    text: '+3 Nudge, but the ball can only hop clockwise.',
     hooks: {
       nudge(ctx) {
         ctx.addNudge(3);
@@ -415,7 +418,7 @@ export const TALISMAN_LIST = [
     name: 'Lodestone',
     rarity: 'common',
     tags: ['luck', 'inside'],
-    text: '+1 Nudge, but the ball only hops onto straight-up chips.',
+    text: '+1 Nudge, but the ball can only hop onto pockets that have a straight-up chip.',
     status: (data, state) => (hasStraight(state) ? null : 'No straight-up chip to pull toward.'),
     hooks: {
       nudge(ctx) {
@@ -431,7 +434,7 @@ export const TALISMAN_LIST = [
     cursed: true,
     inCabinet: false,
     tags: ['devil'],
-    text: "Winning chips +4 Stake. The Devil's chance +2%.",
+    text: 'Winning chips get +4 Stake. Raises the Devil’s chance by 2%.',
     hooks: {
       chipStake(ctx) {
         ctx.addStake(4);
@@ -448,7 +451,7 @@ export const TALISMAN_LIST = [
     cursed: true,
     inCabinet: false,
     tags: ['devil', 'luck', 'timing'],
-    text: 'Leans are twice as strong. No pity.',
+    text: 'Leans give twice the Nudge. You never get pity.',
     hooks: {
       nudge(ctx) {
         if (ctx.lean > 0) ctx.addNudge(ctx.lean);
@@ -463,7 +466,7 @@ export const TALISMAN_LIST = [
     name: 'Tuning Fork',
     rarity: 'rare',
     tags: ['combo'],
-    text: 'Triggers the talisman to its left again (not Bell abilities or one-time effects).',
+    text: 'The talisman to its left works twice (but not Bell abilities or one-time effects).',
     echoes: true,
     copyable: false,
   },
@@ -484,7 +487,7 @@ export const TALISMAN_LIST = [
     name: 'String of Pearls',
     rarity: 'uncommon',
     tags: ['even', 'scaling'],
-    text: 'Chips on Even: odds +1, and +1 more for every even number that lands tonight.',
+    text: 'Chips on Even pay 1 more, plus 1 more for every even number that has landed tonight.',
     // The string breaks at dawn, like a Matchbook's flame: it is kept with the
     // night it was strung, so a copy that sat out the dawn breaks too.
     init: () => ({ strung: null }),
@@ -504,7 +507,7 @@ export const TALISMAN_LIST = [
     name: 'Wind-Up Key',
     rarity: 'common',
     tags: ['luck', 'inside'],
-    text: `Pity starts after ${WIND_UP_KEY} misses in a row, not 5.`,
+    text: `Pity starts after ${WIND_UP_KEY} misses in a row instead of 5.`,
     echoable: false,
     hooks: {
       nudge(ctx) {
@@ -529,7 +532,7 @@ export const TALISMAN_LIST = [
     name: 'Beckoning Cat',
     rarity: 'uncommon',
     tags: ['economy', 'outside'],
-    text: "Once a night, when 3 or more chips win on one spin: coins worth 3 nights' interest on the Cage.",
+    text: 'Once a night, when 3 or more chips win on the same spin: coins equal to 3 nights of interest on what you have banked.',
     init: () => ({ paid: null }),
     status: (data, state) => {
       if (data.paid === tonight(state)) return 'Paid tonight. It beckons again tomorrow.';
@@ -551,7 +554,7 @@ export const TALISMAN_LIST = [
     name: "Grandmother's Purse",
     rarity: 'common',
     tags: ['economy'],
-    text: 'The Cage pays 12% more interest, 2% less each night. It crumbles when empty.',
+    text: 'The Cage pays 12% more interest, 2% less each night. At 0% the purse is used up.',
     init: () => ({ rate: 0.12 }),
     status: (data) => `+${Math.round(data.rate * 100)}% tonight`,
     hooks: {
@@ -570,7 +573,7 @@ export const TALISMAN_LIST = [
     name: 'Lost Wallet',
     rarity: 'common',
     tags: ['economy'],
-    text: 'Needs no hook. When bought, it holds coins worth a tenth of this debt.',
+    text: 'Needs no hook. When bought, it gives you coins equal to a tenth of this debt.',
     instant: true,
     copyable: false,
     hooks: {
@@ -584,7 +587,7 @@ export const TALISMAN_LIST = [
     name: 'Magpie',
     rarity: 'uncommon',
     tags: ['tokens', 'scaling'],
-    text: 'Winning chips: +1 Stake for every 8 tokens you hold.',
+    text: 'Winning chips get +1 Stake for every 8 tokens you hold.',
     status: (data, state) => `+${Math.floor(state.tokens / 8)} Stake with ${plural(state.tokens, 'token')}`,
     hooks: {
       chipStake(ctx) {
@@ -598,7 +601,7 @@ export const TALISMAN_LIST = [
     name: 'Domino',
     rarity: 'uncommon',
     tags: ['outside', 'colour'],
-    text: 'Each winning chip: +1 Stake for every chip that paid before it this spin.',
+    text: 'Each winning chip gets +1 Stake for every chip that already paid this spin.',
     hooks: {
       chipStake(ctx) {
         if (ctx.paidBefore > 0) ctx.addStake(ctx.paidBefore);
@@ -610,7 +613,7 @@ export const TALISMAN_LIST = [
     name: 'Four-Leaf Clover',
     rarity: 'common',
     tags: ['luck'],
-    text: `Blooms on about 1 spin in 4, shown before you bet: +${CLOVER.nudge} Nudge. Wilts after ${CLOVER.blooms} blooms.`,
+    text: `On about 1 spin in 4 it blooms (you see it before you bet): +${CLOVER.nudge} Nudge on that spin. Used up after ${CLOVER.blooms} blooms.`,
     init: () => ({ blooms: 0 }),
     status: (data, state) => `${inBloom(state) ? 'In bloom for the next spin. ' : ''}${plural(CLOVER.blooms - data.blooms, 'bloom')} left`,
     hooks: {
@@ -630,7 +633,7 @@ export const TALISMAN_LIST = [
     name: 'Holy Water',
     rarity: 'uncommon',
     tags: ['safety'],
-    text: 'The first time the Devil fires, he is turned away. The vial shatters.',
+    text: 'Turns the Devil away the first time he fires, then breaks.',
     echoable: false,
     status: (data, state) => asleep(state),
     hooks: {
@@ -644,7 +647,7 @@ export const TALISMAN_LIST = [
     name: 'Dowsing Rod',
     rarity: 'uncommon',
     tags: ['active', 'luck'],
-    text: `Bell, ${['', 'once', 'twice', 'three times'][ROD.charges]} a debt: +${ROD.nudge} Nudge on the next spin.`,
+    text: `Ring the Bell (${['', 'once', 'twice', 'three times'][ROD.charges]} a debt): +${ROD.nudge} Nudge on the next spin.`,
     copyable: false,
     echoable: false,
     charges: { max: ROD.charges, refill: 'debt' },
@@ -676,7 +679,7 @@ export const TALISMAN_LIST = [
     name: 'Mousetrap',
     rarity: 'uncommon',
     tags: ['inside', 'streaks'],
-    text: `Winning chips: +1 Stake for each miss in a row before the win, up to +${MOUSETRAP_MAX}.`,
+    text: `Winning chips get +1 Stake for each spin in a row that paid nothing before the win (up to +${MOUSETRAP_MAX}).`,
     status: (data, state) => (mousetrap(state) ? `set: +${mousetrap(state)} Stake` : 'not set yet'),
     hooks: {
       chipStake(ctx) {
@@ -689,7 +692,7 @@ export const TALISMAN_LIST = [
     name: 'Weathervane',
     rarity: 'uncommon',
     tags: ['timing', 'luck'],
-    text: `On a Lean's spin, chips pay ×${WEATHERVANE}.`,
+    text: `On a Lean spin, chips pay ×${WEATHERVANE}.`,
     status: (data, state) => (upcomingLean(state) > 0 ? 'turning: the next spin is a Lean' : null),
     hooks: {
       chipMult(ctx) {
@@ -719,7 +722,7 @@ export const TALISMAN_LIST = [
     name: 'Ouroboros',
     rarity: 'legendary',
     tags: ['jackpot', 'inside', 'streaks'],
-    text: 'The same number twice in a row: chips pay ×2.',
+    text: 'When the same number comes up twice in a row, chips pay ×2.',
     status: (data, state) => (lastSpin(state) ? `waits for ${lastSpin(state).number}` : 'waits for a first number'),
     hooks: {
       chipMult(ctx) {
@@ -766,7 +769,7 @@ export const TALISMAN_LIST = [
     name: 'Golden Ball',
     rarity: 'legendary',
     tags: ['risk'],
-    text: "Chips pay ×3. The Devil's chance +3%.",
+    text: 'Chips pay ×3. Raises the Devil’s chance by 3%.',
     hooks: {
       chipMult(ctx) {
         ctx.mul(3);
@@ -781,7 +784,7 @@ export const TALISMAN_LIST = [
     name: 'Number Punches',
     rarity: 'legendary',
     tags: ['active', 'wheel'],
-    text: 'Bell, once a debt: re-stamp up to 3 pockets with any numbers you like.',
+    text: 'Ring the Bell (once a debt): change the numbers on up to 3 pockets to any numbers you like.',
     charges: { max: 1, refill: 'debt' },
     bell: {
       // You choose what it stamps, so only a ring at its own tag wakes it.
@@ -799,7 +802,7 @@ export const TALISMAN_LIST = [
     name: 'Chalk Stub',
     rarity: 'common',
     tags: ['economy'],
-    text: `Whenever a ball lands on an odd number: coins worth ${P7.chalk} spins.`,
+    text: `Whenever a ball lands on an odd number, you get coins equal to the cost of ${P7.chalk} spins.`,
     hooks: {
       ballLanded(ctx) {
         if (isOdd(ctx.landing.number)) ctx.bonusCoins(mul(spinCostFor(ctx.state.debt), P7.chalk));
@@ -811,7 +814,7 @@ export const TALISMAN_LIST = [
     name: 'Wishbone',
     rarity: 'common',
     tags: ['economy', 'safety'],
-    text: `The first ${P7.wishbone} spins each night that pay nothing give their spin’s cost back.`,
+    text: `The first ${P7.wishbone} spins each night that pay nothing give back what the spin cost.`,
     status: (data, state) => {
       const left = P7.wishbone - (data.night === tonight(state) ? data.snaps ?? 0 : 0);
       return left ? `${left} left tonight.` : 'Snapped tonight.';
@@ -832,7 +835,7 @@ export const TALISMAN_LIST = [
     name: 'Mirror Shard',
     rarity: 'uncommon',
     tags: ['wheel'],
-    text: `The pocket straight across the wheel also counts as hit, at ×${P7.shard}.`,
+    text: `The pocket directly across the wheel from where the ball lands also wins, at ${share(P7.shard)} pay.`,
     hooks: {
       hits(ctx) {
         const n = ctx.state.wheel.pockets.length;
@@ -857,7 +860,7 @@ export const TALISMAN_LIST = [
     name: 'Saint’s Medal',
     rarity: 'uncommon',
     tags: ['zero', 'colour'],
-    text: 'Chips on Red and Black +1 Stake, and a green zero counts as red and as black.',
+    text: 'Chips on Red and Black get +1 Stake, and a green zero counts as both red and black.',
     hooks: {
       chipStake(ctx) {
         if (ctx.bet.kind === 'red' || ctx.bet.kind === 'black') ctx.addStake(1);
@@ -872,7 +875,7 @@ export const TALISMAN_LIST = [
     name: 'Fortune Cookie',
     rarity: 'uncommon',
     tags: ['inside', 'luck'],
-    text: `Each spin names a number, shown before you bet: straight-ups on it pay ×${P7.cookie}.`,
+    text: `Each spin it names a number (you see it before you bet): straight-up chips on it pay ×${P7.cookie}.`,
     status: (data, state) => `The next spin’s number: ${cookieNumber(state)}.`,
     hooks: {
       chipMult(ctx) {
@@ -885,7 +888,7 @@ export const TALISMAN_LIST = [
     name: 'Ivory Ball',
     rarity: 'rare',
     tags: ['multi'],
-    text: `A second ball every spin. It pays ×${P7.ivory}.`,
+    text: `Throws a second ball every spin. It pays ${share(P7.ivory)}.`,
     hooks: {
       balls(ctx) {
         ctx.addBall({ mult: P7.ivory });
@@ -894,11 +897,11 @@ export const TALISMAN_LIST = [
   },
   {
     id: 'gilders_knife',
-    name: 'Gilder’s Knife',
+    name: 'Gold Brush',
     rarity: 'rare',
     tags: ['wheel'],
     unlock: { feat: 'platinum' },
-    text: 'Once a night, gild the pocket the ball lands in (a gilded one turns platinum).',
+    text: 'Once a night, paints the pocket the ball lands in gold: chips that win there pay ×2. Painted gold again, a pocket turns platinum (×3).',
     status: (data, state) => (data.night === tonight(state) ? 'Used tonight.' : 'Ready tonight.'),
     hooks: {
       afterSpin(ctx) {
@@ -914,7 +917,7 @@ export const TALISMAN_LIST = [
     tags: ['special', 'outside'],
     unlock: { lock: 1 },
     opens: ['snake'],
-    text: `Opens the Snake on the racetrack. Snake chips +${P7.snake} Stake.`,
+    text: `Opens the Snake bet on the racetrack. Snake chips get +${P7.snake} Stake.`,
     hooks: {
       chipStake(ctx) {
         if (ctx.bet.kind === 'snake') ctx.addStake(P7.snake);
@@ -928,7 +931,7 @@ export const TALISMAN_LIST = [
     tags: ['special', 'wheel'],
     unlock: { lock: 1 },
     opens: SECTOR_KINDS,
-    text: `Opens the sectors on the racetrack (Voisins, Tiers, Orphelins, Jeu Zéro) and the Finales. Their chips ×${P7.glove}.`,
+    text: `Opens the racetrack's sector bets (Voisins, Tiers, Orphelins, Jeu Zéro) and the Finales. Their chips pay ×${P7.glove}.`,
     hooks: {
       chipMult(ctx) {
         if (SECTOR_KINDS.includes(ctx.bet.kind)) ctx.mul(P7.glove);
@@ -941,7 +944,7 @@ export const TALISMAN_LIST = [
     rarity: 'rare',
     tags: ['inside'],
     unlock: { feat: 'a_wheel_of_your_own' },
-    text: `Splits and corners also win, at ×${P7.tableMap}, when the ball lands on a number touching them on the table.`,
+    text: `Splits and corners also win, at ${share(P7.tableMap)} pay, when the ball lands on a number next to them on the felt.`,
     hooks: {
       covers(ctx) {
         if (ctx.bet.kind !== 'split' && ctx.bet.kind !== 'corner') return;
@@ -969,7 +972,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['colour', 'wheel'],
     unlock: { feat: 'out_of_the_red' },
-    text: `When bought: every red pocket grows +${P7.loaded} wide, for good.`,
+    text: `When bought, every red pocket ${grows(P7.loaded)} for the rest of the run, so red lands more often.`,
     hooks: {
       purchased(ctx) {
         if (ctx.isSelf) ctx.widenPockets((p) => p.color === 'red', P7.loaded);
@@ -996,7 +999,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['inside'],
     unlock: { feat: 'bare_hands' },
-    text: `Split, street, corner and six-line chips ×${P7.chain}.`,
+    text: `Split, street, corner and six-line chips pay ×${P7.chain}.`,
     hooks: {
       chipMult(ctx) {
         if (INSIDE_LINES.includes(ctx.bet.kind)) ctx.mul(P7.chain);
@@ -1008,7 +1011,7 @@ export const TALISMAN_LIST = [
     name: 'Tally Stick',
     rarity: 'common',
     tags: ['streaks'],
-    text: `A chip on a bet that won last spin: +${P7.tally} Stake.`,
+    text: `A chip on a bet that won last spin gets +${P7.tally} Stake.`,
     hooks: {
       chipStake(ctx) {
         if (ctx.state.lastSpin?.wins?.some((w) => w.betId === ctx.bet.id)) ctx.addStake(P7.tally);
@@ -1021,7 +1024,7 @@ export const TALISMAN_LIST = [
     rarity: 'rare',
     tags: ['streaks'],
     unlock: { feat: 'same_again' },
-    text: `Each paying spin in a row: chips +×${P7.coals.step}, up to ×${P7.coals.max}. A spin that pays nothing puts the coals out.`,
+    text: `Every paying spin in a row adds ×${P7.coals.step} to what chips pay, up to ×${P7.coals.max}. A spin that pays nothing resets it.`,
     init: () => ({ streak: 0 }),
     status: (data) => (data.streak ? `Glowing: ×${coalsMult(data.streak)} on the next paying spin.` : 'Cold.'),
     hooks: {
@@ -1040,7 +1043,7 @@ export const TALISMAN_LIST = [
     name: 'Green Thread',
     rarity: 'common',
     tags: ['zero'],
-    text: `Chips on a bet that covers zero: +${P7.thread} Stake.`,
+    text: `Chips on a bet that covers zero get +${P7.thread} Stake.`,
     hooks: {
       chipStake(ctx) {
         if (ctx.bet.numberSet.has(0) || ctx.bet.numberSet.has(37)) ctx.addStake(P7.thread);
@@ -1053,7 +1056,7 @@ export const TALISMAN_LIST = [
     rarity: 'rare',
     tags: ['zero', 'tokens'],
     unlock: { feat: 'ride_the_lean' },
-    text: `When a ball lands on a green zero: +${P7.zero.tokens} tokens and coins worth ${P7.zero.spins} spins.`,
+    text: `When a ball lands on a green zero: +${P7.zero.tokens} tokens, and coins equal to the cost of ${P7.zero.spins} spins.`,
     hooks: {
       ballLanded(ctx) {
         if (!isGreenNumber(ctx.landing.pocket)) return;
@@ -1092,7 +1095,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['multi'],
     unlock: { feat: 'the_vault' },
-    text: `Every spin throws ${P7.bag.balls} more balls. Each pays ×${P7.bag.mult}.`,
+    text: `Throws ${P7.bag.balls} extra balls every spin. Each pays ${share(P7.bag.mult)}.`,
     hooks: {
       balls(ctx) {
         for (let i = 0; i < P7.bag.balls; i++) ctx.addBall({ mult: P7.bag.mult });
@@ -1101,11 +1104,11 @@ export const TALISMAN_LIST = [
   },
   {
     id: 'usurers_seal',
-    name: 'Usurer’s Seal',
+    name: 'Moneylender’s Seal',
     rarity: 'legendary',
     tags: ['economy'],
     unlock: { feat: 'a_full_rail' },
-    text: 'Interest is doubled (all the interest the talismans to its left give, too).',
+    text: 'Doubles your interest, including the interest from talismans to its left.',
     hooks: {
       interestRate(ctx) {
         ctx.addRate(ctx.rate);
@@ -1118,7 +1121,7 @@ export const TALISMAN_LIST = [
     rarity: 'rare',
     tags: ['devil', 'risk'],
     unlock: { feat: 'paid_in_spite' },
-    text: `Once the Devil has fired this debt, chips pay ×${P7.brimstone.mult}. The Devil's chance +1%.`,
+    text: `Once the Devil has fired this debt, chips pay ×${P7.brimstone.mult}. Raises the Devil's chance by 1%.`,
     status: (data, state) => (state.devil?.firedThisDebt ? 'Burning: the Devil has fired this debt.' : asleep(state) ?? 'Waiting for the Devil.'),
     hooks: {
       chipMult(ctx) {
@@ -1147,7 +1150,7 @@ export const TALISMAN_LIST = [
     name: 'Funeral Urn',
     rarity: 'uncommon',
     tags: ['pyre'],
-    text: `Winning chips: +1 Stake for every talisman sold this run, up to +${P8.urnMax}.`,
+    text: `Winning chips get +1 Stake for every talisman you have sold this run (up to +${P8.urnMax}).`,
     status: (data, state) => `+${Math.min(P8.urnMax, state.stats.talismansSold ?? 0)} Stake now.`,
     hooks: {
       chipStake(ctx) {
@@ -1161,7 +1164,7 @@ export const TALISMAN_LIST = [
     name: 'Phoenix Feather',
     rarity: 'rare',
     tags: ['pyre'],
-    text: 'The first talisman used up each debt comes back, fresh.',
+    text: 'The first talisman used up each debt comes back, as good as new.',
     revives: true,
     copyable: false,
     echoable: false,
@@ -1173,7 +1176,7 @@ export const TALISMAN_LIST = [
     name: 'The Pyre',
     rarity: 'legendary',
     tags: ['pyre'],
-    text: `Chips +×${P8.pyre} for every talisman sold or used up this run.`,
+    text: `Chips pay ×${P8.pyre} more for every talisman sold or used up this run (4 gone: ×${1 + 4 * P8.pyre}).`,
     status: (data, state) => `×${pyreMult(state)} now (${plural(burned(state), 'talisman')} burned).`,
     hooks: {
       chipMult(ctx) {
@@ -1186,7 +1189,7 @@ export const TALISMAN_LIST = [
     name: 'Pair of Dice',
     rarity: 'uncommon',
     tags: ['multi', 'colour'],
-    text: `Two balls on the same colour: chips pay ×${P8.dice}.`,
+    text: `When two balls land on the same colour, chips pay ×${P8.dice}.`,
     hooks: {
       chipMult(ctx) {
         if (sameColour(ctx.landed)) ctx.mul(P8.dice);
@@ -1212,7 +1215,7 @@ export const TALISMAN_LIST = [
     name: 'Gold Tooth',
     rarity: 'legendary',
     tags: ['tokens', 'scaling'],
-    text: `Chips pay ×(1 + your tokens ÷ ${P8.tooth}).`,
+    text: `Chips pay more the more tokens you hold: ×2 at ${P8.tooth} tokens, ×3 at ${2 * P8.tooth}.`,
     status: (data, state) => `×${Math.round(toothMult(state) * 100) / 100} now.`,
     hooks: {
       chipMult(ctx) {
@@ -1225,7 +1228,7 @@ export const TALISMAN_LIST = [
     name: 'Pocket Calendar',
     rarity: 'rare',
     tags: ['timing'],
-    text: `Each night it marks one of the night's spins, shown once the night is chosen: chips on that spin pay ×${P8.calendar}.`,
+    text: `Each night it marks one spin (you see which once the night begins): chips pay ×${P8.calendar} on that spin.`,
     status: (data, state) => (calendarSpin(state) ? `Marks spin ${calendarSpin(state)} tonight.` : 'Marks a spin once the night is chosen.'),
     hooks: {
       chipMult(ctx) {
@@ -1239,7 +1242,7 @@ export const TALISMAN_LIST = [
     name: 'Hand Bell',
     rarity: 'common',
     tags: ['active'],
-    text: `Each debt: +${P8.handBell} charge for the leftmost Bell talisman.`,
+    text: `Each debt, the leftmost Bell talisman gets ${P8.handBell} extra charge.`,
     hooks: {
       debtStart(ctx) {
         ctx.chargeBell(P8.handBell);
@@ -1275,7 +1278,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['special', 'wheel'],
     unlock: { lock: 1 },
-    text: 'Racetrack chips pay ×1 for each different racetrack bet with chips on it: Voisins, Tiers and Orphelins together pay ×3 each.',
+    text: 'Racetrack chips pay ×2 when you have chips on 2 different racetrack bets, ×3 on 3, and so on.',
     status: (data, state) => {
       const n = racetrackBets(state);
       return n ? `×${n} now (${plural(n, 'racetrack bet')} with chips).` : 'No chips on the racetrack.';
@@ -1294,7 +1297,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['active'],
     unlock: { lock: 2 },
-    text: `Chips +×${P9.carillon} for every Bell ring a talisman answered this debt.`,
+    text: `Each time you ring the Bell and a talisman answers, chips pay ×${P9.carillon} more for the rest of the debt (3 rings: ×${1 + 3 * P9.carillon}).`,
     status: (data, state) => `×${carillonMult(state)} now (${plural(state.debtRings ?? 0, 'ring')} this debt).`,
     hooks: {
       chipMult(ctx) {
@@ -1308,7 +1311,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['zero'],
     unlock: { lock: 3 },
-    text: `Fills +×${P9.jar} for every spin since a ball last landed on a green zero. When one lands, chips pay that much, and the jar empties.`,
+    text: `Every spin without a green zero adds ×${P9.jar}. When a ball lands on a green zero, chips pay that much and the jar empties (10 spins: ×${1 + 10 * P9.jar}).`,
     init: () => ({ wait: 0 }),
     status: (data) => `×${jarMult(data.wait ?? 0)} on the next green zero (${plural(data.wait ?? 0, 'spin')} without one).`,
     hooks: {
@@ -1328,7 +1331,7 @@ export const TALISMAN_LIST = [
     rarity: 'legendary',
     tags: ['timing'],
     unlock: { lock: 4 },
-    text: `Chips +×${P9.clock} for every spin already played tonight: the first spin ×1, the seventh ×4.`,
+    text: `Chips pay more as the night goes on: ×1 on the first spin, then ×${P9.clock} more each spin (×${1 + 6 * P9.clock} on the seventh).`,
     init: () => ({ clock: null }),
     status: (data, state) => `×${clockMult(playedTonight(data, state))} on the next spin.`,
     hooks: {

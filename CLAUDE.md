@@ -75,7 +75,7 @@ a quarter of the base odds. No Lead or Wax, and no chip cards (owner). Wheel
 work and levels are placed on the felt close-up (`game.beginWork`). Phase 6
 (meta) is done (decision 29): a run's goal is debt 4 + the Vault's open
 locks, and past it the player may step out of the light; each lock opens a
-starting wheel (American with a real 00 as number 37, Gilded, Bone, Mirror in
+starting wheel (American with a real 00 as number 37, Golden, Bone, Mirror in
 the felt's order), and lock 2 a second gramophone slot; reaching the goal
 opens the next House Edge level (1–5, stacking; level 1 is the House's
 green pocket with no number). `core/meta.js` keeps the profile (version 2):
@@ -103,7 +103,8 @@ Phoenix Feather catches the first each debt), and each build got the piece
 it lacked. Decision 33 gave the Bell, Sectors, Zero and Timing a
 legendary multiplier each (the Carillon, the Tote Board, the Patience Jar,
 the Grandfather Clock, one per Vault lock), and the interest build stays as
-the way deep into Endless: 83 talismans, 31 cards, 16 records. **Ask the
+the way deep into Endless: 83 talismans, 31 cards, 16 records. Player
+text is plain English (decision 34): say "paint gold", not "gild". **Ask the
 owner before building any new build or piece.** `npm run sim -- --bot
 builds` plays one bot per build (`--kit` hangs its core from the first
 spin). Next is Phase 9 (store releases). The best simulator bot at each

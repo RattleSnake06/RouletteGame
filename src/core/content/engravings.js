@@ -10,7 +10,7 @@
 export const ENGRAVING_LIST = [
   {
     id: 'gilt',
-    name: 'Gilt',
+    name: 'Rich',
     text: '+2 tokens when a debt is paid.',
     chance: 0.02,
     hooks: {
@@ -22,7 +22,7 @@ export const ENGRAVING_LIST = [
   {
     id: 'keen',
     name: 'Keen',
-    text: 'Winning chips: +1 Stake.',
+    text: 'Winning chips get +1 Stake.',
     chance: 0.015,
     hooks: {
       chipStake(ctx) {
@@ -33,7 +33,7 @@ export const ENGRAVING_LIST = [
   {
     id: 'sharp',
     name: 'Sharp',
-    text: 'Winning chips: +1 Odds.',
+    text: 'Winning chips get +1 Odds.',
     chance: 0.01,
     hooks: {
       chipOdds(ctx) {
@@ -44,7 +44,7 @@ export const ENGRAVING_LIST = [
   {
     id: 'echo',
     name: 'Echo',
-    text: "The spin's last payout pays again.",
+    text: 'The last chip to pay each spin pays twice.',
     chance: 0.01,
     hooks: {
       spinPaid(ctx) {
@@ -56,7 +56,7 @@ export const ENGRAVING_LIST = [
   {
     id: 'restless',
     name: 'Restless',
-    text: 'One free restock each debt.',
+    text: 'One free Cabinet restock each debt.',
     chance: 0.02,
     // run.js reads it: the first restock of a debt is free while it hangs.
     freeRestock: true,
@@ -75,7 +75,7 @@ export const ENGRAVING_LIST = [
   {
     id: 'cursed',
     name: 'Cursed',
-    text: "The Devil's chance +0.6% (once he is live).",
+    text: 'Raises the Devil’s chance by 0.6% (once he is awake).',
     chance: 0.015,
     cursed: true,
     hooks: {

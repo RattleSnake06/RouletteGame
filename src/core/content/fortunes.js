@@ -44,6 +44,9 @@ const keepsStreaks = (state) => state.rail.some((t) => STREAK_KEEPERS.includes(t
 
 // Tuned with the simulator (doc 9.8): a card a debt is worth a lot, because
 // most of them last the run.
+// Plain words for a share of the pay and a widening (the text follows the tuning).
+const share = (x) => (x === 0.5 ? 'half' : x === 0.25 ? 'a quarter' : `×${x}`);
+const grows = (x) => (x === 0.5 ? 'grows half a pocket wider' : x === 1 ? 'grows a whole pocket wider' : `grows wider by ${Math.round(x * 100)}% of a pocket`);
 const FORTUNE = {
   tips: 2, // drafted 5
   discount: 1, // drafted 2
@@ -80,7 +83,7 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'The bell rings twice.',
-    effect: 'Every Bell talisman is recharged.',
+    effect: 'Every Bell talisman gets its charges back.',
     lore: 'SHE HEARS EVERY RING',
     requires: hasBellTalisman,
     take(ctx) {
@@ -103,7 +106,7 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'The reds run warm tonight.',
-    effect: `Every red pocket +${FORTUNE.widen} wide, for good.`,
+    effect: `Every red pocket ${grows(FORTUNE.widen)}, for the rest of the run.`,
     lore: "DON'T TRUST THE LEAN",
     take(ctx) {
       ctx.widen(red, FORTUNE.widen);
@@ -114,7 +117,7 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'The blacks run cold and deep.',
-    effect: `Every black pocket +${FORTUNE.widen} wide, for good.`,
+    effect: `Every black pocket ${grows(FORTUNE.widen)}, for the rest of the run.`,
     lore: 'THE WHEEL REMEMBERS',
     take(ctx) {
       ctx.widen(black, FORTUNE.widen);
@@ -150,7 +153,7 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'rare',
     text: 'Something carved in brass.',
-    effect: 'A random engraving on one of your talismans (never Cursed).',
+    effect: 'One of your talismans gets a random engraving (never Cursed).',
     lore: 'BRASS HOLDS A GRUDGE',
     requires: (state) => state.rail.some((t) => !t.engraving),
     take(ctx) {
@@ -163,7 +166,7 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'rare',
     text: 'Gold finds gold.',
-    effect: `Gild ${FORTUNE.gilds} pockets at random: chips that win there pay ×2 (a gilded one turns platinum, ×3).`,
+    effect: `Paints ${FORTUNE.gilds} random pockets gold: chips that win there pay ×2. A pocket painted gold twice turns platinum (×3).`,
     lore: 'THE WHEEL WAS GOLD ONCE',
     requires: (state) => canWork(state, GILD),
     take(ctx) {
@@ -238,7 +241,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'uncommon',
     text: 'Feed the zero.',
-    effect: 'A second zero pocket beside the first. Chips pay ×2 for the rest of the run.',
+    effect: 'Adds a second zero pocket next to the first. Chips pay ×2 for the rest of the run.',
     lore: 'ZERO IS HUNGRY',
     maxPicks: 1,
     requires: (state) => !!zeroPocket(state) && state.wheel.pockets.length < WHEEL.maxPockets,
@@ -256,7 +259,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'uncommon',
     text: 'Roll the bones.',
-    effect: 'The Bone Dice hang on your rail, for good.',
+    effect: 'The Bone Dice hang on your rail and cannot be removed.',
     lore: 'THE DICE ARE OLDER THAN THE WHEEL',
     requires: (state, { hooks }) => freeHook(state, hooks) && !owns(state, 'bone_dice'),
     take(ctx) {
@@ -268,7 +271,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'uncommon',
     text: 'A candle for the dark.',
-    effect: 'The Black Candle hangs on your rail, for good.',
+    effect: 'The Black Candle hangs on your rail and cannot be removed.',
     lore: 'SOMETHING MOVES WHEN IT GUTTERS',
     requires: (state, { hooks }) => freeHook(state, hooks) && !owns(state, 'black_candle'),
     take(ctx) {
@@ -280,7 +283,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'rare',
     text: 'Shiny things.',
-    effect: 'Every talisman in the Cabinet is engraved. One of yours is engraved Cursed.',
+    effect: 'Every talisman in the Cabinet gets an engraving. One of yours gets the Cursed engraving.',
     lore: 'LOOK CLOSER. CLOSER.',
     take(ctx) {
       ctx.engraveOffers();
@@ -292,7 +295,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'rare',
     text: 'Ask the figures.',
-    effect: 'The oldest figure in the dark goes. +1 Nudge on every spin, for the rest of the run.',
+    effect: 'The oldest figure in the dark leaves. +1 Nudge on every spin, for the rest of the run.',
     lore: 'THEY ARE STILL WATCHING',
     take(ctx) {
       ctx.sendFigureAway();
@@ -308,7 +311,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'uncommon',
     text: 'Borrowed gold.',
-    effect: `Gild ${FORTUNE.borrowedGilds} pockets at random. ${FORTUNE.borrowedCurses} others are cursed: a landing there raises the Devil's chance by 1% for the night.`,
+    effect: `Paints ${FORTUNE.borrowedGilds} random pockets gold. ${FORTUNE.borrowedCurses} other pockets are cursed: when the ball lands on one, the Devil's chance rises by 1% for the night.`,
     lore: 'IT WILL BE COLLECTED',
     requires: (state) => canWork(state, GILD),
     take(ctx) {
@@ -333,7 +336,7 @@ export const FORTUNE_LIST = [
     kind: 'white',
     rarity: 'common',
     text: 'Zero smiles on you.',
-    effect: `Every green zero +${FORTUNE.zeroWiden} wide, for good.`,
+    effect: `Every green zero ${grows(FORTUNE.zeroWiden)}, for the rest of the run.`,
     lore: 'ZERO IS NOT EMPTY',
     take(ctx) {
       ctx.widen((p) => p.color === 'green' && p.number !== null, FORTUNE.zeroWiden);
@@ -346,7 +349,7 @@ export const FORTUNE_LIST = [
     maxPicks: 1,
     unlock: { lock: 4 },
     text: 'The ball has a twin.',
-    effect: `A second ball on every spin, for the rest of the run. It pays ×${FORTUNE.twinMult}.`,
+    effect: `A second ball on every spin, for the rest of the run. It pays ${share(FORTUNE.twinMult)}.`,
     lore: 'TWO OF EVERYTHING',
     hooks: {
       balls(ctx) {
@@ -360,7 +363,7 @@ export const FORTUNE_LIST = [
     rarity: 'uncommon',
     unlock: { feat: 'the_house_at_its_worst' },
     text: 'Shake the Devil’s hand.',
-    effect: `Winning chips +1 Stake, for the rest of the run. The Devil's chance +${FORTUNE.devilsHand * 100}%.`,
+    effect: `Winning chips get +1 Stake for the rest of the run. Raises the Devil's chance by ${FORTUNE.devilsHand * 100}%.`,
     lore: 'HE KEEPS HIS WORD',
     hooks: {
       chipStake(ctx) {
@@ -377,7 +380,7 @@ export const FORTUNE_LIST = [
     rarity: 'common',
     unlock: { lock: 3 },
     text: 'Break the wheel.',
-    effect: `${FORTUNE.breaks} pockets are chiselled out at random. +${FORTUNE.breakTokens} tokens.`,
+    effect: `${FORTUNE.breaks} random pockets are removed from the wheel. +${FORTUNE.breakTokens} tokens.`,
     lore: 'IT WAS NEVER FAIR',
     requires: (state) => canWork(state, REMOVE),
     take(ctx) {
@@ -391,7 +394,7 @@ export const FORTUNE_LIST = [
     kind: 'black',
     rarity: 'rare',
     text: 'Burn it all.',
-    effect: 'Every talisman that can come off your rail is sold, for all it cost.',
+    effect: 'Every talisman that can come off your rail is sold for its full price.',
     lore: 'ASHES PAY THEIR WAY',
     requires: (state) => state.rail.some((t) => !getTalisman(t.id)?.cursed),
     take(ctx) {

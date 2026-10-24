@@ -13,14 +13,14 @@
 // A blank pocket has no number and no colour (wheel.js): nothing wins there.
 
 export const ENHANCEMENT_LIST = [
-  { id: 'gilded', name: 'Gilded', mult: 2, text: 'Chips that win here pay ×2. Gild it again and it turns platinum.' },
+  { id: 'gilded', name: 'Gold', mult: 2, text: 'Chips that win here pay ×2. Paint it gold again to make it platinum.' },
   { id: 'platinum', name: 'Platinum', mult: 3, text: 'Chips that win here pay ×3.' },
-  { id: 'lucky', name: 'Lucky', nudge: 2, text: '+2 Nudge on the spin after the ball lands here.' },
-  { id: 'glass', name: 'Glass', mult: 4, shatter: 0.25, text: 'Chips that win here pay ×4. One landing in four shatters it into a blank.' },
+  { id: 'lucky', name: 'Lucky', nudge: 2, text: 'After the ball lands here, the next spin gets +2 Nudge.' },
+  { id: 'glass', name: 'Glass', mult: 4, shatter: 0.25, text: 'Chips that win here pay ×4. Each landing has a 1 in 4 chance to break it into a blank.' },
   { id: 'bone', name: 'Bone', tokens: 1, text: '+1 token whenever the ball lands here.' },
-  { id: 'ember', name: 'Ember', chipValue: 1, text: 'A chip that wins here gains +1 value, for good.' },
-  { id: 'cursed', name: 'Cursed', devil: 0.01, text: "When the ball lands here, the Devil's chance +1% for the rest of the night." },
+  { id: 'ember', name: 'Ember', chipValue: 1, text: 'A chip that wins here gains +1 value for the rest of the run.' },
+  { id: 'cursed', name: 'Cursed', devil: 0.01, text: 'When the ball lands here, the Devil’s chance rises by 1% for the rest of the night.' },
   { id: 'blank', name: 'Blank', carves: false, text: 'No number. Nothing wins here.' },
   // House Edge 1 (doc 7.2): a green pocket with no number, which no wheel work can touch.
-  { id: 'house', name: 'The House’s pocket', carves: false, text: 'Green, and no number: every bet loses here. No tool touches it.' },
+  { id: 'house', name: 'The House’s pocket', carves: false, text: 'Green, with no number: every bet loses here. Nothing can change it.' },
 ];

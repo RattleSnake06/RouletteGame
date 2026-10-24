@@ -79,27 +79,27 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 // told apart from its twins, and the line that names what was done.
 const enhName = (id) => getEnhancement(id)?.name.toLowerCase() ?? 'plain';
 const WORK_PROMPT = {
-  gild: () => 'Tap a number to gild its pocket (gilded twice, it turns platinum).',
+  gild: () => 'Tap a number to paint its pocket gold (painted gold twice, it turns platinum).',
   enhance: (w) => `Tap a number to make its pocket ${enhName(w.enh)}.`,
   widen: () => 'Tap a number to widen every pocket with it.',
   narrow: () => 'Tap a number to narrow every pocket with it.',
   paint: (w) => `Tap a number to paint its pocket ${w.color}.`,
-  duplicate: () => 'Tap a number to cast a second pocket for it.',
-  remove: () => 'Tap a number to chisel its pocket out.',
-  stamp: () => 'Tap a number: its pocket is re-stamped.',
+  duplicate: () => 'Tap a number to give it a second pocket.',
+  remove: () => 'Tap a number to remove its pocket.',
+  stamp: () => 'Tap a number: its pocket gets a new number.',
   level: () => 'Tap a bet: its kind goes up a level.',
 };
 // A kind of bet as the placard and the toasts name it.
 const BET_NAME = { straight: 'Straight-ups', split: 'Splits', street: 'Streets', corner: 'Corners', firstFour: 'First Fours', sixLine: 'Six Lines', dozen: 'Dozens', column: 'Columns', red: 'Red bets', black: 'Black bets', odd: 'Odd bets', even: 'Even bets', low: '1–18 bets', high: '19–36 bets' };
 // A card that levels a group of bets names the group, by its first kind.
 const LEVEL_GROUPS = { dozen: 'dozens, columns and even-money bets', split: 'splits, streets, corners and six-lines' };
-const describePocket = (o) => `${o.color ?? 'blank'} · ${enhName(o.enh)}${o.width !== 1 ? ` · ${o.width} wide` : ''}`;
+const describePocket = (o) => `${o.color ?? 'blank'} · ${enhName(o.enh)}${o.width !== 1 ? ` · ${o.width}× as wide` : ''}`;
 function workLine(works) {
   const said = works.map((e) => {
     const n = e.number === null ? 'a blank' : numberLabel(e.number);
     switch (e.op) {
       case 'gild':
-        return `${n} ${e.enh === 'platinum' ? 'platinum' : 'gilded'}`;
+        return `${n} ${e.enh === 'platinum' ? 'platinum' : 'painted gold'}`;
       case 'enhance':
         return `${n} ${enhName(e.enh)}`;
       case 'widen':
@@ -111,9 +111,9 @@ function workLine(works) {
       case 'duplicate':
         return `a second ${n}`;
       case 'remove':
-        return `${n} chiselled out`;
+        return `${n} removed`;
       default:
-        return `a pocket stamped ${n}`;
+        return `a pocket changed to ${n}`;
     }
   });
   const line = said.join(', ');

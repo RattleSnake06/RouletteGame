@@ -50,11 +50,11 @@ export function workRefusal(state, work, target) {
   }
   const pocket = pocketOf(state, target);
   if (!pocket) return 'Choose a pocket.';
-  if (untouchable(pocket)) return 'The House’s pocket is not yours to work.';
+  if (untouchable(pocket)) return 'The House’s pocket cannot be changed.';
   const count = state.wheel.pockets.length;
   switch (work.op) {
     case 'gild':
-      if (isBlank(pocket)) return 'A blank pocket has nothing to gild.';
+      if (isBlank(pocket)) return 'A blank pocket cannot be painted gold.';
       return pocket.enh === 'platinum' ? 'It is platinum already.' : null;
     case 'enhance':
       if (isBlank(pocket)) return 'A blank pocket takes nothing.';
@@ -63,13 +63,13 @@ export function workRefusal(state, work, target) {
       if (isBlank(pocket)) return 'A blank pocket takes no paint.';
       return pocket.color === work.color ? `It is ${COLOR_NAME[work.color]} already.` : null;
     case 'duplicate':
-      if (isBlank(pocket)) return 'There is nothing there to cast.';
+      if (isBlank(pocket)) return 'There is nothing there to copy.';
       return count >= WHEEL.maxPockets ? 'The wheel has no room for another pocket.' : null;
     case 'remove':
       if (count <= WHEEL.minPockets) return `No fewer than ${WHEEL.minPockets} pockets.`;
       return state.foreseen?.pocketId === pocket.id ? 'The Glass Eye is watching that pocket.' : null;
     case 'stamp':
-      if (!isNumber(state, target?.number)) return 'Choose a number to stamp.';
+      if (!isNumber(state, target?.number)) return 'Choose the new number.';
       return pocket.number === target.number ? `It reads ${target.number} already.` : null;
     default:
       throw new Error(`Unknown wheel work: ${work.op}`);

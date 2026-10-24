@@ -20,7 +20,7 @@ export const MATERIAL_LIST = [
     name: 'Normal',
     count: 3,
     payout: 1,
-    upside: 'The House’s own chips. Nothing gained, nothing lost.',
+    upside: 'The House’s own chips. No bonus, no drawback.',
     downside: '',
   },
   {
@@ -38,7 +38,7 @@ export const MATERIAL_LIST = [
     payout: 1.15, // the owner's ×1.25, tuned with the simulator (doc 9.8)
     fixed: true,
     upside: 'Each pays ×1.15.',
-    downside: 'Once placed, a chip stays put until the night ends.',
+    downside: 'Once placed, a chip cannot move until the night ends.',
   },
   {
     id: 'glass',

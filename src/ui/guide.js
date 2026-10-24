@@ -159,13 +159,13 @@ export const GUIDE = [
     sections: [
       ['Pockets you can build', [
         'Every pocket has a number, a colour and a <b>width</b>: the chance of landing there is its share of the wheel, and the wheel is drawn to scale. A widened pocket is wider on screen.',
-        '<b>Wheel work</b> reshapes the wheel: widen or narrow a number, repaint a pocket, duplicate one, chisel one out, or re-stamp its number. It comes from the Cabinet’s oddities, some cards and the Number Punches.',
+        '<b>Wheel work</b> changes the wheel: make a number’s pockets wider or narrower, paint a pocket, give a number a second pocket, remove a pocket, or change a pocket’s number. It comes from the Cabinet’s oddities, some cards and the Number Punches.',
       ]],
       ['Enhanced pockets', [
-        'A pocket can carry one enhancement: <b>gilded</b> pays ×2 (gild it again for platinum, ×3), <b>glass</b> pays ×4 but may shatter, <b>bone</b> gives a token, <b>lucky</b> gives Nudge on the next spin, <b>ember</b> raises a winning chip’s value for good. A <b>cursed</b> pocket feeds the Devil; a <b>blank</b> one has no number and pays nothing.',
+        'A pocket can have one special finish: <b>gold</b> pays ×2 (paint it gold again for <b>platinum</b>, ×3), <b>glass</b> pays ×4 but may break, <b>bone</b> gives a token, <b>lucky</b> gives Nudge on the next spin, <b>ember</b> raises a winning chip’s value for the rest of the run. A <b>cursed</b> pocket raises the Devil’s chance; a <b>blank</b> one has no number and pays nothing.',
       ]],
       ['Reading it', [
-        'The chalkboard at the table’s left chalks every number’s live chance. The results board at the right shows the last numbers, the LEAN lamp, Nudge and pity. Hold or hover on any bet to see how often it wins on this wheel.',
+        'The chalkboard at the table’s left chalks every number’s current chance. The results board at the right shows the last numbers, the LEAN lamp, Nudge and pity. Hold or hover on any bet to see how often it wins on this wheel.',
       ]],
     ],
   },
@@ -177,7 +177,7 @@ export const GUIDE = [
         'At the back of the hall stands an iron door with four padlocks. Pay debt 4 and the first falls open; each later debt opens the next. Every lock moves your goal one debt further and opens a starting wheel and new talismans, cards or records. Pay debt 8 with all four open and the Vault opens.',
       ]],
       ['Chips, wheels and the House Edge', [
-        'Pay debt 4 with a chip set and the next set unlocks: Clay, Bone, Glass, then Gold, each with its own rule. Locks open the American, Gilded, Bone and Mirror wheels. Reaching your goal at the hardest <b>House Edge</b> open opens the next level, five in all, each making the House harder.',
+        'Pay debt 4 with a chip set and the next set unlocks: Clay, Bone, Glass, then Gold, each with its own rule. Locks open the American, Golden, Bone and Mirror wheels. Reaching your goal at the hardest <b>House Edge</b> open opens the next level, five in all, each making the House harder.',
         'Choose them on the chip select before a run. Once the Vault is open it also offers <b>Endless</b>: no goal, play until the Cage collects.',
       ]],
       ['The figures and the Almanac', [

@@ -35,7 +35,7 @@ export function effectText(step) {
     case 'chipValue':
       return `+${n} value`;
     case 'chipBase':
-      return `+${n} value, for good`;
+      return `+${n} value for the run`;
     case 'coins':
       return `+${n}`;
     case 'tokens':
@@ -63,7 +63,7 @@ export function effectText(step) {
     case 'noNudge':
       return 'no Nudge';
     case 'widen':
-      return `${plural(step.count, 'pocket')} +${n} wide`;
+      return `${plural(step.count, 'pocket')} wider`;
     case 'gone':
       return 'used up';
     case 'revive':

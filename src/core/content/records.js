@@ -35,7 +35,7 @@ export const RECORD_LIST = [
   {
     id: 'waltz_in_green',
     name: 'Waltz in Green',
-    rule: '+1 Nudge on every spin. Nights cost half again as much.',
+    rule: '+1 Nudge on every spin. Nights cost 50% more.',
     tune: 'waltz',
     hooks: {
       nudge(ctx) {
@@ -73,7 +73,7 @@ export const RECORD_LIST = [
   {
     id: 'overture_of_excess',
     name: 'Overture of Excess',
-    rule: 'Chips pay ×3. A debt it plays during owes twice as much.',
+    rule: 'Chips pay ×3. Any debt it plays during costs twice as much.',
     tune: 'overture',
     doublesDebt: true,
     hooks: {
@@ -99,7 +99,7 @@ export const RECORD_LIST = [
   {
     id: 'boogie_woogie',
     name: 'Boogie-Woogie',
-    rule: `Each paying spin: +1 Stake (up to +${RECORD.boogieMax}), until a spin pays nothing.`,
+    rule: `Each paying spin in a row gives +1 Stake (up to +${RECORD.boogieMax}). A spin that pays nothing resets it.`,
     tune: 'boogie',
     init: () => ({ streak: 0 }),
     hooks: {
@@ -134,7 +134,7 @@ export const RECORD_LIST = [
   {
     id: 'carousel',
     name: 'Carousel',
-    rule: 'The wheel turns backwards. Any Nudge reaches 1 pocket further.',
+    rule: 'The wheel spins the other way. Any Nudge reaches 1 pocket further.',
     tune: 'carousel',
     reverse: true,
     // Only a spin that has Nudge already (a Lean, pity, a talisman) gets the
@@ -171,7 +171,7 @@ export const RECORD_LIST = [
   {
     id: 'two_step',
     name: 'Two-Step',
-    rule: `A second ball every spin. Every payout ×${RECORD.twoStep}.`,
+    rule: `A second ball every spin. All payouts ×${RECORD.twoStep}.`,
     tune: 'twostep',
     unlock: { lock: 2 },
     hooks: {
@@ -187,7 +187,7 @@ export const RECORD_LIST = [
   {
     id: 'requiem',
     name: 'Requiem',
-    rule: 'Talismans sold while it plays fetch twice as much.',
+    rule: 'Selling a talisman while it plays gives twice as much.',
     tune: 'requiem',
     sellMult: 2,
     hooks: {},

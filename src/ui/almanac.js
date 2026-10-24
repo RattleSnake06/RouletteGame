@@ -16,7 +16,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 
 // Short tab names, so the tabs fit a phone's width in two rows at most.
 const TAB = { talismans: 'Charms', fortunes: 'Fortunes', records: 'Records', enhancements: 'Pockets', oddities: 'Oddities', engravings: 'Engraved' };
-const WHEEL_NAME = { european: 'European', american: 'American', gilded: 'Gilded', bone: 'Bone', mirror: 'Mirror' };
+const WHEEL_NAME = { european: 'European', american: 'American', gilded: 'Golden', bone: 'Bone', mirror: 'Mirror' };
 
 /**
  * Opens the Almanac on `view` (core/meta.js almanacView). `names` maps ids to

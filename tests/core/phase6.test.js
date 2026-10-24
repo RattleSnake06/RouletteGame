@@ -53,7 +53,7 @@ describe('starting wheels', () => {
     expect(workRefusal(am, { op: 'stamp' }, { pocket: 'p17', number: 37 })).toBe(null);
     const eu = run();
     expect(workRefusal(eu, { op: 'widen', on: 'number' }, 37)).toBe('Choose a number.');
-    expect(workRefusal(eu, { op: 'stamp' }, { pocket: 'p17', number: 37 })).toBe('Choose a number to stamp.');
+    expect(workRefusal(eu, { op: 'stamp' }, { pocket: 'p17', number: 37 })).toBe('Choose the new number.');
   });
 
   it('the Mirror wheel runs 0 to 36 as the felt does', () => {
