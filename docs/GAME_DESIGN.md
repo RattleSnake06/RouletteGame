@@ -1399,7 +1399,14 @@ idea and the goal, nights and the Cage, bets (and the racetrack), luck
 (Nudge, the Lean, pity), the Devil, talismans with the Cabinet and the Bell,
 Madame Zero, records, building the wheel, what carries between runs, and the
 controls, each mechanic with an example. Its numbers are the game's; a rule
-changed here is changed there too. The pause menu offers Resume, Settings,
+changed here is changed there too. The Bets page names every bet for a
+player new to roulette (asked for by the owner): a card a bet, with its
+diagram (`ui/betDiagrams.js`, inline SVG drawn from the core's own bets, no
+image files): a little felt with the numbers it covers lit and a chip where
+it sits (straight-up, split, street, corner, First Four, six-line, dozen,
+column, the even-money bets, the Snake, the Finales), or a little wheel for
+the racetrack's sectors (Neighbours, Voisins, Tiers, Orphelins, Jeu Zéro),
+each with how many numbers it covers and what it pays. The pause menu offers Resume, Settings,
 Info, Almanac, Step out of the light (past the goal) and Main menu; Settings
 and Info opened from it come back to it.
 

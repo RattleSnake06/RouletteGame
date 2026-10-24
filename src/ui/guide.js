@@ -1,3 +1,4 @@
+import { feltBetsGlossary, trackBetsGlossary } from './betDiagrams.js';
 import { INK, lineMark, markImg, oldTallies } from './marks.js';
 
 // The Info book (design doc 7.5, Phase 8): how the game works, a page per
@@ -12,8 +13,9 @@ const el = (tag, cls = '', html = '') => {
   return e;
 };
 
-// Each page: a short tab label, then sections of a heading and paragraphs
-// (trusted HTML written here, never player input).
+// Each page: a short tab label, then sections of a heading, paragraphs
+// (trusted HTML written here, never player input) and, for some, a builder
+// for what follows them (the bets' diagrams).
 export const GUIDE = [
   {
     id: 'idea',
@@ -58,16 +60,19 @@ export const GUIDE = [
     sections: [
       ['Chips on the felt', [
         'Place a chip on any bet on the felt. Chips stay where you left them from spin to spin, and moving them is free. Several chips can share a bet; each pays on its own.',
-        'A winning chip pays its bet’s <b>odds</b>: 36 for a straight-up on one number, 18 for a split, 12 for a street, 9 for a corner, 6 for a six-line, 3 for a dozen or column, 2 for red, black, odd, even, 1–18 or 19–36. Example: a chip of value 1 on 17 pays 36 coins when 17 comes up.',
+        'A winning chip pays its bet’s <b>odds</b>: the fewer numbers a bet covers, the more it pays. Example: a chip of value 1 straight-up on 17 pays 36 coins when 17 comes up; a chip on Red pays 2 whenever any red number does.',
         '<b>Zero</b> is green and belongs to the House: it loses every bet that does not cover it.',
       ]],
+      ['The bets, by name', [
+        'Every bet on the felt has a name. In each picture the lit numbers are the ones the bet covers, and the chip shows where it goes: in the game, tap a chip, then that spot on the felt.',
+      ], feltBetsGlossary],
       ['Stake and Odds', [
         'A chip pays its value × <b>Stake</b> × its odds × the <b>Odds</b> mult × any talisman multipliers. Stake and the Odds mult start at 1, and talismans add to them: <b>+1 Stake doubles a chip’s payout</b>. The two brass plaques beside the felt show them.',
         'Each kind of bet has a <b>level</b>; a level adds a quarter of the base odds (a straight-up at level 2 pays 45). The payout placard at the felt’s right lists every kind and what it pays now.',
       ]],
       ['The racetrack', [
-        'Across the top of the felt lie seven special bets on sections of the wheel: Neighbours (a number and two pockets either side), the Finales, Voisins, Tiers, Orphelins, Jeu Zéro and the Snake. They are dark until a talisman, a card or a record opens them.',
-      ]],
+        'Across the top of the felt lie seven special bets, most of them on stretches of the wheel rather than the felt. They are dark until a talisman, a card or a record opens them. The wheel pictures show the pockets each covers, with zero at the top; the number in the middle is how many.',
+      ], trackBetsGlossary],
     ],
   },
   {
@@ -220,10 +225,11 @@ export function showGuide({ start = GUIDE[0].id, onClose } = {}) {
     page.textContent = '';
     page.scrollTop = 0;
     for (const b of tabs.children) b.classList.toggle('on', b.dataset.page === id);
-    for (const [heading, paragraphs] of GUIDE.find((p) => p.id === id).sections) {
+    for (const [heading, paragraphs, extra] of GUIDE.find((p) => p.id === id).sections) {
       const section = el('section', 'guide-section');
       section.append(el('h3', 'scrawl fat', heading));
       for (const text of paragraphs) section.append(el('p', 'typed', text));
+      if (extra) section.append(extra());
       page.append(section);
     }
   }

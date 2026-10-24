@@ -2293,3 +2293,51 @@ html.text-large .alm-note {
 html.text-large .guide-section p {
   font-size: 17px;
 }
+
+/* The bets, by name (the Info book): a card a bet, its diagram over its name. */
+.bet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px 12px;
+  margin: 4px 0 10px;
+}
+
+.bet-card {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid rgba(196, 154, 82, 0.28);
+  border-radius: 6px;
+  background: rgba(5, 4, 4, 0.35);
+}
+
+.bet-card svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--typed);
+}
+
+.bet-card.wheel svg {
+  width: 64%;
+  margin: 0 auto;
+}
+
+.bet-card figcaption {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--bone-dim);
+}
+
+.bet-card figcaption b {
+  color: var(--bone);
+  font-weight: normal;
+}
+
+.bet-card .pays {
+  color: var(--brass);
+}
+
+html.text-large .bet-card figcaption {
+  font-size: 16px;
+}
