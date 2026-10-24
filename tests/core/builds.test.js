@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getTalisman } from '../../src/core/content/index.js';
-import { calendarSpin } from '../../src/core/content/talismans.js';
+import { calendarSpin, racetrackBets } from '../../src/core/content/talismans.js';
 import { ECONOMY } from '../../src/core/economy.js';
 import { interestRateFor, openSpecials, useUp } from '../../src/core/effects.js';
 import { evaluate } from '../../src/core/payout.js';
@@ -156,7 +156,51 @@ describe('what each build lacked', () => {
   });
 
   it('a new run deals none of what waits for a lock', () => {
+    for (const [id, lock] of [['tote_board', 1], ['carillon', 2], ['patience_jar', 3], ['grandfather_clock', 4]]) expect(getTalisman(id).unlock).toEqual({ lock });
     expect(createRun({ seed: 'POOL' }).opened).toEqual([]);
     expect(act(setup(), { type: 'placeChip', chipId: 'c1', betId: 'neighbours:17' }).events[0]).toMatchObject({ code: 'closed' });
+  });
+});
+
+describe('the weak builds\' multipliers (decision 33)', () => {
+  const chips = (s, bets) => ({ ...s, chips: bets.map((_, i) => ({ id: `c${i + 1}`, value: 1, material: 'normal', roundValue: 0 })), placements: Object.fromEntries(bets.map((b, i) => [`c${i + 1}`, b])) });
+
+  it('the Carillon: chips +×1 for every ring answered this debt; a new debt starts over', () => {
+    const s = one(grantTalisman(setup(), 'carillon'), 'red');
+    expect(paysOn(s, 1)).toEqual([2]);
+    expect(paysOn({ ...s, debtRings: 2 }, 1)).toEqual([6]);
+    let r = play(grantTalisman(setup(), 'wheel_of_fortune'), { type: 'ringBell' });
+    expect(r.state.debtRings).toBe(1);
+    r = play(atCage(r.state), { type: 'endNight' });
+    expect(r.state.debt).toBe(2);
+    expect(r.state.debtRings).toBe(0);
+  });
+
+  it('the Tote Board: racetrack chips ×1 for each different racetrack bet with chips', () => {
+    const three = chips(setup(), ['voisins', 'tiers', 'orphelins']);
+    expect(racetrackBets(three)).toBe(3);
+    const bare = paysOn(three, 0);
+    expect(paysOn(grantTalisman(three, 'tote_board'), 0)).toEqual(bare.map((x) => x * 3));
+    const alone = chips(setup(), ['voisins']);
+    expect(paysOn(grantTalisman(alone, 'tote_board'), 0)).toEqual(paysOn(alone, 0));
+  });
+
+  it('the Patience Jar: +×0.5 a spin without a green zero, paid on the next zero, then empty', () => {
+    let s = grantTalisman(setup({ chips: { c1: 'straight:0' } }), 'patience_jar');
+    s = spinOn(s, 5).state;
+    s = spinOn(s, 7).state;
+    expect(s.rail[0].data.wait).toBe(2);
+    const r = spinOn(s, 0);
+    expect(r.state.lastSpin.total).toBe(36 * 2);
+    expect(r.state.rail[0].data.wait).toBe(0);
+  });
+
+  it('the Grandfather Clock: chips +×0.5 for every spin already played tonight, new each night', () => {
+    let s = grantTalisman(setup({ chips: { c1: 'red' } }), 'grandfather_clock');
+    s = spinOn(s, 2).state;
+    s = spinOn(s, 4).state;
+    expect(s.rail[0].data.clock.played).toBe(2);
+    expect(spinOn(s, 1).state.lastSpin.total).toBe(2 * 2);
+    expect(paysOn(one({ ...s, round: s.round + 1 }, 'red'), 1)).toEqual([2]);
   });
 });

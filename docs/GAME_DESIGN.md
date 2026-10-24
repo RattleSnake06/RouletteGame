@@ -738,7 +738,7 @@ a free slot. Danse Macabre is built (6.3).
 
 A first pool to build from. Names and numbers are drafts.
 
-### 6.1 Talismans (79 built)
+### 6.1 Talismans (83 built)
 
 **Built in Phase 2 (15):** Red Ribbon, Horseshoe, Matchbook, Lucky Penny, Crumpled
 Receipt, Pawn Ticket (common); Brass Knuckles, Croupier's Rake, Ledger, Abacus
@@ -927,6 +927,23 @@ back fresh (its charges and counters reset). Selling counts too, a trade-in
 at the Cabinet included. The Pocket Calendar's spin is shown on its note,
 so a player can load chips onto it.
 
+**Built for the weak builds (4, decision 33).** The simulator's build bots
+(9.8) showed the Bell, Sectors, Zero and Timing with little multiplier of
+their own; each gets one legendary, and each opens with one of the Vault's
+locks, so a first run's Cabinet stays as tuned.
+
+| Talisman | Rarity | Effect | Build | Opens with |
+|---|---|---|---|---|
+| The Tote Board | Legendary | Racetrack chips pay ×1 for each different racetrack bet with chips on it (Voisins, Tiers and Orphelins together: ×3 each) | Sectors | lock 1 |
+| The Carillon | Legendary | Chips +×1 for every Bell ring a talisman answered this debt | The Bell | lock 2 |
+| Patience Jar | Legendary | Fills +×0.5 for every spin since a ball last landed on a green zero; when one lands, chips pay that much and the jar empties | Zero | lock 3 |
+| Grandfather Clock | Legendary | Chips +×0.5 for every spin already played tonight (the first ×1, the seventh ×4) | Timing | lock 4 |
+
+The Carillon counts rings in `state.debtRings`, which a new debt clears; a
+ring nothing answers does not count. The Patience Jar is emptied by any
+green zero, even one the Devil burned. The Grandfather Clock counts its
+own spins each night, so a copy (Twin Mirrors) counts its own as well.
+
 **Every family at every rarity** (a talisman counts for each family its tags
 name; `tests/core/phase7.test.js` checks it):
 
@@ -934,16 +951,16 @@ name; `tests/core/phase7.test.js` checks it):
 |---|---|---|---|---|
 | Colour | Red Ribbon, Matchbook, Black Cat | Ledger, Domino, Saint's Medal, Raven Feather, Pair of Dice | Rose Brooch | Loaded Wheel |
 | Straight-up hunting (Nudge) | Pocket Watch, Lodestone, Wind-Up Key, Hamsa, Four-Leaf Clover | Rabbit's Foot, Dowsing Rod, Weathervane, Fortune Cookie | Compass | Metronome |
-| Wheel geometry and sectors | Brass Scales | Croupier's Rake, Mirror Shard, Racing Form | Compass, Gilder's Knife, Snakeskin, Croupier's Glove | Number Punches, Loaded Wheel |
+| Wheel geometry and sectors | Brass Scales | Croupier's Rake, Mirror Shard, Racing Form | Compass, Gilder's Knife, Snakeskin, Croupier's Glove | Number Punches, Loaded Wheel, The Tote Board |
 | Table geometry (inside bets) | Horseshoe, Lucky Penny, Lodestone, Wind-Up Key | Brass Knuckles, Croupier's Rake, Ledger, Mousetrap, Fortune Cookie | Wheel of Fortune, Thirteen Ball, Table Map | House Key, Ouroboros, Surveyor's Chain |
 | Streaks and repeats | Tally Stick | Ledger, Abacus, Mousetrap | Rose Brooch, Hot Coals | Ouroboros |
-| Zero | Green Thread | Saint's Medal | Zero's Coin | House Key |
+| Zero | Green Thread | Saint's Medal | Zero's Coin | House Key, Patience Jar |
 | Multi-ball | Marble | Juggler's Ball, Pair of Dice | Ivory Ball | Bag of Marbles |
 | Economy and interest | Lucky Penny, Pawn Ticket, Grandmother's Purse, Lost Wallet, Chalk Stub, Wishbone, Kindling | Beckoning Cat, Hourglass, Savings Book | Piggy Bank | Usurer's Seal, Gold Tooth |
 | Devil and risk | Salt Cellar, Wishbone | Evil Eye, Holy Water | Brimstone | Golden Ball |
 | Sacrifice (the Pyre) | Kindling | Funeral Urn | Phoenix Feather | The Pyre |
-| Timing | Pocket Watch, Hamsa, Marble | Weathervane, Juggler's Ball, Hourglass | Pocket Calendar | Metronome |
-| The Bell | Hand Bell | Dowsing Rod | Glass Eye, Wheel of Fortune, Piggy Bank | Number Punches |
+| Timing | Pocket Watch, Hamsa, Marble | Weathervane, Juggler's Ball, Hourglass | Pocket Calendar | Metronome, Grandfather Clock |
+| The Bell | Hand Bell | Dowsing Rod | Glass Eye, Wheel of Fortune, Piggy Bank | Number Punches, The Carillon |
 
 ### 6.2 Fortunes
 
@@ -1207,15 +1224,15 @@ owner approves each new build or piece before it is built.
 | **Colour** | Red and black alternate round the wheel, so +1 Nudge makes nearly every colour chip win; paint and widen the colour, then stack Stake and ×s on it | Red Ribbon, Matchbook, Black Cat (C); Ledger, Domino, Saint's Medal, Raven Feather (U); Rose Brooch (R); Loaded Wheel (L) | "The reds run warm", "The blacks run cold", "Outside bets are safe bets" | Red Light Tango; Midnight Blues for black | Stake 5 with Rose Brooch, Tango and the Golden Ball: 120 per chip value on a near-certain hit |
 | **Straight-up hunting** | Straight-ups spread round the wheel; each point of Nudge reaches two more pockets; load the Lean spins | Pocket Watch, Lodestone, Wind-Up Key, Hamsa, Four-Leaf Clover (C); Rabbit's Foot, Dowsing Rod, Weathervane, Fortune Cookie (U); Compass (R); Metronome (L) | "Ask the figures", "A candle for the dark", "Fortune favours the bold" | Waltz in Green, Carousel | 18 Nudge reaches every pocket: the ball always finds the best number, on a glass or platinum pocket with straight-ups levelled |
 | **Inside lines** | Splits, streets and corners cover felt neighbours; the Mirror wheel puts them side by side | Horseshoe, Lucky Penny (C); Brass Knuckles, Croupier's Rake, Mousetrap (U); Wheel of Fortune, Thirteen Ball, Table Map (R); Surveyor's Chain, House Key (L) | "The table remembers." | Stride Piano | A levelled corner with Stride's Stake, Brass Knuckles ×2 and Surveyor's Chain ×3, on a Mirror wheel |
-| **Wheel sculpting and sectors** | The wheel is the deck: widen, cast and stamp your numbers, chisel the rest down to 18, bet the racetrack | Brass Scales (C); Croupier's Rake, Mirror Shard, Racing Form (U); Compass, Gilder's Knife, Snakeskin, Croupier's Glove (R); Number Punches, Loaded Wheel (L) | "Neighbours talk.", "Gold finds gold", "Borrowed gold", "Break the wheel" | Habanera, Carousel | Voisins on an 18-pocket wheel wins about 17 spins in 18, at ×1.5 and +1 Stake, over gilded pockets |
+| **Wheel sculpting and sectors** | The wheel is the deck: widen, cast and stamp your numbers, chisel the rest down to 18, bet the racetrack | Brass Scales (C); Croupier's Rake, Mirror Shard, Racing Form (U); Compass, Gilder's Knife, Snakeskin, Croupier's Glove (R); Number Punches, Loaded Wheel, The Tote Board (L) | "Neighbours talk.", "Gold finds gold", "Borrowed gold", "Break the wheel" | Habanera, Carousel | Voisins, Tiers and Orphelins cover the whole wheel: every spin pays, ×3 each from the Tote Board and ×1.5 from the Glove, and each racetrack bet a new chip covers raises the Tote Board; Hot Coals never goes out |
 | **Streaks and repeats** | Pay more for winning again, on a bet that rarely misses | Tally Stick (C); Ledger, Abacus, Mousetrap (U); Rose Brooch, Hot Coals (R); Ouroboros (L) | "Hot hands." | Boogie-Woogie | Hot Coals at ×4 with Boogie's and the Tally's Stake, and "Hot hands." forgiving a night's first miss |
-| **Zero** | Take the House's pocket: fatten and cast zeros, then let a zero pay everything | Green Thread (C); Saint's Medal (U); Zero's Coin (R); House Key (L) | "Feed the zero", "Zero smiles on you" | Bolero | Four or five wide zeros land about one spin in seven, and each pays every chip on the table, ×2 for "Feed the zero" |
+| **Zero** | Take the House's pocket: fatten and cast zeros, then let a zero pay everything | Green Thread (C); Saint's Medal (U); Zero's Coin (R); House Key, Patience Jar (L) | "Feed the zero", "Zero smiles on you" | Bolero | The Patience Jar fills between zeros and the House Key makes a zero pay every chip on the table: a long wait is ×10 and more on all of them, ×2 again for "Feed the zero" |
 | **Multi-ball** | Each ball lands and is nudged on its own; every chip pays for every ball on its bet | Marble (C); Juggler's Ball, Pair of Dice (U); Ivory Ball (R); Bag of Marbles (L) | "A spare ball.", "The ball has a twin" | Two-Step | Four or five balls a spin, Pair of Dice doubling the spins they agree on colour |
 | **Interest** | Bank early; the Cage's interest compounds every night | Pawn Ticket, Grandmother's Purse (C); Savings Book (U); Usurer's Seal (L) | "Compound interest." | Danse Macabre | 5% base, the Pawn Ticket, the Purse, the Savings Book, two "Compound interest." cards, Thrifty and Danse Macabre, doubled by the Seal: past ×5 a debt |
 | **Coins and tokens** | Fuel for the other engines; the Gold Tooth turns a hoard into a multiplier | Lucky Penny, Lost Wallet, Chalk Stub, Wishbone, Crumpled Receipt (C); Beckoning Cat, Hourglass, Magpie (U); Piggy Bank, Zero's Coin (R); Gold Tooth (L) | "A stranger tips well", "The cabinet owes you", "Burn the ledger" | Funeral March | 40 tokens held under the Gold Tooth is ×3 on every chip, and Magpie's Stake on top |
 | **The Devil's bargain** | Take Devil chance for big ×s and bank after every spin, or silence him with Lullaby | Salt Cellar (C); Evil Eye, Holy Water (U); Brimstone (R); Golden Ball (L); Bone Dice, Black Candle (cursed) | "Roll the bones", "A candle for the dark", "Shake the Devil's hand" | Overture of Excess, Lullaby for Zero | Golden Ball ×3 (×9 mirrored), Brimstone ×2 and the Bone Dice's +4 Stake |
-| **Timing** | Some spins are known to be big: put the heaviest bets there | Pocket Watch, Hamsa, Marble (C); Weathervane, Juggler's Ball, Hourglass (U); Pocket Calendar (R); Metronome (L) | "The night is young." | Nocturne | The Calendar's spin, the Metronome's 4th and Nocturne's last, each loaded; more spins a night means more of them |
-| **The Bell** | Actives, rung when they matter most | Hand Bell (C); Dowsing Rod (U); Glass Eye, Wheel of Fortune, Piggy Bank (R); Number Punches (L) | "The bell rings twice" | (any; the Bell has no record of its own) | The Glass Eye rung, every chip straight-up on the number it shows: a sure jackpot each charge, and the Hand Bell adds one |
+| **Timing** | Some spins are known to be big: put the heaviest bets there | Pocket Watch, Hamsa, Marble (C); Weathervane, Juggler's Ball, Hourglass (U); Pocket Calendar (R); Metronome, Grandfather Clock (L) | "The night is young." | Nocturne | The Grandfather Clock climbs through every night (×5.5 by a tenth spin), and the late spins carry Hamsa's Nudge, the Marble's ball and Nocturne's ×3; the Hourglass and "The night is young." make the nights longer |
+| **The Bell** | Actives, rung when they matter most | Hand Bell (C); Dowsing Rod (U); Glass Eye, Wheel of Fortune, Piggy Bank (R); Number Punches, The Carillon (L) | "The bell rings twice" | (any; the Bell has no record of its own) | Every ring this debt adds ×1 under the Carillon: ring early and often, with the Hand Bell and "The bell rings twice" for more charges, and the Glass Eye's sure jackpot at the top |
 | **Chip value** | Chips that grow | Matchbook (C); String of Pearls, Domino, Magpie (U) | | | Ember pockets and the chip oddities: the only growth that lasts the run (chip cards are out, decision 28) |
 | **The Pyre** (new) | Feeds on talismans sold or used up: buy cheap commons and burn them | Kindling (C); Funeral Urn (U); Phoenix Feather (R); The Pyre (L) | "Burn it all." | Requiem | The Pyre's +×0.5 per talisman never stops growing: 20 burned is ×11 on every chip. Kindling buys for 3 and sells for 3, so with Requiem playing each one is a token's profit as well as fuel |
 
@@ -1271,10 +1288,10 @@ card for a lock or a feat names what it opened.
 
 | Opened by | Content |
 |---|---|
-| Lock 1 | Snakeskin, the Croupier's Glove, "Neighbours talk.", the Habanera |
-| Lock 2 | Two-Step |
-| Lock 3 | "Break the wheel." |
-| Lock 4 | "The ball has a twin." |
+| Lock 1 | Snakeskin, the Croupier's Glove, the Racing Form, the Tote Board, "Neighbours talk.", the Habanera |
+| Lock 2 | Two-Step, the Carillon |
+| Lock 3 | "Break the wheel.", the Patience Jar |
+| Lock 4 | "The ball has a twin.", the Grandfather Clock |
 | Same Again | Hot Coals |
 | Out of the Red | Loaded Wheel |
 | Step Out of the Light | Metronome |

@@ -3000,6 +3000,104 @@ const PAINTERS = {
     seg(ctx, 0, 92, 0, -72, C.bone, 3.5);
     ctx.restore();
   },
+
+  // ---- The weak builds' multipliers (decision 33) ----
+
+  tote_board(ctx) {
+    // A racecourse tote board: three lit rows of odds in a brass frame.
+    rrect(ctx, -70, -56, 140, 112, 8);
+    fill(ctx, brassFill(ctx, -56, 56), C.soot, 5);
+    rrect(ctx, -60, -46, 120, 92, 4);
+    fill(ctx, '#15100e');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = typedFont(30);
+    [['2', '3', '4'], ['×', '×', '×'], ['3', '3', '3']].forEach((row, r) => {
+      row.forEach((t, c) => {
+        ctx.fillStyle = r === 1 ? C.boneDim : r === 2 ? C.amber : C.bone;
+        ctx.fillText(t, -36 + c * 36, -24 + r * 26);
+      });
+    });
+    circle(ctx, 0, 66, 8);
+    fill(ctx, C.blood, C.soot, 3);
+  },
+
+  carillon(ctx) {
+    // Three brass bells of falling size hung from one beam.
+    rrect(ctx, -74, -70, 148, 14, 4);
+    fill(ctx, linear(ctx, 0, -70, 0, -56, [
+      [0, '#a8683a'],
+      [1, C.woodDeep],
+    ]), C.soot, 4);
+    for (const [x, sz] of [[-44, 0.8], [6, 1.05], [52, 0.65]]) {
+      seg(ctx, x, -56, x, -44, C.soot, 4);
+      ctx.save();
+      ctx.translate(x, -44);
+      ctx.scale(sz, sz);
+      ctx.beginPath();
+      ctx.moveTo(-12, 0);
+      ctx.bezierCurveTo(-18, 22, -22, 50, -38, 62);
+      ctx.lineTo(38, 62);
+      ctx.bezierCurveTo(22, 50, 18, 22, 12, 0);
+      ctx.closePath();
+      fill(ctx, brassFill(ctx, 0, 62), C.soot, 5);
+      ellipse(ctx, 0, 62, 38, 7);
+      fill(ctx, C.brassDeep, C.soot, 3);
+      circle(ctx, 0, 72, 7);
+      fill(ctx, C.brass, C.soot, 3);
+      ctx.restore();
+    }
+  },
+
+  patience_jar(ctx) {
+    // A glass jar, sealed, a heap of brass coins rising inside (green is the House's).
+    rrect(ctx, -34, -78, 68, 16, 4);
+    fill(ctx, C.brass, C.soot, 4);
+    ctx.beginPath();
+    ctx.moveTo(-30, -62);
+    ctx.lineTo(-48, -40);
+    ctx.lineTo(-48, 62);
+    ctx.quadraticCurveTo(-48, 74, -36, 74);
+    ctx.lineTo(36, 74);
+    ctx.quadraticCurveTo(48, 74, 48, 62);
+    ctx.lineTo(48, -40);
+    ctx.lineTo(30, -62);
+    ctx.closePath();
+    fill(ctx, 'rgba(215, 205, 190, 0.16)', C.soot, 5);
+    for (let i = 0; i < 5; i++) {
+      ellipse(ctx, (i % 2 ? 8 : -8), 60 - i * 15, 30, 9);
+      fill(ctx, i % 2 ? C.brassDeep : C.brass, C.soot, 3);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = typedFont(26);
+    ctx.fillStyle = C.bone;
+    ctx.fillText('0', 0, -10);
+    seg(ctx, -38, -36, -38, 50, 'rgba(255, 255, 255, 0.35)', 5);
+  },
+
+  grandfather_clock(ctx) {
+    // A tall clock case, its brass pendulum swinging below the dial.
+    rrect(ctx, -34, -82, 68, 164, 8);
+    fill(ctx, linear(ctx, -34, 0, 34, 0, [
+      [0, C.woodDeep],
+      [0.45, '#9a5a2e'],
+      [1, '#3a1c0c'],
+    ]), C.soot, 5);
+    circle(ctx, 0, -46, 26);
+    fill(ctx, C.paper, C.brass, 5);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU;
+      seg(ctx, Math.cos(a) * 18, -46 + Math.sin(a) * 18, Math.cos(a) * 22, -46 + Math.sin(a) * 22, C.ink, 2.5);
+    }
+    seg(ctx, 0, -46, 0, -62, C.ink, 4);
+    seg(ctx, 0, -46, 12, -40, C.ink, 4);
+    rrect(ctx, -20, -10, 40, 82, 4);
+    fill(ctx, '#1a0d06', C.soot, 3);
+    seg(ctx, 0, -8, 10, 46, C.brassLight, 3.5);
+    circle(ctx, 10, 50, 10);
+    fill(ctx, brassFill(ctx, 40, 60), C.brassDeep, 3);
+  },
 };
 
 /** A tongue of fire rising from (x, y), for the Pyre's curios. */

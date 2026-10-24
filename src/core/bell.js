@@ -47,6 +47,7 @@ export function ringBell(draft, uid, emit, { targets = [] } = {}) {
   const trigger = (effect, more = {}) => emit({ type: 'trigger', src: ref, hook: 'bell', effect, ...more });
   emit({ type: 'bellRung', uid: target.uid, id: target.id });
   draft.stats.bellRings += 1;
+  draft.debtRings = (draft.debtRings ?? 0) + 1;
   src.def.bell.ring({
     state: draft,
     self: target.data,

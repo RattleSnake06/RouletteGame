@@ -94,6 +94,14 @@ const P8 = {
   handBell: 1, // charges for the leftmost Bell talisman each debt
   dice: 2, // Pair of Dice: two balls on one colour, chips ×
 };
+// The weak builds' multipliers (decision 33, doc 6.8).
+const P9 = { carillon: 1, jar: 0.5, clock: 0.5 };
+const carillonMult = (state) => 1 + P9.carillon * (state.debtRings ?? 0);
+/** How many different racetrack bets have chips on them (the Tote Board). */
+export const racetrackBets = (state) => new Set(Object.values(state.placements ?? {}).filter((id) => id && isSpecial(getBet(id).kind))).size;
+const jarMult = (wait) => 1 + P9.jar * wait;
+const playedTonight = (self, state) => (self.clock?.night === tonight(state) ? self.clock.played : 0);
+const clockMult = (played) => 1 + P9.clock * played;
 const burned = (state) => (state.stats.talismansSold ?? 0) + (state.stats.talismansGone ?? 0);
 const pyreMult = (state) => 1 + P8.pyre * burned(state);
 const toothMult = (state) => 1 + state.tokens / P8.tooth;
@@ -1257,6 +1265,79 @@ export const TALISMAN_LIST = [
     hooks: {
       chipStake(ctx) {
         if (ctx.bet.kind === 'black') ctx.addStake(1);
+      },
+    },
+  },
+  // ---- The weak builds' multipliers (decision 33): one a lock ----
+  {
+    id: 'tote_board',
+    name: 'The Tote Board',
+    rarity: 'legendary',
+    tags: ['special', 'wheel'],
+    unlock: { lock: 1 },
+    text: 'Racetrack chips pay ×1 for each different racetrack bet with chips on it: Voisins, Tiers and Orphelins together pay ×3 each.',
+    status: (data, state) => {
+      const n = racetrackBets(state);
+      return n ? `×${n} now (${plural(n, 'racetrack bet')} with chips).` : 'No chips on the racetrack.';
+    },
+    hooks: {
+      chipMult(ctx) {
+        if (!isSpecial(ctx.bet.kind)) return;
+        const n = racetrackBets(ctx.state);
+        if (n > 1) ctx.mul(n);
+      },
+    },
+  },
+  {
+    id: 'carillon',
+    name: 'The Carillon',
+    rarity: 'legendary',
+    tags: ['active'],
+    unlock: { lock: 2 },
+    text: `Chips +×${P9.carillon} for every Bell ring a talisman answered this debt.`,
+    status: (data, state) => `×${carillonMult(state)} now (${plural(state.debtRings ?? 0, 'ring')} this debt).`,
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.state.debtRings) ctx.mul(carillonMult(ctx.state));
+      },
+    },
+  },
+  {
+    id: 'patience_jar',
+    name: 'Patience Jar',
+    rarity: 'legendary',
+    tags: ['zero'],
+    unlock: { lock: 3 },
+    text: `Fills +×${P9.jar} for every spin since a ball last landed on a green zero. When one lands, chips pay that much, and the jar empties.`,
+    init: () => ({ wait: 0 }),
+    status: (data) => `×${jarMult(data.wait ?? 0)} on the next green zero (${plural(data.wait ?? 0, 'spin')} without one).`,
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.self.wait && isGreenNumber(ctx.landing.pocket)) ctx.mul(jarMult(ctx.self.wait));
+      },
+      afterSpin(ctx) {
+        // Emptied by any zero, even one the Devil burned.
+        const zero = ctx.result.balls.some((b) => b.color === 'green' && b.number !== null);
+        ctx.setData('wait', zero ? 0 : (ctx.self.wait ?? 0) + 1);
+      },
+    },
+  },
+  {
+    id: 'grandfather_clock',
+    name: 'Grandfather Clock',
+    rarity: 'legendary',
+    tags: ['timing'],
+    unlock: { lock: 4 },
+    text: `Chips +×${P9.clock} for every spin already played tonight: the first spin ×1, the seventh ×4.`,
+    init: () => ({ clock: null }),
+    status: (data, state) => `×${clockMult(playedTonight(data, state))} on the next spin.`,
+    hooks: {
+      chipMult(ctx) {
+        const n = playedTonight(ctx.self, ctx.state);
+        if (n) ctx.mul(clockMult(n));
+      },
+      afterSpin(ctx) {
+        ctx.setData('clock', { night: tonight(ctx.state), played: playedTonight(ctx.self, ctx.state) + 1 });
       },
     },
   },

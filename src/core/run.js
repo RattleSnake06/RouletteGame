@@ -216,6 +216,8 @@ function beginDebt(s, emit) {
   s.tally = { ...s.tally, debt: { numbers: {} } };
   s.cabinet.paidRestocks = 0;
   s.debtSpins = 0;
+  // Bell rings a talisman answered this debt (the Carillon).
+  s.debtRings = 0;
   s.leans = { debt: rollDebtLeans(s), night: null };
   s.devil = { ...s.devil, firedThisDebt: false };
   // A debt that begins to Overture of Excess owes double, as one it starts during would.

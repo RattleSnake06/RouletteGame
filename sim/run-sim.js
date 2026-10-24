@@ -212,11 +212,11 @@ const NEWER = ['tuning_fork', 'brass_scales', 'string_of_pearls', 'wind_up_key',
 // ones and the Hourglass help any layout; the Glove and Snakeskin turn the
 // outside builder to the racetrack.
 const LISTS = {
-  red: ['golden_ball', 'loaded_wheel', 'bag_of_marbles', 'red_ribbon', 'rose_brooch', 'gold_tooth', 'mousetrap', 'domino', 'pair_of_dice', 'ivory_ball', 'matchbook', 'twin_mirrors', 'tuning_fork', 'hot_coals', 'glass_eye', 'pocket_calendar', 'magpie', 'hourglass', 'beckoning_cat', 'rabbits_foot', 'saints_medal', 'ledger', 'savings_book', 'black_cat', 'raven_feather', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'hand_bell', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
-  even: ['golden_ball', 'bag_of_marbles', 'string_of_pearls', 'brass_scales', 'gold_tooth', 'tuning_fork', 'ivory_ball', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'hot_coals', 'magpie', 'pocket_calendar', 'hourglass', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'savings_book', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'lucky_penny', 'lost_wallet'],
-  outside: ['golden_ball', 'bag_of_marbles', 'number_punches', 'croupiers_glove', 'snakeskin', 'abacus', 'gold_tooth', 'seesaw', 'ivory_ball', 'matchbook', 'domino', 'hot_coals', 'ledger', 'twin_mirrors', 'tuning_fork', 'pocket_calendar', 'hourglass', 'glass_eye', 'rabbits_foot', 'savings_book', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
-  inside: ['ouroboros', 'golden_ball', 'bag_of_marbles', 'number_punches', 'surveyors_chain', 'metronome', 'croupiers_rake', 'horseshoe', 'lodestone', 'fortune_cookie', 'thirteen_ball', 'house_key', 'gold_tooth', 'ivory_ball', 'twin_mirrors', 'tuning_fork', 'mirror_shard', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'pocket_calendar', 'hourglass', 'dowsing_rod', 'weathervane', 'table_map', 'zeros_coin', 'lucky_penny', 'wheel_of_fortune', 'hand_bell', 'pocket_watch', 'hamsa', 'jugglers_ball', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
-  luck: ['ouroboros', 'bag_of_marbles', 'number_punches', 'metronome', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'ivory_ball', 'mirror_shard', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'hourglass', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'jugglers_ball', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
+  red: ['golden_ball', 'grandfather_clock', 'loaded_wheel', 'bag_of_marbles', 'red_ribbon', 'rose_brooch', 'gold_tooth', 'mousetrap', 'domino', 'pair_of_dice', 'ivory_ball', 'matchbook', 'twin_mirrors', 'tuning_fork', 'hot_coals', 'glass_eye', 'pocket_calendar', 'magpie', 'hourglass', 'beckoning_cat', 'rabbits_foot', 'saints_medal', 'ledger', 'savings_book', 'black_cat', 'raven_feather', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'piggy_bank', 'wheel_of_fortune', 'hand_bell', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
+  even: ['golden_ball', 'grandfather_clock', 'bag_of_marbles', 'string_of_pearls', 'brass_scales', 'gold_tooth', 'tuning_fork', 'ivory_ball', 'mousetrap', 'domino', 'matchbook', 'twin_mirrors', 'hot_coals', 'magpie', 'pocket_calendar', 'hourglass', 'beckoning_cat', 'glass_eye', 'rabbits_foot', 'ledger', 'savings_book', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'grandmothers_purse', 'pocket_watch', 'hamsa', 'marble', 'wishbone', 'lucky_penny', 'lost_wallet'],
+  outside: ['golden_ball', 'grandfather_clock', 'bag_of_marbles', 'number_punches', 'croupiers_glove', 'tote_board', 'snakeskin', 'abacus', 'gold_tooth', 'seesaw', 'ivory_ball', 'matchbook', 'domino', 'hot_coals', 'ledger', 'twin_mirrors', 'tuning_fork', 'pocket_calendar', 'hourglass', 'glass_eye', 'rabbits_foot', 'savings_book', 'jugglers_ball', 'usurers_seal', 'tally_stick', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'pocket_watch', 'marble', 'wishbone', 'chalk_stub', 'lucky_penny', 'lost_wallet'],
+  inside: ['ouroboros', 'golden_ball', 'grandfather_clock', 'bag_of_marbles', 'number_punches', 'surveyors_chain', 'metronome', 'croupiers_rake', 'horseshoe', 'lodestone', 'fortune_cookie', 'thirteen_ball', 'house_key', 'gold_tooth', 'ivory_ball', 'twin_mirrors', 'tuning_fork', 'mirror_shard', 'mousetrap', 'wind_up_key', 'glass_eye', 'rabbits_foot', 'compass', 'pocket_calendar', 'hourglass', 'dowsing_rod', 'weathervane', 'table_map', 'zeros_coin', 'lucky_penny', 'wheel_of_fortune', 'hand_bell', 'pocket_watch', 'hamsa', 'jugglers_ball', 'four_leaf_clover', 'ledger', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
+  luck: ['ouroboros', 'grandfather_clock', 'bag_of_marbles', 'number_punches', 'metronome', 'lodestone', 'horseshoe', 'rabbits_foot', 'compass', 'croupiers_rake', 'ivory_ball', 'mirror_shard', 'twin_mirrors', 'tuning_fork', 'dowsing_rod', 'wind_up_key', 'hourglass', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'weathervane', 'mousetrap', 'glass_eye', 'wheel_of_fortune', 'jugglers_ball', 'house_key', 'ledger', 'lucky_penny', 'pawn_ticket', 'crumpled_receipt', 'marble', 'lost_wallet'],
 };
 // The Pyre (doc 6.8): the engine first, then Kindling to buy and burn.
 LISTS.pyre = ['the_pyre', 'phoenix_feather', 'funeral_urn', ...LISTS.red.slice(0, 8), 'kindling', ...LISTS.red.slice(8)];
@@ -235,7 +235,7 @@ if (OLD_POOL) {
 const FUEL = ['kindling'];
 const TIER = OLD_POOL
   ? ['glass_eye', 'red_ribbon', 'matchbook', 'rabbits_foot', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'compass', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny']
-  : ['ouroboros', 'golden_ball', 'bag_of_marbles', 'loaded_wheel', 'surveyors_chain', 'number_punches', 'ivory_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'raven_feather', 'gold_tooth', 'the_pyre', 'pocket_calendar', 'pair_of_dice', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
+  : ['ouroboros', 'golden_ball', 'grandfather_clock', 'bag_of_marbles', 'loaded_wheel', 'surveyors_chain', 'number_punches', 'ivory_ball', 'glass_eye', 'string_of_pearls', 'red_ribbon', 'matchbook', 'rabbits_foot', 'mousetrap', 'domino', 'abacus', 'croupiers_rake', 'twin_mirrors', 'house_key', 'lodestone', 'ledger', 'horseshoe', 'thirteen_ball', 'seesaw', 'weathervane', 'compass', 'brass_scales', 'black_cat', 'raven_feather', 'gold_tooth', 'the_pyre', 'pocket_calendar', 'pair_of_dice', 'brass_knuckles', 'pocket_watch', 'pawn_ticket', 'crumpled_receipt', 'piggy_bank', 'wheel_of_fortune', 'lucky_penny', 'lost_wallet'];
 const FAMILY_OF = {
   red_ribbon: 'red',
   matchbook: 'red',
@@ -299,16 +299,16 @@ const BUILDS = {
   black: { layout: 'black', pieces: ['rose_brooch', 'black_cat', 'raven_feather', 'saints_medal', 'domino', 'ledger', 'matchbook'], cards: ['blacks_run_cold', 'outside_safe'], records: ['midnight_blues'], kit: ['black_cat', 'raven_feather', 'saints_medal', 'rose_brooch'] },
   straights: { layout: 'spread', pieces: ['metronome', 'compass', 'rabbits_foot', 'lodestone', 'fortune_cookie', 'weathervane', 'dowsing_rod', 'horseshoe', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'wind_up_key', 'croupiers_rake'], cards: ['fortune_bold'], black: ['ask_figures'], records: ['carousel'], kit: ['compass', 'rabbits_foot', 'lodestone', 'horseshoe'] },
   inside: { layout: 'corner', pieces: ['surveyors_chain', 'brass_knuckles', 'table_map', 'house_key', 'mousetrap', 'wheel_of_fortune', 'lucky_penny', 'ledger'], cards: ['table_remembers'], records: ['stride_piano'], kit: ['surveyors_chain', 'brass_knuckles', 'table_map', 'mousetrap'] },
-  sectors: { layout: 'outside', keep: false, pieces: ['croupiers_glove', 'snakeskin', 'racing_form', 'number_punches', 'mirror_shard', 'gilders_knife', 'croupiers_rake', 'brass_scales'], cards: ['neighbours_talk', 'gold_finds_gold'], black: ['break_the_wheel'], records: ['habanera'], kit: ['croupiers_glove', 'mirror_shard', 'gilders_knife', 'number_punches'] },
+  sectors: { layout: 'outside', keep: false, pieces: ['croupiers_glove', 'tote_board', 'snakeskin', 'racing_form', 'number_punches', 'mirror_shard', 'gilders_knife', 'croupiers_rake', 'brass_scales'], cards: ['neighbours_talk', 'gold_finds_gold'], black: ['break_the_wheel'], records: ['habanera'], kit: ['croupiers_glove', 'tote_board', 'mirror_shard', 'gilders_knife'] },
   streaks: { layout: 'red', pieces: ['hot_coals', 'ouroboros', 'rose_brooch', 'tally_stick', 'mousetrap', 'ledger', 'abacus'], cards: ['hot_hands'], records: ['boogie_woogie'], kit: ['hot_coals', 'tally_stick', 'rose_brooch', 'mousetrap'] },
-  zero: { layout: 'zeroRed', pieces: ['house_key', 'zeros_coin', 'saints_medal', 'green_thread'], cards: ['zero_smiles'], black: ['feed_zero'], records: ['bolero'], kit: ['house_key', 'zeros_coin', 'saints_medal', 'green_thread'] },
+  zero: { layout: 'zeroRed', pieces: ['house_key', 'patience_jar', 'zeros_coin', 'saints_medal', 'green_thread'], cards: ['zero_smiles'], black: ['feed_zero'], records: ['bolero'], kit: ['house_key', 'patience_jar', 'saints_medal', 'green_thread'] },
   multiball: { layout: 'red', pieces: ['bag_of_marbles', 'ivory_ball', 'pair_of_dice', 'jugglers_ball', 'marble'], cards: ['twin_ball', 'spare_ball'], records: ['two_step'], kit: ['bag_of_marbles', 'ivory_ball', 'pair_of_dice', 'jugglers_ball'] },
   interest: { layout: 'red', pieces: ['grandmothers_purse', 'pawn_ticket', 'savings_book', 'usurers_seal', 'beckoning_cat'], cards: ['compound_interest'], records: ['danse_macabre'], kit: ['grandmothers_purse', 'pawn_ticket', 'savings_book', 'usurers_seal'] },
   // Tokens: no economy tail, which would spend the hoard the Gold Tooth reads.
   tokens: { layout: 'red', pieces: ['gold_tooth', 'magpie', 'zeros_coin', 'crumpled_receipt'], tail: [], cards: ['stranger_tips', 'cabinet_owes'], records: ['funeral_march'], kit: ['gold_tooth', 'magpie', 'crumpled_receipt', 'zeros_coin'] },
   devil: { layout: 'red', pieces: ['golden_ball', 'brimstone', 'evil_eye', 'holy_water', 'salt_cellar'], black: ['roll_bones', 'devils_hand'], records: ['lullaby_for_zero', 'overture_of_excess'], kit: ['golden_ball', 'brimstone', 'bone_dice', 'evil_eye'] },
-  timing: { layout: 'red', pieces: ['metronome', 'pocket_calendar', 'weathervane', 'pocket_watch', 'hamsa', 'hourglass', 'marble', 'jugglers_ball'], cards: ['night_is_young'], black: ['candle'], records: ['nocturne'], kit: ['pocket_calendar', 'weathervane', 'metronome', 'hourglass'] },
-  bell: { layout: 'red', pieces: ['glass_eye', 'wheel_of_fortune', 'piggy_bank', 'dowsing_rod', 'number_punches', 'hand_bell'], cards: ['bell_rings_twice'], kit: ['glass_eye', 'wheel_of_fortune', 'dowsing_rod', 'hand_bell'] },
+  timing: { layout: 'red', pieces: ['grandfather_clock', 'metronome', 'pocket_calendar', 'weathervane', 'pocket_watch', 'hamsa', 'hourglass', 'marble', 'jugglers_ball'], cards: ['night_is_young'], black: ['candle'], records: ['nocturne'], kit: ['grandfather_clock', 'pocket_calendar', 'weathervane', 'hourglass'] },
+  bell: { layout: 'red', pieces: ['carillon', 'glass_eye', 'wheel_of_fortune', 'piggy_bank', 'dowsing_rod', 'number_punches', 'hand_bell'], cards: ['bell_rings_twice'], kit: ['carillon', 'wheel_of_fortune', 'dowsing_rod', 'hand_bell'] },
   chips: { layout: 'even', pieces: ['string_of_pearls', 'matchbook', 'domino', 'magpie', 'brass_scales'], cards: ['outside_safe'], kit: ['string_of_pearls', 'matchbook', 'domino', 'brass_scales'] },
   pyre: { layout: 'red', burns: true, pieces: ['the_pyre', 'phoenix_feather', 'funeral_urn', 'kindling'], records: ['requiem'], kit: ['the_pyre', 'funeral_urn', 'phoenix_feather', 'kindling'] },
 };
@@ -488,13 +488,15 @@ function bell(s, bot, log, { finalNight, spinsLeft }) {
   if (bot.greedy) return bellView(s).head ? step(s, { type: 'ringBell' }, log) : s;
   // Each active is rung at its own tag, so one hung to the left never blocks another.
   const ready = (id) => s.rail.find((t) => t.id === id && bellView(s).queue.includes(t.uid));
+  // The Carillon counts every ring this debt: ring each one as early as it can.
+  const eager = owns(s, 'carillon') && spinsLeft > 0;
   const eye = ready('glass_eye');
-  if (eye && finalNight) s = step(s, { type: 'ringBell', uid: eye.uid }, log);
+  if (eye && (finalNight || eager)) s = step(s, { type: 'ringBell', uid: eye.uid }, log);
   const wheel = ready('wheel_of_fortune');
   if (wheel && spinsLeft > 0) {
     // Held for a spin with real Nudge, but only when this layout can still miss.
     const nudged = bot.leans && nudgeFor(s).total >= 3 && canMiss(s);
-    if ((finalNight && spinsLeft <= 2) || nudged) s = step(s, { type: 'ringBell', uid: wheel.uid }, log);
+    if ((finalNight && spinsLeft <= 2) || nudged || eager) s = step(s, { type: 'ringBell', uid: wheel.uid }, log);
   }
   // The Dowsing Rod is worth most on a quiet spin (+5 lets spread straight-ups
   // reach most of the wheel; on a Lean they reach much of it anyway), or it
@@ -504,7 +506,7 @@ function bell(s, bot, log, { finalNight, spinsLeft }) {
     const l = nudgeFor(s);
     return l.lean === 0 && l.pity === 0;
   };
-  if (rod && spinsLeft > 0 && ((finalNight && spinsLeft <= 2) || quiet())) s = step(s, { type: 'ringBell', uid: rod.uid }, log);
+  if (rod && spinsLeft > 0 && ((finalNight && spinsLeft <= 2) || quiet() || eager)) s = step(s, { type: 'ringBell', uid: rod.uid }, log);
   // The Number Punches, as soon as they have a charge.
   const punches = !NO_WHEEL && s.rail.find((t) => t.id === 'number_punches' && t.charges > 0);
   if (punches) s = punch(s, bot, log, punches);

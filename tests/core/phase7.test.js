@@ -200,7 +200,7 @@ describe('the Vault and the feats open new content (decision 29)', () => {
     for (let i = 0; i < 2000; i++) for (const slot of rollTalismanSlots([], rng)) expect(gated.has(slot.id)).toBe(false);
     expect(runOptions(newProfile()).opened).toEqual([]);
     const p = { ...newProfile(), locks: 2, achievements: ['same_again'] };
-    expect(runOptions(p).opened.sort()).toEqual(['croupiers_glove', 'habanera', 'hot_coals', 'neighbours_talk', 'racing_form', 'snakeskin', 'two_step']);
+    expect(runOptions(p).opened.sort()).toEqual(['carillon', 'croupiers_glove', 'habanera', 'hot_coals', 'neighbours_talk', 'racing_form', 'snakeskin', 'tote_board', 'two_step']);
     const opened = createRun({ seed: 'GATES', ...runOptions(p) });
     let seen = false;
     const r2 = new Rng(hashSeed('gates-open'));
