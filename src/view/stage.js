@@ -72,14 +72,12 @@ export function createStage(canvas, { floorPixels } = {}) {
   const post = createPostFX(renderer, scene, camera);
 
   // In first person the figure is you: hidden from the camera but still
-  // casting its shadow.
-  const figureMaterials = new Set();
-  figure.group.traverse((o) => o.isMesh && figureMaterials.add(o.material));
+  // casting its shadow. The sculpt casts through unseen proxies (sculpt.js),
+  // so the meshes themselves can leave the camera's layer altogether.
+  const figureMeshes = [];
+  figure.group.traverse((o) => o.isMesh && !o.userData.shadowProxy && figureMeshes.push(o));
   function setFigureGhost(ghost) {
-    for (const m of figureMaterials) {
-      m.colorWrite = !ghost;
-      m.depthWrite = !ghost;
-    }
+    for (const m of figureMeshes) m.layers.set(ghost ? 1 : 0);
   }
 
   /**

@@ -1,66 +1,68 @@
 import * as THREE from 'three';
+import { addPart, sculpted } from './sculpt.js';
+import { figureShape } from './shapes/figureShape.js';
 
-// The lone figure dwarfed by the wheel. Local +z is the direction they face.
-export function createFigure() {
+// The lone figure dwarfed by the wheel (design doc 8.1): sculpted from
+// distance fields (shapes/figureShape.js), not stacked primitives. Local +z
+// is the direction they face. `lod: 'far'` keeps the coarsest mesh, for the
+// figures standing far off in the dark.
+export function createFigure({ lod = 'full' } = {}) {
   const root = new THREE.Group();
   root.name = 'figure';
+  const model = sculpted('figure', figureShape);
 
-  // The emissive terms stand in for light bouncing up off the bright floor,
-  // which keeps the side facing away from the bulb from going black.
-  const shirt = new THREE.MeshStandardMaterial({ color: 0xd8d4ca, emissive: 0x201f1d, roughness: 0.92 });
-  const jeans = new THREE.MeshStandardMaterial({ color: 0x34405a, emissive: 0x0b0f18, roughness: 0.88 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xa87b60, emissive: 0x1c130d, roughness: 0.7 });
-  const hair = new THREE.MeshStandardMaterial({ color: 0x1b1410, emissive: 0x050403, roughness: 0.95 });
-  const shoes = new THREE.MeshStandardMaterial({ color: 0x121212, roughness: 0.55 });
+  // Every material takes the sculpt's vertex colours: the shading baked into
+  // the creases, and the stubble and shadows on the face. The emissive terms
+  // stand in for light bouncing up off the floor, which keeps the side away
+  // from the bulb from going black.
+  const v = { vertexColors: true };
+  const shirt = new THREE.MeshPhysicalMaterial({ ...v, color: 0xd6cfbf, emissive: 0x1c1b19, roughness: 0.88, sheen: 0.4, sheenColor: 0xfff6e6, sheenRoughness: 0.75 });
+  const trousers = new THREE.MeshPhysicalMaterial({ ...v, color: 0x283044, emissive: 0x090c14, roughness: 0.9, sheen: 0.55, sheenColor: 0x707a98, sheenRoughness: 0.65 });
+  const braces = new THREE.MeshPhysicalMaterial({ ...v, color: 0x5e161b, emissive: 0x130405, roughness: 0.6, sheen: 0.3, sheenColor: 0xa04048 });
+  const tie = new THREE.MeshPhysicalMaterial({ ...v, color: 0x2a2026, emissive: 0x050304, roughness: 0.45, sheen: 0.8, sheenColor: 0x5a5260, sheenRoughness: 0.3 });
+  const skin = new THREE.MeshPhysicalMaterial({ ...v, color: 0xb38670, emissive: 0x1e140e, roughness: 0.6, sheen: 0.3, sheenColor: 0xffc8a8, sheenRoughness: 0.45 });
+  const lips = new THREE.MeshPhysicalMaterial({ ...v, color: 0x8c4e47, emissive: 0x1a0d0b, roughness: 0.42 });
+  const hair = new THREE.MeshPhysicalMaterial({ ...v, color: 0x17110e, emissive: 0x040302, roughness: 0.42, sheen: 0.7, sheenColor: 0x8a6c52, sheenRoughness: 0.3 });
+  const shoes = new THREE.MeshPhysicalMaterial({ ...v, color: 0x16100c, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.2 });
+  const sole = new THREE.MeshStandardMaterial({ ...v, color: 0x0a0807, roughness: 0.8 });
+  const eye = new THREE.MeshPhysicalMaterial({ ...v, color: 0xd8d0c4, roughness: 0.15, clearcoat: 1 });
+  const iris = new THREE.MeshPhysicalMaterial({ ...v, color: 0x6e5034, roughness: 0.1, clearcoat: 1 });
+  const pupil = new THREE.MeshPhysicalMaterial({ ...v, color: 0x050404, roughness: 0.1, clearcoat: 1 });
 
-  const add = (parent, geo, mat, x, y, z) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    m.receiveShadow = true;
-    parent.add(m);
-    return m;
-  };
+  const opts = { lod };
+  addPart(root, model, 'lower', { trousers, braces }, opts);
+  addPart(root, model, 'shoes', { shoes, sole }, opts);
 
-  // Legs and shoes.
-  const legGeo = new THREE.CapsuleGeometry(0.075, 0.72, 6, 14);
-  const shoeGeo = new THREE.BoxGeometry(0.11, 0.075, 0.27);
-  shoeGeo.translate(0, 0, 0.04);
-  for (const s of [-1, 1]) {
-    const leg = add(root, legGeo, jeans, s * 0.095, 0.5, 0);
-    leg.rotation.z = s * 0.025;
-    add(root, shoeGeo, shoes, s * 0.1, 0.0375, 0.0);
-  }
-
-  // Upper body pivots at the hips so it can breathe and sway.
+  // The upper body pivots at the hips so it can breathe and sway, and the
+  // head on the neck. The sculpt is in the figure's own frame, so each
+  // pivot's meshes sit back by the pivot's position.
+  const HIP_Y = 0.92;
   const upper = new THREE.Group();
-  upper.position.y = 0.9;
+  upper.position.y = HIP_Y;
   root.add(upper);
+  const body = new THREE.Group();
+  body.position.y = -HIP_Y;
+  upper.add(body);
+  addPart(body, model, 'upper', { shirt, braces, skin }, opts);
+  addPart(body, model, 'collar', { shirt, tie }, opts);
 
-  const torso = add(upper, new THREE.CapsuleGeometry(0.16, 0.32, 8, 16), shirt, 0, 0.29, 0);
-  torso.scale.set(1.1, 1, 0.68);
-  const belt = add(upper, new THREE.CylinderGeometry(0.17, 0.165, 0.06, 20), jeans, 0, 0.02, 0);
-  belt.scale.set(0.98, 1, 0.72);
-
-  const armGeo = new THREE.CapsuleGeometry(0.05, 0.5, 6, 12);
-  const handGeo = new THREE.SphereGeometry(0.048, 12, 10);
-  for (const s of [-1, 1]) {
-    const arm = add(upper, armGeo, shirt, s * 0.215, 0.24, -0.01);
-    arm.rotation.z = s * 0.07;
-    add(upper, handGeo, skin, s * 0.235, -0.08, 0.0);
-  }
-
-  add(upper, new THREE.CylinderGeometry(0.048, 0.055, 0.12, 12), skin, 0, 0.6, 0);
-  const head = add(upper, new THREE.SphereGeometry(0.102, 24, 18), skin, 0, 0.73, 0.01);
-  head.scale.set(0.95, 1.12, 1.0);
-  const hairMesh = add(upper, new THREE.SphereGeometry(0.108, 24, 18), hair, 0, 0.758, -0.012);
-  hairMesh.scale.set(0.98, 1.0, 1.02);
+  const NECK = new THREE.Vector3(0, 1.56, -0.008);
+  const neck = new THREE.Group();
+  neck.position.copy(NECK);
+  body.add(neck);
+  const head = new THREE.Group();
+  head.position.copy(NECK).negate();
+  neck.add(head);
+  addPart(head, model, 'head', { skin, hair, eye, iris, pupil, lips }, opts);
 
   function update(t) {
     const breath = Math.sin(t * 1.6);
-    torso.scale.y = 1 + breath * 0.012;
+    upper.scale.set(1 + breath * 0.004, 1 + breath * 0.003, 1 + breath * 0.006);
     upper.rotation.z = Math.sin(t * 0.37) * 0.012;
     upper.rotation.x = 0.02 + Math.sin(t * 0.29 + 1.3) * 0.01;
+    // Eyes on the wheel, now and then glancing aside.
+    neck.rotation.x = 0.1 + Math.sin(t * 0.23) * 0.025;
+    neck.rotation.y = Math.sin(t * 0.17 + 0.6) * 0.06 + Math.sin(t * 0.61) * 0.015;
   }
 
   return { group: root, update };

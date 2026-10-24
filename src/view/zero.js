@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { rng } from '../ui/marks.js';
+import { addPart, sculpted } from './sculpt.js';
+import { BROOCH, EYE, HEAD, NECK_TOP, ROLL, bandPoint, eyeOpening, faceSurfaceZ, faceUV, zeroShape } from './shapes/zeroShape.js';
 
 // Madame Zero herself (design doc 5.9, 8.1): a headless automaton in a
 // crimson blouse and a black corset, holding her own head in her hands at
@@ -8,20 +10,12 @@ import { rng } from '../ui/marks.js';
 // cold green, the House's colour. Porcelain stitched at the seams, a brass
 // socket where the neck ends. The head in her hands turns to watch you.
 //
-// Everything is built from primitives and painted canvases (no image files).
-// Local frame: +z faces the player, y up from the floor of her case.
+// She is sculpted from distance fields (shapes/zeroShape.js); the face is
+// painted on a canvas mapped onto the sculpt, and the feathers are drawn
+// (no image files). Local frame: +z faces the player, y up from the floor
+// of her case.
 
 const TAU = Math.PI * 2;
-
-// Where the parts sit, in metres from the case floor.
-const HEAD = new THREE.Vector3(0, 0.47, 0.2); // held in front of her waist, clear of the easel
-const HEAD_R = 0.098;
-const FACE_SCALE = new THREE.Vector3(0.86, 1.15, 0.92);
-const NECK_TOP = 0.8;
-
-const PORCELAIN = 0xe7dac6;
-const CRIMSON = 0x6a1219;
-const SOOT = 0x0c0a0b;
 
 function canvasTexture(w, h) {
   const canvas = document.createElement('canvas');
@@ -33,14 +27,69 @@ function canvasTexture(w, h) {
   return { canvas, ctx: canvas.getContext('2d'), tex };
 }
 
+// ---- The face's paint ---------------------------------------------------------------------
+// The canvas covers the front of the head (faceUV in zeroShape.js); a point
+// on the face, in metres from the head's centre, is painted where the sculpt
+// shows it, so the liner sits on the lids and the lips' colour on the lips.
+
+const FW = 1024;
+const FH = 512;
+const GLAZE = '#e6dccb';
+
+/** Canvas pixels for a point on the face, x across and y up (metres). */
+function at(x, y) {
+  const [u, v] = faceUV(x, y, faceSurfaceZ(x, y));
+  return [u * FW, (1 - v) * FH];
+}
+
+/** A path through face points, in canvas pixels. */
+function trace(ctx, points, close = false) {
+  ctx.beginPath();
+  points.forEach(([x, y], i) => {
+    const [cx, cy] = at(x, y);
+    if (i) ctx.lineTo(cx, cy);
+    else ctx.moveTo(cx, cy);
+  });
+  if (close) ctx.closePath();
+}
+
+/** Pixels per metre on the face near (x, y), for line widths. */
+const scaleAt = (x, y) => Math.hypot(...[0, 1].map((k) => at(x + 0.001, y)[k] - at(x, y)[k])) * 1000;
+
+/** The lids' opening, traced round from the inner corner (side: +1 or -1), grown by `grow` metres. */
+function almond(side, grow = 0, steps = 24) {
+  const top = [];
+  const bot = [];
+  // Walk across the eye and find where the opening's edges are at each step.
+  for (let i = 0; i <= steps; i++) {
+    const X = EYE.x - 0.0175 + (0.035 * i) / steps;
+    let lo = EYE.y - 0.012;
+    let hi = EYE.y + 0.012;
+    const inside = (y) => eyeOpening(X, y) < grow;
+    let mid = null;
+    for (let y = lo; y <= hi; y += 0.0004) if (inside(y)) { mid = y; break; }
+    if (mid === null) continue;
+    // Bisect each edge.
+    let a = mid;
+    let b = hi;
+    for (let k = 0; k < 18; k++) { const m = (a + b) / 2; if (inside(m)) a = m; else b = m; }
+    top.push([X * side, a]);
+    a = lo;
+    b = mid;
+    for (let k = 0; k < 18; k++) { const m = (a + b) / 2; if (inside(m)) b = m; else a = m; }
+    bot.push([X * side, b]);
+  }
+  return { top, bot, outline: [...top, ...bot.reverse()] };
+}
+
 /** A seam: a line with stitches across it, as on a mended doll. */
-function stitches(ctx, points, { width = 2.4, tick = 7, every = 9, color = '#2a1c18' } = {}) {
+function stitches(ctx, points, { width = 0.0007, tick = 0.0028, every = 0.0034, color = '#2a1c18' } = {}) {
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineCap = 'round';
-  ctx.lineWidth = width;
-  ctx.beginPath();
-  points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  const k = scaleAt(points[0][0], points[0][1]);
+  ctx.lineWidth = width * k;
+  trace(ctx, points);
   ctx.stroke();
   for (let i = 1; i < points.length; i++) {
     const [x0, y0] = points[i - 1];
@@ -51,9 +100,7 @@ function stitches(ctx, points, { width = 2.4, tick = 7, every = 9, color = '#2a1
     for (let d = every / 2; d < len; d += every) {
       const x = x0 + ((x1 - x0) * d) / len;
       const y = y0 + ((y1 - y0) * d) / len;
-      ctx.beginPath();
-      ctx.moveTo(x - nx * tick * 0.5, y - ny * tick * 0.5);
-      ctx.lineTo(x + nx * tick * 0.5, y + ny * tick * 0.5);
+      trace(ctx, [[x - nx * tick * 0.5, y - ny * tick * 0.5], [x + nx * tick * 0.5, y + ny * tick * 0.5]]);
       ctx.stroke();
     }
   }
@@ -63,157 +110,124 @@ function stitches(ctx, points, { width = 2.4, tick = 7, every = 9, color = '#2a1
 /** A hairline crack in the glaze, wandering from (x, y). */
 function crack(ctx, x, y, len, angle, seed) {
   const r = rng(seed);
-  ctx.save();
-  ctx.strokeStyle = 'rgba(60, 48, 40, 0.55)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
+  const points = [[x, y]];
   let a = angle;
-  for (let s = 0; s < len; s += 6) {
+  for (let s = 0; s < len; s += 0.002) {
     a += (r() - 0.5) * 0.9;
-    x += Math.cos(a) * 6;
-    y += Math.sin(a) * 6;
-    ctx.lineTo(x, y);
+    x += Math.cos(a) * 0.002;
+    y += Math.sin(a) * 0.002;
+    points.push([x, y]);
   }
+  ctx.save();
+  ctx.strokeStyle = 'rgba(60, 48, 40, 0.5)';
+  ctx.lineWidth = 1.2;
+  trace(ctx, points);
   ctx.stroke();
   ctx.restore();
 }
 
-// The face is painted on an equirectangular map: on a sphere, u 0.25 faces
-// +z, so the face is centred a quarter of the way across.
-const FW = 1024;
-const FH = 512;
-const FX = FW * 0.25;
-const FY = FH / 2;
-// Metres on the face to pixels on the map (near the front, where it counts).
-const px = (d) => (Math.asin(Math.max(-1, Math.min(1, d / (HEAD_R * FACE_SCALE.x)))) / TAU) * FW;
-const py = (d) => -(Math.asin(Math.max(-1, Math.min(1, d / (HEAD_R * FACE_SCALE.y)))) / Math.PI) * FH;
-
-const EYE = { x: 0.029, y: 0.006, w: 0.03, h: 0.0105 };
-
-/** Her eyes' almond shape, centred on (cx, cy), the outer corner on `side`. */
-function eyePath(ctx, cx, cy, w, h, side) {
-  ctx.beginPath();
-  ctx.moveTo(cx - (w / 2) * side, cy + h * 0.15);
-  ctx.quadraticCurveTo(cx, cy - h * 1.15, cx + (w / 2) * side, cy - h * 0.25);
-  ctx.quadraticCurveTo(cx, cy + h * 0.95, cx - (w / 2) * side, cy + h * 0.15);
-  ctx.closePath();
-}
-
-/** The face: porcelain, blank eyes, brows drawn down, a moon, the seams. */
+/** The face: glaze, blank eyes ringed in black, brows drawn down, a moon, the seams. */
 function paintFace() {
   const t = canvasTexture(FW, FH);
   const { ctx } = t;
-  // Glaze, cold in the hollows: darker toward the sides of the face.
-  const g = ctx.createRadialGradient(FX, FY - 20, 20, FX, FY, FW * 0.3);
-  g.addColorStop(0, '#efe4d2');
-  g.addColorStop(0.55, '#d9cbb6');
-  g.addColorStop(1, '#8f8578');
-  ctx.fillStyle = g;
+  ctx.fillStyle = GLAZE;
   ctx.fillRect(0, 0, FW, FH);
   const r = rng(77);
-  for (let i = 0; i < 2600; i++) {
-    ctx.fillStyle = `rgba(90, 70, 60, ${r() * 0.05})`;
+  for (let i = 0; i < 3000; i++) {
+    ctx.fillStyle = `rgba(90, 70, 60, ${r() * 0.045})`;
     ctx.fillRect(r() * FW, r() * FH, 1 + r() * 3, 1 + r() * 3);
   }
-  // Sunken sockets, smudged dark, so the eyes seem to sit deep.
+  // A cold grey bloom on the cheeks, as on old bisque.
   for (const side of [-1, 1]) {
-    const cx = FX + px(EYE.x) * side;
-    const cy = FY + py(EYE.y);
-    const sg = ctx.createRadialGradient(cx, cy, 4, cx, cy, 46);
-    sg.addColorStop(0, 'rgba(40, 24, 28, 0.75)');
+    const [cx, cy] = at(0.04 * side, -0.026);
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, 60);
+    g.addColorStop(0, 'rgba(150, 110, 112, 0.22)');
+    g.addColorStop(1, 'rgba(150, 110, 112, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - 64, cy - 64, 128, 128);
+  }
+  for (const side of [-1, 1]) {
+    // Sunken sockets, smudged dark round the lids, so the eyes sit deep.
+    const [sx, sy] = at(EYE.x * side, EYE.y);
+    const sg = ctx.createRadialGradient(sx, sy, 6, sx, sy, 50);
+    sg.addColorStop(0, 'rgba(40, 24, 28, 0.6)');
     sg.addColorStop(1, 'rgba(40, 24, 28, 0)');
     ctx.fillStyle = sg;
-    ctx.fillRect(cx - 50, cy - 50, 100, 100);
-  }
-  // The eyes: white and blank, rimmed in black, winged at the corners.
-  for (const side of [-1, 1]) {
-    const cx = FX + px(EYE.x) * side;
-    const cy = FY + py(EYE.y);
-    const w = px(EYE.w);
-    const h = -py(EYE.h) * 2;
-    eyePath(ctx, cx, cy, w, h, side);
+    ctx.fillRect(sx - 54, sy - 54, 108, 108);
+    // The eyes: white and blank, the paint lapping just past the lids.
+    const eye = almond(side, 0.0006);
+    trace(ctx, eye.outline, true);
     ctx.fillStyle = '#f4f1e8';
     ctx.fill();
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#120a0a';
-    ctx.stroke();
-    // The upper lid's shadow on the white.
-    ctx.save();
-    eyePath(ctx, cx, cy, w, h, side);
-    ctx.clip();
-    ctx.fillStyle = 'rgba(70, 60, 60, 0.35)';
-    ctx.fillRect(cx - w, cy - h * 1.2, w * 2, h * 0.7);
-    ctx.restore();
-    // The wing, and two tear-lines drawn down the cheek.
+    // Rimmed in black, heavier on the upper lid, winged at the outer corner.
+    const k = scaleAt(EYE.x * side, EYE.y);
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.strokeStyle = '#120a0a';
-    ctx.lineWidth = 4.5;
-    ctx.beginPath();
-    ctx.moveTo(cx + (w / 2) * side, cy - h * 0.25);
-    ctx.lineTo(cx + (w / 2 + 16) * side, cy - h * 0.9);
+    ctx.lineWidth = 0.0016 * k;
+    trace(ctx, eye.top);
     ctx.stroke();
-    ctx.lineWidth = 2.6;
-    for (const k of [-0.12, 0.18]) {
-      ctx.beginPath();
-      ctx.moveTo(cx + w * k * side, cy + h * 0.7);
-      ctx.lineTo(cx + w * k * side + side * 2, cy + h * 0.7 + 30);
+    ctx.lineWidth = 0.0009 * k;
+    trace(ctx, eye.bot);
+    ctx.stroke();
+    const corner = eye.top[eye.top.length - 1];
+    ctx.lineWidth = 0.0014 * k;
+    trace(ctx, [corner, [corner[0] + 0.006 * side, corner[1] + 0.0042], [corner[0] + 0.0085 * side, corner[1] + 0.0065]]);
+    ctx.stroke();
+    // Two tear lines drawn down the cheek.
+    ctx.lineWidth = 0.0007 * k;
+    for (const dx of [-0.004, 0.005]) {
+      const x0 = (EYE.x + dx) * side;
+      trace(ctx, [[x0, EYE.y - 0.0072], [x0 + 0.0006 * side, EYE.y - 0.0175]]);
       ctx.stroke();
     }
-  }
-  // Brows: heavy, and drawn down hard toward the nose.
-  ctx.strokeStyle = '#0d0808';
-  ctx.lineCap = 'round';
-  for (const side of [-1, 1]) {
-    ctx.lineWidth = 11;
-    ctx.beginPath();
-    ctx.moveTo(FX + 14 * side, FY + py(0.022));
-    ctx.quadraticCurveTo(FX + 40 * side, FY + py(0.031), FX + (px(EYE.x) + px(EYE.w) / 2 + 8) * side, FY + py(0.036));
-    ctx.stroke();
+    // Brows: heavy at the bridge, drawn down hard toward the nose, tapering out.
+    const brow = [];
+    for (let i = 0; i <= 12; i++) {
+      const f = i / 12;
+      const x = 0.009 + 0.038 * f;
+      brow.push([x, 0.0215 + 0.0125 * Math.sin(f * 1.35), 0.0019 * (1 - f) + 0.0004]);
+    }
+    trace(ctx, [...brow.map(([x, y, w]) => [x * side, y + w]), ...brow.reverse().map(([x, y, w]) => [x * side, y - w])], true);
+    ctx.fillStyle = '#0d0808';
+    ctx.fill();
   }
   // A crescent moon over the brows.
+  const [mx, my] = at(0, 0.044);
+  const mk = scaleAt(0, 0.044);
   ctx.fillStyle = '#120a0a';
   ctx.beginPath();
-  ctx.arc(FX, FY + py(0.046), 11, 0, TAU);
+  ctx.arc(mx, my, 0.0042 * mk, 0, TAU);
   ctx.fill();
-  ctx.fillStyle = '#e4d8c5';
+  ctx.fillStyle = GLAZE;
   ctx.beginPath();
-  ctx.arc(FX + 5, FY + py(0.046) - 3, 9.5, 0, TAU);
+  ctx.arc(mx + 0.0018 * mk, my - 0.0011 * mk, 0.0036 * mk, 0, TAU);
   ctx.fill();
-  // Lips, thin and dark, set in a line.
-  const my = FY + py(-0.047);
-  ctx.fillStyle = '#5a2a2c';
-  ctx.beginPath();
-  ctx.moveTo(FX - 26, my);
-  ctx.quadraticCurveTo(FX - 10, my - 9, FX, my - 5);
-  ctx.quadraticCurveTo(FX + 10, my - 9, FX + 26, my);
-  ctx.quadraticCurveTo(FX, my + 12, FX - 26, my);
+  // Lips, dark, set in a line: painted over the sculpted bow.
+  const lips = [];
+  for (let i = 0; i <= 16; i++) {
+    const x = -0.0145 + (0.029 * i) / 16;
+    const bow = 0.0012 * Math.exp(-(((Math.abs(x) - 0.0045) / 0.003) ** 2));
+    lips.push([x, -0.0468 + 0.0042 * (1 - (x / 0.0145) ** 2) + bow]);
+  }
+  for (let i = 16; i >= 0; i--) {
+    const x = -0.0145 + (0.029 * i) / 16;
+    lips.push([x, -0.0468 - 0.0058 * (1 - (x / 0.0145) ** 2)]);
+  }
+  trace(ctx, lips, true);
+  ctx.fillStyle = '#5a2228';
   ctx.fill();
   ctx.strokeStyle = '#1d0c0d';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(FX - 26, my);
-  ctx.quadraticCurveTo(FX, my + 2, FX + 26, my);
+  ctx.lineWidth = 0.0006 * scaleAt(0, -0.047);
+  trace(ctx, [[-0.0145, -0.0468], [0, -0.0471], [0.0145, -0.0468]]);
   ctx.stroke();
-  // The seams: down from the left eye to the jaw, across the right cheek,
-  // and straight down the chin.
-  const lx = FX - px(EYE.x);
-  stitches(ctx, [
-    [lx - 18, FY + py(-0.004)],
-    [lx - 24, FY + py(-0.03)],
-    [lx - 14, FY + py(-0.06)],
-    [lx - 6, FY + py(-0.085)],
-  ]);
-  stitches(ctx, [
-    [FX + px(0.03), FY + py(-0.02)],
-    [FX + px(0.05), FY + py(-0.032)],
-  ]);
-  stitches(ctx, [
-    [FX, my + 14],
-    [FX + 1, FY + py(-0.09)],
-  ], { tick: 9 });
-  crack(ctx, FX + 30, FY + py(0.07), 70, 0.6, 11);
-  crack(ctx, FX - 60, FY + py(0.045), 50, 2.6, 13);
+  // The seams: down from one eye to the jaw, across the other cheek, and
+  // straight down the chin.
+  stitches(ctx, [[-0.045, -0.002], [-0.049, -0.03], [-0.04, -0.058], [-0.033, -0.08]]);
+  stitches(ctx, [[0.026, -0.02], [0.05, -0.032]]);
+  stitches(ctx, [[0, -0.058], [0.0005, -0.092]], { tick: 0.0034 });
+  crack(ctx, 0.012, 0.05, 0.026, 0.4, 11);
+  crack(ctx, -0.05, 0.034, 0.02, 2.6, 13);
   t.tex.needsUpdate = true;
   return t;
 }
@@ -224,273 +238,206 @@ function paintEyeGlow() {
   const { ctx } = t;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, FW, FH);
+  ctx.fillStyle = '#fff';
   for (const side of [-1, 1]) {
-    const cx = FX + px(EYE.x) * side;
-    const cy = FY + py(EYE.y);
-    eyePath(ctx, cx, cy, px(EYE.w) * 0.86, -py(EYE.h) * 1.6, side);
-    ctx.fillStyle = '#fff';
+    trace(ctx, almond(side, -0.0006).outline, true);
     ctx.fill();
   }
   t.tex.needsUpdate = true;
   return t;
 }
 
-/** Her arms and chest: porcelain with the seams sewn shut. */
-function paintSkin() {
-  const t = canvasTexture(256, 256);
+// ---- Feathers ------------------------------------------------------------------------------
+
+/** A cock feather's vane: a pale shaft, fine glossy barbs raked toward the tip. */
+function paintFeather() {
+  const t = canvasTexture(64, 256);
   const { ctx } = t;
-  ctx.fillStyle = '#ddd0bc';
-  ctx.fillRect(0, 0, 256, 256);
-  const r = rng(91);
-  for (let i = 0; i < 600; i++) {
-    ctx.fillStyle = `rgba(90, 70, 60, ${r() * 0.06})`;
-    ctx.fillRect(r() * 256, r() * 256, 1 + r() * 4, 1 + r() * 4);
+  const r = rng(303);
+  ctx.clearRect(0, 0, 64, 256);
+  ctx.lineCap = 'round';
+  for (let y = 6; y < 252; y += 1.1) {
+    const v = y / 256; // 0 at the tip
+    // Narrow at the tip, fullest two thirds down, thinning to the quill.
+    const half = 30 * Math.sin(Math.PI * Math.min(1, v * 1.25 + 0.04)) ** 0.5 * (1 - 0.35 * smooth01(0.75, 1, v));
+    for (const side of [-1, 1]) {
+      const len = half * (0.94 + r() * 0.06);
+      const shade = 12 + r() * 16;
+      ctx.strokeStyle = `rgb(${shade}, ${shade + 4}, ${shade + 2})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(32, y + 3);
+      ctx.quadraticCurveTo(32 + side * len * 0.55, y + 0.5, 32 + side * len, y - 7);
+      ctx.stroke();
+    }
   }
-  stitches(ctx, [
-    [128, 10],
-    [124, 120],
-    [130, 246],
-  ], { width: 3, tick: 10, every: 12 });
-  // Little sigils inked along the arm.
-  ctx.strokeStyle = 'rgba(30, 18, 16, 0.7)';
-  ctx.lineWidth = 2;
-  for (const y of [60, 150, 210]) {
-    ctx.beginPath();
-    ctx.arc(60, y, 7, 0, TAU);
-    ctx.moveTo(60, y - 12);
-    ctx.lineTo(60, y + 12);
-    ctx.stroke();
-  }
-  crack(ctx, 200, 40, 60, 1.8, 5);
+  ctx.strokeStyle = '#3a3630';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(32, 6);
+  ctx.lineTo(32, 256);
+  ctx.stroke();
   t.tex.needsUpdate = true;
   return t;
 }
 
-/** A mesh from `a` to `b` along its local y (cylinders, stretched spheres). */
-function between(mesh, a, b) {
-  mesh.position.copy(a).lerp(b, 0.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-  return mesh;
+const smooth01 = (a, b, x) => {
+  const k = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
+
+/** A feather, base at the origin, rising along +y, curling back (-z) toward its tip. */
+function featherGeometry(len, width, curl) {
+  const rows = 20;
+  const pos = [];
+  const uv = [];
+  const idx = [];
+  for (let i = 0; i <= rows; i++) {
+    const t = i / rows;
+    const y = len * t;
+    const z = -curl * len * t * t;
+    for (const [k, s] of [[0, -1], [0.5, 0], [1, 1]]) {
+      const x = s * width * 0.5;
+      // The vane cups a little either side of the shaft.
+      pos.push(x, y, z + Math.abs(s) * width * 0.12);
+      uv.push(k, t);
+    }
+    if (i < rows) {
+      const a = i * 3;
+      idx.push(a, a + 1, a + 3, a + 1, a + 4, a + 3, a + 1, a + 2, a + 4, a + 2, a + 5, a + 4);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
 }
+
+// ---- Madame Zero ---------------------------------------------------------------------------
 
 export function createZero({ brass }) {
   const group = new THREE.Group();
   group.name = 'madame-zero';
-  const V2 = (x, y) => new THREE.Vector2(x, y);
-  const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  const model = sculpted('zero', zeroShape);
 
-  const skinTex = paintSkin();
-  const skin = new THREE.MeshStandardMaterial({ color: 0xffffff, map: skinTex.tex, roughness: 0.32, metalness: 0.03 });
-  const porcelain = new THREE.MeshStandardMaterial({ color: PORCELAIN, roughness: 0.3, metalness: 0.03 });
-  const crimson = new THREE.MeshStandardMaterial({ color: CRIMSON, roughness: 0.78 });
-  const soot = new THREE.MeshStandardMaterial({ color: SOOT, roughness: 0.45, metalness: 0.1 });
-  const feather = new THREE.MeshStandardMaterial({ color: 0x24302b, roughness: 0.7, side: THREE.DoubleSide });
+  // The sculpt's vertex colours carry its baked shading into every material.
+  const v = { vertexColors: true };
+  const porcelain = new THREE.MeshPhysicalMaterial({ ...v, color: GLAZE, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.14 });
+  const blouse = new THREE.MeshPhysicalMaterial({ ...v, color: 0x6e131b, emissive: 0x100204, roughness: 0.72, sheen: 1, sheenColor: 0xd04058, sheenRoughness: 0.45 });
+  const turban = new THREE.MeshPhysicalMaterial({ ...v, color: 0x561018, emissive: 0x0c0203, roughness: 0.78, sheen: 1, sheenColor: 0xb83a4c, sheenRoughness: 0.4 });
+  const corset = new THREE.MeshPhysicalMaterial({ ...v, color: 0x100d0e, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.3, sheen: 0.5, sheenColor: 0x5a4850 });
+  const skirt = new THREE.MeshPhysicalMaterial({ ...v, color: 0x0e0c0d, roughness: 0.55, sheen: 0.9, sheenColor: 0x4a4048, sheenRoughness: 0.35 });
+  const soot = new THREE.MeshStandardMaterial({ ...v, color: 0x0c0a0b, roughness: 0.45, metalness: 0.1 });
+  const lace = new THREE.MeshPhysicalMaterial({ ...v, color: 0x4a0c12, roughness: 0.5, sheen: 0.8, sheenColor: 0xa03040 });
+  const nail = new THREE.MeshPhysicalMaterial({ ...v, color: 0x080607, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const ruby = new THREE.MeshPhysicalMaterial({ color: 0x9a1015, emissive: 0x6a0a0e, emissiveIntensity: 0.6, roughness: 0.06, clearcoat: 1 });
   const green = new THREE.MeshStandardMaterial({ color: 0x1f6a42, emissive: 0x2a8a52, emissiveIntensity: 0.7, roughness: 0.15, metalness: 0.2 });
-  const ruby = new THREE.MeshStandardMaterial({ color: 0x9a1015, emissive: 0x6a0a0e, emissiveIntensity: 0.6, roughness: 0.12, metalness: 0.2 });
-  const add = (mesh, parent = body) => {
-    mesh.castShadow = true;
-    parent.add(mesh);
-    return mesh;
+
+  // Lit inside her case by its own lamp, which casts no shadows: she need
+  // not draw into the room's shadow maps.
+  const opts = { castShadow: false };
+  // Two of her: the full sculpt for her own station, the quick one when she
+  // is a few pixels across the hall. `lod(parent)` gives the pair to fill.
+  const pairs = [];
+  const lod = (parent) => {
+    const fine = new THREE.Group();
+    const rough = new THREE.Group();
+    rough.visible = false;
+    parent.add(fine, rough);
+    pairs.push([fine, rough]);
+    return [fine, rough];
+  };
+  const both = (parent, name, materials) => {
+    const [fine, rough] = lod(parent);
+    addPart(fine, model, name, materials, opts);
+    addPart(rough, model, name, materials, { ...opts, lod: 'far' });
   };
 
-  // ---- The body ------------------------------------------------------------------------
+  // ---- The body --------------------------------------------------------------------------
   const body = new THREE.Group();
   group.add(body);
-  // Skirt and corset in black, pinched at the waist.
-  // A long skirt to the case floor; she stands tall, so the head in her
-  // hands clears the cards on the easel.
-  const CORSET = [V2(0.2, 0), V2(0.185, 0.18), V2(0.15, 0.33), V2(0.155, 0.41), V2(0.17, 0.47)];
-  const DEPTH = 0.74;
-  const corset = add(new THREE.Mesh(new THREE.LatheGeometry(CORSET, 32), soot));
-  corset.scale.z = DEPTH;
-  // The corset's radius at height y, read off its profile.
-  const corsetR = (y) => {
-    const i = Math.max(1, CORSET.findIndex((p) => p.y >= y));
-    const [a, b] = [CORSET[i - 1], CORSET[i]];
-    return a.x + ((b.x - a.x) * (y - a.y)) / (b.y - a.y);
-  };
-  // Two rows of brass eyelets down the corset's front.
-  for (let i = 0; i < 6; i++) {
-    const y = 0.2 + i * 0.05;
-    for (const sx of [-1, 1]) {
-      const eyelet = new THREE.Mesh(new THREE.TorusGeometry(0.006, 0.0018, 6, 12), brass);
-      eyelet.position.set(sx * 0.022, y, corsetR(y) * DEPTH);
-      body.add(eyelet);
-    }
-  }
-  // The blouse: crimson, broad at the shoulders, open at the neck.
-  const blouse = add(new THREE.Mesh(new THREE.LatheGeometry([V2(0.168, 0.45), V2(0.19, 0.53), V2(0.206, 0.61), V2(0.218, 0.675), V2(0.18, 0.71), V2(0.06, 0.725)], 32), crimson));
-  blouse.scale.z = 0.72;
-  // The neckline: bare porcelain, a folded collar round it.
-  const chest = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16), porcelain));
-  chest.scale.set(1.25, 0.62, 0.5);
-  chest.position.set(0, 0.685, 0.045);
-  const collar = add(new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.018, 8, 32), crimson));
-  collar.scale.set(1.15, 1, 0.62);
-  collar.rotation.x = Math.PI / 2 - 0.25;
-  collar.position.set(0, 0.675, 0.0);
-  // Gold chains hanging over the chest, one with a pendant.
-  for (const [r, y, pendant] of [
-    [0.06, 0.71, false],
-    [0.085, 0.71, true],
-  ]) {
-    const chain = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0022, 6, 32, Math.PI), brass);
-    chain.rotation.set(-0.6, 0, Math.PI);
-    chain.position.set(0, y, 0.035);
-    body.add(chain);
-    if (pendant) {
-      const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.004, 16), brass);
-      drop.rotation.x = Math.PI / 2 - 0.4;
-      drop.position.set(0, y - r * 0.82, 0.035 + r * 0.56);
-      body.add(drop);
-    }
-  }
+  both(body, 'skirt', { skirt });
+  both(body, 'bodice', { corset, blouse, porcelain, soot });
+  both(body, 'lacing', { brass, lace });
+  both(body, 'arms', { porcelain, brass });
   // The neck ends in a brass socket: whatever held her head is long gone.
-  const neck = add(new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.04, NECK_TOP - 0.69, 20), porcelain));
-  neck.position.y = (NECK_TOP + 0.69) / 2;
-  const socket = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.006, 8, 24), brass);
+  const socket = new THREE.Mesh(new THREE.TorusGeometry(0.033, 0.0055, 10, 32), brass);
   socket.rotation.x = Math.PI / 2;
   socket.position.y = NECK_TOP;
   body.add(socket);
-  const hollow = new THREE.Mesh(new THREE.CircleGeometry(0.031, 24), new THREE.MeshBasicMaterial({ color: 0x050303 }));
+  const hollow = new THREE.Mesh(new THREE.CircleGeometry(0.031, 28), new THREE.MeshBasicMaterial({ color: 0x050303 }));
   hollow.rotation.x = -Math.PI / 2;
   hollow.position.y = NECK_TOP + 0.001;
   body.add(hollow);
-  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.006, 0.05, 8), brass);
+  const spindle = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.006, 0.05, 10), brass);
   spindle.position.y = NECK_TOP + 0.02;
   body.add(spindle);
-  // A black choker with a green stone.
-  const choker = add(new THREE.Mesh(new THREE.TorusGeometry(0.039, 0.008, 8, 24), soot));
-  choker.rotation.x = Math.PI / 2;
-  choker.position.y = 0.755;
-  const stone = add(new THREE.Mesh(new THREE.OctahedronGeometry(0.011), green));
-  stone.position.set(0, 0.745, 0.047);
+  // The green stone on her choker.
+  const stone = new THREE.Mesh(new THREE.OctahedronGeometry(0.0095), green);
+  stone.scale.z = 0.6;
+  stone.position.set(0, 0.748, 0.045);
+  body.add(stone);
 
-  // ---- The arms, down to the head in her hands -------------------------------------------
-  const hands = [];
-  for (const sx of [-1, 1]) {
-    // Elbows out, forearms coming in to the head's sides, as if offering it.
-    const shoulder = V3(sx * 0.205, 0.67, 0.0);
-    const elbow = V3(sx * 0.262, 0.53, 0.07);
-    const wrist = V3(sx * (HEAD_R * FACE_SCALE.x + 0.028), HEAD.y - 0.035, HEAD.z - 0.02);
-    // A puffed sleeve to the elbow, a black band at its cuff.
-    const sleeve = add(between(new THREE.Mesh(new THREE.SphereGeometry(0.058, 18, 14), crimson), shoulder, elbow));
-    sleeve.scale.set(1, 1.95, 1);
-    const cuff = add(new THREE.Mesh(new THREE.TorusGeometry(0.036, 0.009, 8, 20), soot));
-    cuff.position.copy(shoulder).lerp(elbow, 0.9);
-    cuff.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), elbow.clone().sub(shoulder).normalize());
-    // Porcelain forearms, stitched, ringed in gold at the wrist.
-    add(between(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.022, elbow.distanceTo(wrist), 14), skin), elbow, wrist));
-    for (const k of [0.78, 0.86, 0.93]) {
-      const bangle = new THREE.Mesh(new THREE.TorusGeometry(0.021, 0.0035, 6, 20), brass);
-      bangle.position.copy(elbow).lerp(wrist, k);
-      bangle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), wrist.clone().sub(elbow).normalize());
-      body.add(bangle);
-    }
-    // The hand: flat against the side of the head, the fingers curled
-    // forward round the cheek and jaw, black at the nails.
-    const hand = new THREE.Group();
-    hand.position.set(sx * (HEAD_R * FACE_SCALE.x + 0.012), HEAD.y - 0.025, HEAD.z);
-    body.add(hand);
-    hands.push(hand);
-    const palm = add(new THREE.Mesh(new THREE.SphereGeometry(0.032, 16, 12), skin), hand);
-    palm.scale.set(0.42, 1.05, 0.95);
-    for (let f = 0; f < 4; f++) {
-      const base = V3(-sx * 0.004, -0.012 + f * 0.015, 0.018);
-      const tip = V3(-sx * 0.04, -0.006 + f * 0.017 - Math.abs(f - 1.5) * 0.004, 0.07 - Math.abs(f - 1.5) * 0.006);
-      add(between(new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.007, base.distanceTo(tip), 8), skin), base, tip), hand);
-      const nail = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), soot);
-      nail.position.copy(tip);
-      hand.add(nail);
-    }
-    // The thumb, curled under the jaw.
-    add(between(new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.0065, 0.045, 8), skin), V3(0, -0.02, 0.012), V3(-sx * 0.03, -0.045, 0.03)), hand);
-  }
-
-  // ---- The head ------------------------------------------------------------------------
-  // `held` is where her hands keep it; `head` turns inside it to watch you.
+  // ---- The head in her hands ---------------------------------------------------------------
+  // `held` is where her hands keep it, askew; `head` turns inside it to watch you.
   const held = new THREE.Group();
-  held.position.copy(HEAD);
-  held.rotation.z = -0.1; // askew in her grip
+  held.position.set(...HEAD);
+  held.rotation.z = ROLL;
   body.add(held);
+  both(held, 'hands', { porcelain, nail });
   const head = new THREE.Group();
   held.add(head);
   const faceTex = paintFace();
   const glowTex = paintEyeGlow();
-  const faceMat = new THREE.MeshStandardMaterial({
+  const faceMat = new THREE.MeshPhysicalMaterial({
+    ...v,
     map: faceTex.tex,
     emissiveMap: glowTex.tex,
     emissive: 0xc8ffe0,
     emissiveIntensity: 0.9,
-    roughness: 0.3,
-    metalness: 0.03,
+    roughness: 0.28,
+    clearcoat: 1,
+    clearcoatRoughness: 0.12,
   });
-  const face = add(new THREE.Mesh(new THREE.SphereGeometry(HEAD_R, 48, 32), faceMat), head);
-  face.scale.copy(FACE_SCALE);
-  const nose = add(new THREE.Mesh(new THREE.ConeGeometry(0.0115, 0.034, 10), porcelain), head);
-  nose.rotation.x = Math.PI / 2 - 0.3;
-  nose.position.set(0, -0.012, HEAD_R * FACE_SCALE.z - 0.004);
-  // The turban: a swollen crown of oxblood cloth, wound in folds.
-  const turban = add(new THREE.Mesh(new THREE.SphereGeometry(0.09, 28, 18), crimson), head);
-  turban.scale.set(1.04, 0.92, 1.02);
-  turban.position.y = 0.135;
-  for (const [y, r, tilt, twist] of [
-    [0.095, 0.08, 0.16, 0.2],
-    [0.125, 0.078, -0.14, -0.3],
-    [0.16, 0.058, 0.25, 0.5],
-  ]) {
-    const fold = add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 8, 28), crimson), head);
-    fold.rotation.set(Math.PI / 2 + tilt, twist, 0);
-    fold.position.y = y;
-  }
-  // Wraps of cloth crossing the front, so it reads as wound, not as a cap.
-  for (const [y, rot] of [
-    [0.13, 0.55],
-    [0.12, -0.6],
-  ]) {
-    const wrap = add(new THREE.Mesh(new THREE.TorusGeometry(0.086, 0.016, 8, 28, Math.PI), crimson), head);
-    wrap.rotation.set(Math.PI / 2 - 0.5, 0, rot);
-    wrap.position.set(0, y, 0.012);
-  }
-  // A black band across the brow, set with green stones.
-  const band = add(new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.009, 8, 32, Math.PI * 1.1), soot), head);
-  band.rotation.set(Math.PI / 2 - 0.08, 0, Math.PI * 0.95);
-  band.position.y = 0.066;
+  both(head, 'head', { face: faceMat, nape: porcelain, soot, brass, ruby });
+  both(head, 'turban', { turban });
+  // Green stones set round the band.
   for (let i = -2; i <= 2; i++) {
-    const a = i * 0.32;
-    const gem = add(new THREE.Mesh(new THREE.OctahedronGeometry(i === 0 ? 0.008 : 0.0055), green), head);
-    gem.position.set(Math.sin(a) * 0.088, 0.066 + Math.abs(i) * 0.002, Math.cos(a) * 0.088);
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(i === 0 ? 0.0078 : 0.0056), green);
+    const [x, y, z] = bandPoint(i * 0.34);
+    gem.position.set(x, y, z);
+    gem.rotation.y = i * 0.34;
+    gem.scale.z = 0.62;
+    head.add(gem);
   }
-  // The brooch: gold, with a red jewel; black feathers fanned behind it.
-  const brooch = add(new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.027, 0.008, 24), brass), head);
-  brooch.rotation.x = Math.PI / 2 - 0.35;
-  brooch.position.set(0, 0.15, 0.083);
-  const setting = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.003, 6, 20), brass);
-  setting.rotation.x = -0.35;
-  setting.position.set(0, 0.15, 0.088);
-  head.add(setting);
-  const jewel = add(new THREE.Mesh(new THREE.SphereGeometry(0.015, 16, 12), ruby), head);
-  jewel.scale.z = 0.6;
-  jewel.position.set(0, 0.151, 0.09);
-  // Feathers: long dark leaves fanned up behind the brooch.
-  const leaf = new THREE.SphereGeometry(1, 12, 8);
-  for (let i = 0; i < 5; i++) {
-    const a = (i - 2) * 0.32;
-    const plume = add(new THREE.Mesh(leaf, feather), head);
-    plume.scale.set(0.017, 0.07, 0.004);
-    plume.position.set(Math.sin(a) * 0.065, 0.18 + Math.cos(a) * 0.055, 0.05 - Math.abs(a) * 0.03);
-    plume.rotation.set(-0.3, 0, -a);
-  }
-  // Gold hoops at her ears.
-  for (const sx of [-1, 1]) {
-    const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.011, 0.0022, 6, 16), brass);
-    hoop.rotation.y = Math.PI / 2;
-    hoop.position.set(sx * 0.082, -0.032, -0.005);
-    head.add(hoop);
+  // Feathers fanned up behind the brooch, black with a green-violet sheen.
+  const featherTex = paintFeather();
+  const feather = new THREE.MeshPhysicalMaterial({
+    color: 0x9a9a9a,
+    map: featherTex.tex,
+    alphaTest: 0.4,
+    side: THREE.DoubleSide,
+    roughness: 0.35,
+    iridescence: 0.7,
+    iridescenceIOR: 1.6,
+    iridescenceThicknessRange: [380, 640],
+  });
+  const fan = new THREE.Group();
+  fan.position.set(BROOCH[0], BROOCH[1] + 0.03, BROOCH[2] - 0.03);
+  fan.rotation.x = -0.25;
+  head.add(fan);
+  for (const [a, len, w, curl] of [[-0.78, 0.14, 0.017, 0.7], [-0.4, 0.175, 0.019, 0.6], [-0.08, 0.2, 0.02, 0.55], [0.26, 0.18, 0.019, 0.62], [0.62, 0.15, 0.017, 0.72]]) {
+    const plume = new THREE.Mesh(featherGeometry(len, w, curl), feather);
+    plume.rotation.set(0, a * 0.4, -a);
+    fan.add(plume);
   }
 
-  // ---- Motion --------------------------------------------------------------------------
+  // ---- Motion ----------------------------------------------------------------------------
   const tmp = new THREE.Vector3();
+  const here = new THREE.Vector3();
+  let far = false;
   let yaw = 0;
   let pitch = 0;
   let twitch = 0;
@@ -501,14 +448,28 @@ export function createZero({ brass }) {
    */
   function update(dt, t, { flare = 0, watch = null } = {}) {
     body.scale.y = 1 + Math.sin(t * 1.1) * 0.004; // the clockwork breathes
+    // Near or far (with a margin, so she does not flicker between the two).
+    if (watch) {
+      group.getWorldPosition(here);
+      const d = here.distanceTo(watch);
+      const next = far ? d > 3.6 : d > 4.2;
+      if (next !== far) {
+        far = next;
+        for (const [fine, rough] of pairs) {
+          fine.visible = !far;
+          rough.visible = far;
+        }
+      }
+    }
     // Her eyes hold a cold, uneven light, and blaze when she deals.
     faceMat.emissiveIntensity = 1.3 + 0.35 * Math.sin(t * 2.3) * Math.sin(t * 0.7) + flare * 1.8;
-    // The head turns to follow you, slowly, and never quite all the way.
+    // The head turns to follow you, slowly, and never quite all the way:
+    // little enough that her fingers stay on her cheeks.
     if (watch) {
       held.updateMatrixWorld();
       held.worldToLocal(tmp.copy(watch));
-      const wantYaw = THREE.MathUtils.clamp(Math.atan2(tmp.x, tmp.z), -0.7, 0.7);
-      const wantPitch = THREE.MathUtils.clamp(-Math.atan2(tmp.y, Math.hypot(tmp.x, tmp.z)), -0.45, 0.35);
+      const wantYaw = THREE.MathUtils.clamp(Math.atan2(tmp.x, tmp.z), -0.3, 0.3);
+      const wantPitch = THREE.MathUtils.clamp(-Math.atan2(tmp.y, Math.hypot(tmp.x, tmp.z)), -0.25, 0.2);
       const k = 1 - Math.exp(-dt * 0.9);
       yaw += (wantYaw - yaw) * k;
       pitch += (wantPitch - pitch) * k;
@@ -516,11 +477,9 @@ export function createZero({ brass }) {
     // A jolt when her eyes flare, then a slow, listening tilt.
     if (flare > 1.2 && twitch <= 0) twitch = 1;
     twitch = Math.max(0, twitch - dt * 1.8);
-    const jolt = Math.sin(twitch * 26) * twitch * 0.12;
-    head.rotation.set(pitch + Math.sin(t * 0.43) * 0.03, yaw + jolt, Math.sin(t * 0.29) * 0.06 + jolt * 0.5);
-    for (const [i, hand] of hands.entries()) hand.position.y = HEAD.y - 0.025 + Math.sin(t * 0.8 + i * 2) * 0.002;
+    const jolt = Math.sin(twitch * 26) * twitch * 0.08;
+    head.rotation.set(pitch + Math.sin(t * 0.43) * 0.025, yaw + jolt, Math.sin(t * 0.29) * 0.045 + jolt * 0.5);
   }
 
   return { group, update };
 }
-

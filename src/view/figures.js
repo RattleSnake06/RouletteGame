@@ -19,7 +19,9 @@ export function createFigures() {
   const group = new THREE.Group();
   group.name = 'figures';
   // One soot material per age, so older figures fade without a material each.
+  // The sculpt's baked shading (vertex colours) keeps their folds legible.
   const soot = Array.from({ length: SLOTS.length }, (_, i) => new THREE.MeshStandardMaterial({
+    vertexColors: true,
     color: 0x2b2724,
     emissive: 0x2e2822,
     roughness: 0.92,
@@ -30,7 +32,8 @@ export function createFigures() {
   let key = '';
 
   function make(i) {
-    const f = createFigure();
+    // Far off in the dark, the coarsest mesh is plenty.
+    const f = createFigure({ lod: 'far' });
     f.group.traverse((o) => {
       if (!o.isMesh) return;
       o.material = soot[i];

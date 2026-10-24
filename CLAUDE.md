@@ -107,7 +107,11 @@ the way deep into Endless: 83 talismans, 31 cards, 16 records. Player
 text is plain English (decision 34): say "paint gold", not "gild". **Ask the
 owner before building any new build or piece.** `npm run sim -- --bot
 builds` plays one bot per build (`--kit` hangs its core from the first
-spin). Next is Phase 9 (store releases). The best simulator bot at each
+spin). Next is Phase 9 (store releases). The people are sculpted
+(decision 35, doc 8.5): the figure and Madame Zero are distance fields in
+`src/view/shapes/`, meshed in a worker by `src/view/sculptCore.js` with baked
+occlusion, kept in IndexedDB, with far, preview and full meshes. Bump a
+shape's `version` when it changes. The best simulator bot at each
 debt pays debts 1–4 in about 97%, 71%, 49% and 15% of runs with a new
 player's pool (`--pool start`, decision 27's targets), and debts 5–8 in
 about 10%, 5%, 2% and 1% with everything open (the default pool, the
@@ -151,9 +155,10 @@ change.
 ## Conventions
 
 - ES modules, 2-space indentation, single quotes. Comments explain why, not what.
-- No image or audio files so far: textures are procedural (`src/view/textures.js`)
-  and sound is synthesised (`src/audio/audio.js`). Keep it that way unless agreed
-  otherwise.
+- No image, audio or model files so far: textures are procedural
+  (`src/view/textures.js`), sound is synthesised (`src/audio/audio.js`) and the
+  people are sculpted from distance fields (`src/view/shapes/`). Keep it that
+  way unless agreed otherwise.
 - Check visual changes with a real render, not just a build. Headless Chromium
   works with `--use-angle=swiftshader`. Software WebGL runs at about 1–4 fps, so
   anything timed per frame (camera moves, the ball) runs in slow motion there:
@@ -185,6 +190,10 @@ change.
 - **Per-frame animations run in slow motion** (each frame's step is capped at
   1/20 s): a newly hung charm takes a dozen frames to slide onto its hook, and
   the Devil's blackout and burn last far longer than in a real browser.
+- **The sculpted people arrive a few seconds after load** (longer in software
+  WebGL, where the worker competes with the renderer): they are invisible until
+  the first mesh lands. Wait for a mesh with a full-size index before judging
+  them, e.g. `stage.figure.group` holding a visible mesh with over 60,000 indices.
 - **Pipes hide exit codes:** `npm run smoke | tail` exits 0 even when the test
   fails. Read the last lines for "Smoke test passed." or check the exit code first.
 - **Useful page hooks** (dev build): `window.__roulette` has `game`, `rail`,

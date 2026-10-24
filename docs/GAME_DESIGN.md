@@ -1347,7 +1347,8 @@ zero cell splits, 00 beside 3 and 0 beside 1, with 2 between them.
 Every run that ends without stepping out of the light (collected by the
 Cage, or given up for a new one) leaves its figure: soot-grey silhouettes
 standing at the edge of the light on the far side of the wheel, facing it,
-out of the wide shot's line to the wheel (`view/figures.js`). The newest
+out of the wide shot's line to the wheel (`view/figures.js`; each is the
+sculpted figure, 8.5, on its coarsest mesh, in soot). The newest
 twelve stand there, older ones further out and fainter; on the first run a
 stranger already stands there. The Almanac's ledger gives each one's run:
 the debt, the chips, the wheel, the best spin, the rail and the cause
@@ -1441,7 +1442,24 @@ seams, with brows drawn down and a crescent moon on the brow. It wears an
 oxblood turban with a red jewel, black feathers and a band of green stones.
 Its eyes are blank and glow the House's green; they blaze when she deals,
 and the head jolts in her hands. It slowly turns to follow the player
-(`src/view/zero.js`, after the owner's reference image). Her lever
+(`src/view/zero.js`, after the owner's reference image). *Sculpted
+(decision 35):* she is modelled as distance fields (`view/shapes/zeroShape.js`):
+a long black satin skirt in deep folds; a boned corset pinched at the waist
+and pointed at the front, laced over it with oxblood ribbon through brass
+eyelets and tied in a bow; a crimson blouse gathered into a high neck that
+opens in a small scoop, trimmed with a black ruffle, its sleeves puffed and
+gathered at the shoulder and at a black cuff. Her forearms are porcelain on
+ball joints, ringed in brass at the wrist, and her hands press flat to the
+sides of the head with the fingers curled round the cheeks, nails lacquered
+black. The head is a porcelain doll's: blank domed eyes under heavy lids, a
+small nose, a bow of a mouth, the neck cut short and capped in brass. The face's
+paint (the liner, brows, moon, lips, seams and cracks) is drawn on a canvas
+mapped onto the sculpt, so it sits on the features, and only the eyes glow.
+The turban is wound in six swollen turns with two crossing the front, pleated
+under a scalloped gold brooch set with a ruby, the band of green stones on
+its edge, and five glossy black cock feathers rise behind it. The head turns
+less than before (a third of a radian), so her fingers stay on her cheeks.
+Her lever
 (red knob, brass bracket) is on the booth's right, with a tag giving the next
 pull's price. The three cards she deals slide out of a slot onto an easel
 along the plinth's front, tilted up to the eye. White cards are ivory with
@@ -1653,6 +1671,22 @@ bounces, never the result.
   the blocks.
 - Palette: black, bulb white, mahogany, brass, ivory, oxblood felt, number red and
   black, and green reserved for the House.
+- **The people are sculpted, not stacked** (decision 35). The figure and Madame
+  Zero are modelled as signed distance fields: smooth-blended shapes, folds and
+  creases written as functions (`view/shapes/`), meshed in the browser by
+  surface nets (`view/sculptCore.js`), so there are still no model files. Each
+  material is its own label, and a triangle that straddles two is cut along
+  the boundary, so a brace's edge or a hairline is a clean line. Every vertex
+  carries a colour baked from the field: ambient occlusion (the shade in a
+  fold, an armpit, a nostril) and soft tints the materials cannot give (the
+  figure's stubble and tired eyes). Cloth takes sheen, porcelain and leather
+  a clearcoat.
+  - *The figure* is a gambler waiting on the ball with his hands deep in his
+    pockets: a rumpled shirt with its sleeves rolled to the forearm and the
+    collar open over a loosened black tie, oxblood braces in a Y behind,
+    buttoned to pressed trousers that break over polished cap-toe shoes, dark
+    hair combed back, a day's stubble. His upper body breathes and sways, and
+    his head drifts on his neck, eyes on the wheel.
 
 ### 8.6 Audio
 
@@ -1755,6 +1789,10 @@ src/
     oddityArt.js  chalkboard.js        the Cabinet's oddity plaques, the stats chalkboard
     stations/       table, cage, cabinet, oracle, gramophone, boards, vault, figures
     camera.js       anchors and transitions
+    sculptCore.js   distance fields and the mesher (pure; worker-safe)
+    sculpt.js  sculptWorker.js   meshing off the main thread, kept in IndexedDB
+    shapes/         figureShape.js, zeroShape.js: the people as fields
+    figure.js  zero.js  figures.js   the figure, Madame Zero, the figures in the dark
     fx/             postfx (current), payout popups, sparks
   ui/               HUD, notes (tooltips), menus
   playback.js       plays a spin's events back (payout cascade)
@@ -2119,6 +2157,21 @@ play back strictly left to right. Every hook that changes something emits a
     bloom), Medium (up to 1.5) and Low, the phone preset (1, no shadows, no
     bloom, the floor painted at 1,024 px from the next launch). Holding 60 fps
     on a mid-range phone is still to be measured on a device (M2).
+  - *As built (decision 35):* the sculpted people are meshed in a worker
+    (`view/sculptWorker.js`), three meshes each, coarsest first (`STAGES` in
+    `sculptCore.js`: far, preview, full), and kept in IndexedDB beside the
+    floor, so a later launch only reads them (the development build meshes
+    afresh, since a shape changes there without its version). Meshing takes
+    about 0.3 s for the far mesh and 2.5 s for the full one per shape on a
+    desktop core; the meshes are invisible until the first arrives. Normals
+    and colours are kept as normalised integers and indices in 16 bits where
+    they fit. The full figure is about 165,000 triangles and Madame Zero about
+    200,000; the figure casts its shadow from the preview (about 19,000)
+    through an unseen proxy, leaves the camera's layer while it is ghosted in
+    first person, and the figures in the dark (about 11,000 each) and Madame
+    Zero across the hall (beyond 4 m) use the far mesh. A frame draws about
+    380,000 triangles in her view and 390,000 in the wide shot (100,000 and
+    170,000 before).
 - **Platform:** see 9.10.
 
 ### 9.10 Platforms: phones first, Steam second
@@ -2421,3 +2474,4 @@ Built (decision 30), in two halves:
 | 32 | Builds (synergies) | **Every build is named with its engine, its pieces and its endgame (6.8)**, at the owner's request, and **the owner approves each new build or piece before it is built.** Added: **the Pyre**, a sacrifice build (Kindling, Funeral Urn, Phoenix Feather, The Pyre; "Burn it all."; Requiem); and the piece each build lacked: "The table remembers." and Stride Piano (+1 Stake on splits, streets, corners and six-lines, straight-ups ×½) for inside lines, "Hot hands." for streaks, Bolero for zero, "A spare ball." and Pair of Dice for multi-ball, "Compound interest." (+3%, twice at most) and the Savings Book (+1% per debt paid, up to +5%) for interest, the Gold Tooth for tokens, the Pocket Calendar (a marked spin ×3) and "The night is young." for timing, the Hand Bell for the Bell, the Racing Form for sectors, Midnight Blues and the Raven Feather for black. **No Moneylender** (borrowing at the Cage), and no Midas, Glass or Collector builds. All chosen by the owner. Outcome after the simulator, nothing retuned: 97/71/49/15% at debts 1–4 (a new player's pool) and 9.6/5.7/2.7/1.4% at debts 5–8 (everything open). (6.1–6.3, 6.8, 9.8) |
 | 33 | The weak builds | **One legendary multiplier each for the Bell, Sectors, Zero and Timing**, after the simulator's build bots showed them with little of their own: **the Carillon** (chips +×1 for every ring answered this debt), **the Tote Board** (racetrack chips ×1 for each different racetrack bet with chips), **the Patience Jar** (+×0.5 for every spin since a green zero, paid on the next) and **the Grandfather Clock** (chips +×0.5 for every spin already played tonight), each opening with one of the Vault's locks (1 the Tote Board, 2 the Carillon, 3 the Patience Jar, 4 the Grandfather Clock) so a first run's Cabinet stays as tuned. **The interest build stays as it is**, the way deep into Endless. All chosen by the owner. Outcome after the simulator: the four kits pay debt 4 in 53–100% of runs (3–23% before); debts 5–8 at 9.5/4.6/2.4/1.2% with everything open (3,000 runs), inside the gentle tail; debts 1–4 unchanged. (6.1, 6.8, 7.1, 9.8) |
 | 34 | Plain words | **Player-facing text uses plain English and says directly what each thing does**, at the owner's request: "gild" reads as "paint gold" (a gold pocket, platinum when painted gold twice), "chisel" as remove, "stamp" as change a pocket's number, "+0.5 wide" as half a pocket wider, and the Bell talismans start "Ring the Bell (twice a debt):". Renamed: Gilder's Knife → **Gold Brush**, Usurer's Seal → **Moneylender's Seal**, Brass Shim → **Brass Wedge**, the Gilded pocket → **Gold**, the Gilded wheel → **Golden**, the Gilt engraving → **Rich**. Ids (`gild`, `gilded`, `gilt`, `usurers_seal`…) and the rules are unchanged, so saves carry over; this doc keeps "gild" for the wheel-work op. (6.1–6.7, 7.2) |
+| 35 | Sculpted people | **The figure and Madame Zero are sculpted from distance fields and meshed in the browser**, at the owner's request to make them look like 3D models rather than shapes: still no model files. The figure now stands with his hands in his pockets, in a loosened tie; Madame Zero keeps her look and the composition of the owner's reference (her head held at her waist, her hands to its sides), and her head turns a third of a radian at most. (8.1, 8.5, 9.9) |
