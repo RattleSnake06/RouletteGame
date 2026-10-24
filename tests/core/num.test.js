@@ -30,6 +30,17 @@ describe('money values', () => {
     expect(format(num('7.89e45'))).toBe('7.89e45');
   });
 
+  it('never rounds a subtraction above what it started from', () => {
+    // break_infinity keeps about 15 digits: 25981192920453587000 − 4270
+    // rounded up to 25981192920453600000, and banking "all but a night's
+    // cost" was refused for want of coins.
+    const coins = num('25981192920453587000');
+    const left = sub(coins, 4270);
+    expect(gte(coins, left)).toBe(true);
+    expect(gte(sub(coins, left), 0)).toBe(true);
+    expect(gte(add(coins, 4270), coins)).toBe(true);
+  });
+
   it('round-trips through JSON', () => {
     expect(deserialize(serialize(42))).toBe(42);
     const big = num('1.5e300');

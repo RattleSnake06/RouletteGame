@@ -29,14 +29,27 @@ export function num(x) {
   return norm(x);
 }
 
+// A Decimal keeps about 15 significant digits and rounds either way, so
+// 2.6e19 − 4,000 can come out above 2.6e19. Adding or taking away a positive
+// amount never goes the wrong way here, and taking away no more than there
+// is never leaves less than nothing: "bank all but a night's cost" must
+// always be affordable.
 export function add(a, b) {
   if (typeof a === 'number' && typeof b === 'number') return norm(a + b);
-  return norm(toDec(a).add(toDec(b)));
+  const da = toDec(a);
+  const db = toDec(b);
+  const r = da.add(db);
+  return norm(db.gte(0) && r.lt(da) ? da : r);
 }
 
 export function sub(a, b) {
   if (typeof a === 'number' && typeof b === 'number') return norm(a - b);
-  return norm(toDec(a).sub(toDec(b)));
+  const da = toDec(a);
+  const db = toDec(b);
+  let r = da.sub(db);
+  if (db.gte(0) && r.gt(da)) r = da;
+  if (da.gte(db) && r.lt(0)) r = new Decimal(0);
+  return norm(r);
 }
 
 export function mul(a, b) {
