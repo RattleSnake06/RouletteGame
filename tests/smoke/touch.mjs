@@ -118,11 +118,15 @@ try {
   check(await game(() => document.documentElement.classList.contains('touch')), 'a touch screen gets the touch layout');
   await layout('table', 'the table, first look');
 
-  // Fast spins, from the menu button.
+  // Fast spins, from the menu button and its Settings (Phase 8).
   await tapElement('.hud-menu');
   check((await state()).menu, 'the menu button opens the pause menu');
+  await cardButton('Settings');
   await cardButton('Fast spins');
   check(await game(() => window.__roulette.game.settings.fast), 'Fast spins switched on by touch');
+  await layout('table', 'Settings');
+  await cardButton('Done');
+  check((await state()).menu, 'Done goes back to the pause menu');
   await cardButton('Resume');
   check(!(await state()).menu, 'Resume closes it');
 
