@@ -23,9 +23,10 @@ const PAD_Z = 0.03; // a charm's tap pad, this far in front of it
 const HOOKS = 6;
 const MAX_HOOKS = 8;
 // Up to eight hooks keep a charm's full share (44 px on the smallest phone,
-// doc 9.10): the hooks spread out to the posts, and the plaques stand
-// outside them.
+// doc 9.10): the hooks spread out to the posts, and the plaques hang above
+// the bar at its ends, clear of the charms.
 const SPAN = 1.12;
+const PLAQUE_GLOW = 0.4;
 const stepFor = (hooks) => Math.min(HOOK_STEP, SPAN / Math.max(1, hooks - 1));
 
 function canvasTexture(w, h) {
@@ -169,9 +170,11 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     ['odds', 'ODDS', 1],
   ]) {
     const t = canvasTexture(256, 112);
-    const mat = new THREE.MeshStandardMaterial({ map: t.tex, metalness: 0.55, roughness: 0.45, emissive: 0xffd9a0, emissiveIntensity: 0 });
+    // Above the bar the table lamp misses them: a little light of their own,
+    // through their face, so the figures read against the dark wheel.
+    const mat = new THREE.MeshStandardMaterial({ map: t.tex, emissiveMap: t.tex, metalness: 0.55, roughness: 0.45, emissive: 0xffd9a0, emissiveIntensity: PLAQUE_GLOW });
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.05, 0.004), [brass, brass, brass, brass, mat, brass]);
-    plate.position.set(sx * (POST_X + 0.12), TOP + 0.075, RAIL_Z + 0.014);
+    plate.position.set(sx * (POST_X - 0.06), BAR_Y + 0.055, RAIL_Z + 0.014);
     plate.rotation.y = -sx * 0.18;
     plate.userData.role = 'plaque';
     plate.userData.plaque = key;
@@ -235,13 +238,14 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     // A charm is about 20 px on a phone: an invisible pad, as wide as its
     // hook's share of the rail, gives a finger room (doc 9.10). It hangs down
     // from the hook, never up over the wheel behind the rail, and a little in
-    // front, over the felt's bare far margin (never over a bet spot).
+    // front, over the felt's bare far margin (never over a bet spot). It
+    // reaches up to the bar, where nothing else takes a tap.
     const disc = new THREE.Box3().setFromObject(charm).getCenter(new THREE.Vector3());
-    const pad = new THREE.Mesh(new THREE.BoxGeometry(HOOK_STEP, 0.2, 0.01), new THREE.MeshBasicMaterial());
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(HOOK_STEP, 0.215, 0.01), new THREE.MeshBasicMaterial());
     pad.material.visible = false;
     // Touch only: with a mouse the Bell tag in front of it must stay clickable.
     pad.userData.touchOnly = true;
-    pad.position.set(disc.x, disc.y - 0.06, disc.z + PAD_Z);
+    pad.position.set(disc.x, disc.y - 0.0525, disc.z + PAD_Z);
     charm.add(pad);
     pivot.add(charm);
     group.add(pivot);
@@ -376,7 +380,7 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     }
     for (const p of Object.values(plaques)) {
       p.lit = Math.max(0, p.lit - dt * 1.5);
-      p.mat.emissiveIntensity = p.lit * 0.45;
+      p.mat.emissiveIntensity = PLAQUE_GLOW + p.lit * 0.45;
     }
     light.intensity = LIGHT * lightLevel;
   }
