@@ -2018,6 +2018,40 @@ play back strictly left to right. Every hook that changes something emits a
     0.7% at debts 5–8 with everything open): the Pyre itself is legendary
     and found in few runs, so the build's ceiling shows only in long runs
     and Endless.
+    *Each build alone (`--bot builds`, everything open, up to debt 14):*
+    a bot per build buys only its own pieces (plus Twin Mirrors, the
+    Tuning Fork and a little economy), takes its own cards and plays its
+    own records (1,000 runs); with `--kit` its four core talismans hang
+    from the first spin (500 runs), a finished build's ceiling. Share of
+    runs that pay debt 4 / debt 8 / debt 10, and the deepest debt paid:
+
+    | Build | Found in the Cabinet | Deepest | Kit from the start | Deepest |
+    |---|---|---|---|---|
+    | Colour (red) | 13 / 0.2 / 0% | 8 | 90 / 4 / 0% | 9 |
+    | Black | 17 / 0.5 / 0% | 9 | 99 / 5 / 0% | 9 |
+    | Chip value | 16 / 1.2 / 0.1% | 10 | 100 / 50 / 2% | 10 |
+    | Straight-ups | 7 / 0 / 0% | 6 | 58 / 0.2 / 0% | 8 |
+    | Streaks | 4 / 0.1 / 0% | 8 | 81 / 2 / 0% | 9 |
+    | Interest | 2.4 / 0.9 / 0.9% | 14 | 45 / 40 / 40% | 14 |
+    | Inside lines | 2 / 0 / 0% | 6 | 100 / 1.4 / 0% | 9 |
+    | Timing | 2 / 0 / 0% | 7 | 23 / 0 / 0% | 6 |
+    | Zero | 1.7 / 0 / 0% | 5 | 20 / 0 / 0% | 7 |
+    | Multi-ball | 1.6 / 0 / 0% | 7 | 83 / 1 / 0% | 8 |
+    | The Pyre | 0.8 / 0 / 0% | 6 | 74 / 7 / 0.2% | 10 |
+    | The Bell | 0.6 / 0 / 0% | 4 | 7 / 0 / 0% | 5 |
+    | Sectors | 0.5 / 0 / 0% | 5 | 3 / 0 / 0% | 5 |
+    | The Devil | 0.5 / 0 / 0% | 5 | 99 / 8 / 0% | 9 |
+    | Tokens | 0.2 / 0 / 0% | 4 | 83 / 18 / 5% | 10 |
+
+    No build alone reaches the 15–25% target at debt 4 when it must find
+    its pieces: the graded bots mix families. Interest is the one engine
+    that outgrows the debts: the Usurer's Seal doubles 18% to 36% a night,
+    and the Beckoning Cat pays three nights of that again when three chips
+    win, so the Cage grows about ×15–20 a debt, past debts 5–9 (×2–3 each)
+    and Endless's ×6 and ×12; it fades from debt 13. Once a finished
+    interest build pays debt 4, it pays debt 10 almost every time. The
+    Bell, Sectors, Zero and Timing kits have little multiplier of their
+    own and lean on another build.
     The starting wheels against the European, everything open (500 runs):
     Gilded 78/61/29% at debts 2–4, Bone 74/59/30%, Mirror 81/61/27%, all
     within a few points, and each inside the tail at debts 5–8 but the
