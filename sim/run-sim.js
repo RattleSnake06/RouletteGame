@@ -5,6 +5,8 @@
 //   npm run sim -- --runs 5000 --bot adaptive
 //   npm run sim -- --bot solo:glass_eye  one talisman from the first spin
 //   npm run sim -- --bot solo:brass_scales,string_of_pearls  several, left to right
+//   npm run sim -- --bot builds          one bot per build (doc 6.8); --bot build:pyre for one
+//   npm run sim -- --bot builds --kit    each build's core talismans hung from the first spin
 //   npm run sim -- --skip hamsa,mousetrap  bots never buy, take or play these (talismans,
 //                                       fortunes or records), to measure what they add
 //   npm run sim -- --no-oracle           bots never visit Madame Zero (no fortunes, no records)
@@ -54,6 +56,7 @@ const SKIP = typeof args.skip === 'string' ? args.skip.split(',') : [];
 for (const id of SKIP) if (!getTalisman(id) && !getFortune(id) && !getRecord(id) && !getOddity(id)) throw new Error(`--skip: no talisman, fortune, record or oddity ${id}`);
 const NO_ORACLE = !!args['no-oracle'];
 const NO_WHEEL = !!args['no-wheel'];
+const KIT = !!args.kit;
 // What a token is worth to a bot weighing wheel work (Bone pockets pay
 // tokens), in spins' cost; and how much more than its price wheel work must
 // promise over the spins ahead before a bot pays for it.
@@ -156,6 +159,10 @@ const LAYOUT = {
   // The racetrack (Phase 7): the sectors the Croupier's Glove opens, the Snake.
   sector: (i) => ['voisins', 'tiers', 'orphelins'][i % 3],
   snake: () => 'snake',
+  // The Racing Form or "Neighbours talk.": neighbours of numbers round the wheel.
+  neighbours: (i) => `neighbours:${STRAIGHTS[i % STRAIGHTS.length]}`,
+  // The zero build: one chip on zero, the rest on Red (Saint's Medal counts zero as both).
+  zeroRed: (i) => (i === 0 ? 'straight:0' : 'red'),
   // The Fortune Cookie: the first chip on the number it names, the rest spread.
   cookie: (i, k, s) => (i === 0 ? `straight:${cookieNumber(s)}` : LAYOUT.spread(i, k)),
 };
@@ -166,6 +173,7 @@ const owns = (s, id) => s.rail.some((t) => t.id === id);
 function layoutFor(s, fallback) {
   if (owns(s, 'croupiers_glove')) return 'sector';
   if (owns(s, 'snakeskin')) return 'snake';
+  if (owns(s, 'racing_form') || s.boons.some((b) => b.id === 'neighbours_talk')) return 'neighbours';
   if ((owns(s, 'brass_knuckles') || owns(s, 'surveyors_chain') || owns(s, 'table_map')) && !owns(s, 'horseshoe') && !owns(s, 'croupiers_rake')) return 'corner';
   if (owns(s, 'fortune_cookie') && !owns(s, 'horseshoe')) return 'cookie';
   if (owns(s, 'horseshoe') || owns(s, 'croupiers_rake') || owns(s, 'house_key')) return 'inside';
@@ -175,6 +183,9 @@ function layoutFor(s, fallback) {
   if (owns(s, 'black_cat') || owns(s, 'raven_feather')) return 'black';
   return fallback;
 }
+
+/** A build bot keeps its own layout; the others follow what their talismans reward. */
+const usualLayout = (s, bot) => (bot.keep ? bot.layout : layoutFor(s, bot.layout));
 
 /** Layouts worth weighing against the usual one, from what is on the rail. */
 function extraLayouts(s) {
@@ -277,7 +288,41 @@ const BOTS = {
   'greedy buyer': { layout: 'red', greedy: true, wants: () => TALISMANS.filter((d) => d.inCabinet).map((d) => d.id) },
 };
 
+// One bot per build (doc 6.8): its pieces first in the Cabinet, then the
+// talismans that amplify any engine and a little economy; its cards and
+// records first at Madame Zero. `kit` is the build's core, hung from the
+// first spin with --kit, to see how far a finished build goes.
+const AMPLIFY = ['twin_mirrors', 'tuning_fork'];
+const ECONOMY_TAIL = ['pawn_ticket', 'grandmothers_purse', 'lucky_penny', 'wishbone', 'crumpled_receipt', 'lost_wallet'];
+const BUILDS = {
+  colour: { layout: 'red', pieces: ['loaded_wheel', 'rose_brooch', 'saints_medal', 'red_ribbon', 'domino', 'ledger', 'matchbook'], cards: ['reds_run_warm', 'outside_safe'], records: ['red_light_tango'], kit: ['red_ribbon', 'saints_medal', 'rose_brooch', 'domino'] },
+  black: { layout: 'black', pieces: ['rose_brooch', 'black_cat', 'raven_feather', 'saints_medal', 'domino', 'ledger', 'matchbook'], cards: ['blacks_run_cold', 'outside_safe'], records: ['midnight_blues'], kit: ['black_cat', 'raven_feather', 'saints_medal', 'rose_brooch'] },
+  straights: { layout: 'spread', pieces: ['metronome', 'compass', 'rabbits_foot', 'lodestone', 'fortune_cookie', 'weathervane', 'dowsing_rod', 'horseshoe', 'pocket_watch', 'hamsa', 'four_leaf_clover', 'wind_up_key', 'croupiers_rake'], cards: ['fortune_bold'], black: ['ask_figures'], records: ['carousel'], kit: ['compass', 'rabbits_foot', 'lodestone', 'horseshoe'] },
+  inside: { layout: 'corner', pieces: ['surveyors_chain', 'brass_knuckles', 'table_map', 'house_key', 'mousetrap', 'wheel_of_fortune', 'lucky_penny', 'ledger'], cards: ['table_remembers'], records: ['stride_piano'], kit: ['surveyors_chain', 'brass_knuckles', 'table_map', 'mousetrap'] },
+  sectors: { layout: 'outside', keep: false, pieces: ['croupiers_glove', 'snakeskin', 'racing_form', 'number_punches', 'mirror_shard', 'gilders_knife', 'croupiers_rake', 'brass_scales'], cards: ['neighbours_talk', 'gold_finds_gold'], black: ['break_the_wheel'], records: ['habanera'], kit: ['croupiers_glove', 'mirror_shard', 'gilders_knife', 'number_punches'] },
+  streaks: { layout: 'red', pieces: ['hot_coals', 'ouroboros', 'rose_brooch', 'tally_stick', 'mousetrap', 'ledger', 'abacus'], cards: ['hot_hands'], records: ['boogie_woogie'], kit: ['hot_coals', 'tally_stick', 'rose_brooch', 'mousetrap'] },
+  zero: { layout: 'zeroRed', pieces: ['house_key', 'zeros_coin', 'saints_medal', 'green_thread'], cards: ['zero_smiles'], black: ['feed_zero'], records: ['bolero'], kit: ['house_key', 'zeros_coin', 'saints_medal', 'green_thread'] },
+  multiball: { layout: 'red', pieces: ['bag_of_marbles', 'ivory_ball', 'pair_of_dice', 'jugglers_ball', 'marble'], cards: ['twin_ball', 'spare_ball'], records: ['two_step'], kit: ['bag_of_marbles', 'ivory_ball', 'pair_of_dice', 'jugglers_ball'] },
+  interest: { layout: 'red', pieces: ['grandmothers_purse', 'pawn_ticket', 'savings_book', 'usurers_seal', 'beckoning_cat'], cards: ['compound_interest'], records: ['danse_macabre'], kit: ['grandmothers_purse', 'pawn_ticket', 'savings_book', 'usurers_seal'] },
+  // Tokens: no economy tail, which would spend the hoard the Gold Tooth reads.
+  tokens: { layout: 'red', pieces: ['gold_tooth', 'magpie', 'zeros_coin', 'crumpled_receipt'], tail: [], cards: ['stranger_tips', 'cabinet_owes'], records: ['funeral_march'], kit: ['gold_tooth', 'magpie', 'crumpled_receipt', 'zeros_coin'] },
+  devil: { layout: 'red', pieces: ['golden_ball', 'brimstone', 'evil_eye', 'holy_water', 'salt_cellar'], black: ['roll_bones', 'devils_hand'], records: ['lullaby_for_zero', 'overture_of_excess'], kit: ['golden_ball', 'brimstone', 'bone_dice', 'evil_eye'] },
+  timing: { layout: 'red', pieces: ['metronome', 'pocket_calendar', 'weathervane', 'pocket_watch', 'hamsa', 'hourglass', 'marble', 'jugglers_ball'], cards: ['night_is_young'], black: ['candle'], records: ['nocturne'], kit: ['pocket_calendar', 'weathervane', 'metronome', 'hourglass'] },
+  bell: { layout: 'red', pieces: ['glass_eye', 'wheel_of_fortune', 'piggy_bank', 'dowsing_rod', 'number_punches', 'hand_bell'], cards: ['bell_rings_twice'], kit: ['glass_eye', 'wheel_of_fortune', 'dowsing_rod', 'hand_bell'] },
+  chips: { layout: 'even', pieces: ['string_of_pearls', 'matchbook', 'domino', 'magpie', 'brass_scales'], cards: ['outside_safe'], kit: ['string_of_pearls', 'matchbook', 'domino', 'brass_scales'] },
+  pyre: { layout: 'red', burns: true, pieces: ['the_pyre', 'phoenix_feather', 'funeral_urn', 'kindling'], records: ['requiem'], kit: ['the_pyre', 'funeral_urn', 'phoenix_feather', 'kindling'] },
+};
+const buildBot = (b) => {
+  const list = [...b.pieces, ...AMPLIFY, ...(b.tail ?? ECONOMY_TAIL).filter((id) => !b.pieces.includes(id))];
+  return { leans: true, keep: b.keep ?? true, ...b, wants: (s) => withSafety(s, list) };
+};
+
 function botFor(name) {
+  if (name.startsWith('build:')) {
+    const b = BUILDS[name.slice(6)];
+    if (!b) throw new Error(`No build ${name.slice(6)} (${Object.keys(BUILDS).join(', ')})`);
+    return buildBot(b);
+  }
   if (name === 'solo:none') return { layout: 'red', leans: true, wants: () => [] };
   if (name.startsWith('solo:')) {
     // solo:a,b hangs several from the first spin, left to right.
@@ -323,7 +368,7 @@ function nudgedEv(s, layout, luck) {
  */
 function chooseLayout(s, bot) {
   if (bot.layout === 'spread') return 'spread';
-  const usual = layoutFor(s, bot.layout);
+  const usual = usualLayout(s, bot);
   if (!bot.leans) return usual;
   const luck = nudgeFor(s);
   const options = [...new Set([usual, ...extraLayouts(s), ...(luck.total >= 1 ? ['spread'] : [])])];
@@ -384,6 +429,7 @@ function shop(s, bot, log) {
       break;
     }
     if (bought) {
+      s = sealLast(s);
       if (bot.burns || owns(s, 'the_pyre')) for (const t of s.rail.filter((t) => FUEL.includes(t.id))) s = step(s, { type: 'sell', uid: t.uid }, log);
       s = arrangeMirrors(s, list);
       continue;
@@ -399,6 +445,13 @@ function shop(s, bot, log) {
     return s;
   }
   return s;
+}
+
+/** The Usurer's Seal doubles the interest to its left, so it hangs last. */
+function sealLast(s) {
+  const seal = s.rail.find((t) => t.id === 'usurers_seal');
+  if (!seal || s.rail.at(-1) === seal) return s;
+  return step(s, { type: 'moveTalisman', uid: seal.uid, to: s.rail.length - 1 });
 }
 
 /** Twin Mirrors hangs just left of the best talisman it can copy. */
@@ -561,7 +614,7 @@ function wheelShop(s, bot, log) {
   const price = toNumber(offer.price);
   if (lt(sub(s.coins, offer.price), costOf(s, 'long'))) return s;
   const ctx = { tokenCoins: toNumber(spinCost(s)) * TOKEN_SPINS, horizon: spinsAhead(s) };
-  const layout = layoutFor(s, bot.layout);
+  const layout = usualLayout(s, bot);
   let probe = { ...copyRun(s), placements: placementsFor(s, layout) };
   // A record: bought when it is one the bot would rather play than what it has.
   if (offer.record) {
@@ -600,7 +653,7 @@ function wheelShop(s, bot, log) {
  */
 function punch(s, bot, log, inst) {
   const tokenCoins = toNumber(spinCost(s)) * TOKEN_SPINS;
-  let probe = { ...copyRun(s), placements: placementsFor(s, layoutFor(s, bot.layout)) };
+  let probe = { ...copyRun(s), placements: placementsFor(s, usualLayout(s, bot)) };
   const targets = [];
   for (let k = 0; k < 3; k++) {
     const { pay, w } = payVector(probe, tokenCoins);
@@ -643,11 +696,12 @@ const RECORD_RANK = {
 };
 // The Pyre plays Requiem first, for its sales.
 const ranksFor = (s, bot) => {
-  const list = RECORD_RANK[recordFamily(s, bot)];
+  const list = RECORD_RANK[recordFamily(s, bot)] ?? RECORD_RANK.red;
+  if (bot.records) return [...bot.records, ...list.filter((id) => !bot.records.includes(id))];
   return bot.burns ? ['requiem', ...list] : list;
 };
 const recordFamily = (s, bot) => {
-  const layout = layoutFor(s, bot.layout);
+  const layout = usualLayout(s, bot);
   if (layout === 'corner') return 'lines';
   return layout === 'red' || layout === 'black' ? layout : layout === 'inside' || layout === 'spread' ? 'inside' : 'outside';
 };
@@ -671,8 +725,9 @@ function visitOracle(s, bot, log) {
     const list = (v.kind === 'black' ? BLACK_RANK : WHITE_RANK).filter(notSkipped);
     // Each family's own card first: levels for the bets it makes, paint for red.
     const family = recordFamily(s, bot);
-    const own = { red: ['outside_safe', 'reds_run_warm'], black: ['outside_safe', 'blacks_run_cold'], outside: ['outside_safe'], inside: ['fortune_bold'], lines: ['table_remembers'] }[family];
-    const order = v.kind === 'white' ? [...own.filter(notSkipped), ...list.filter((id) => !own.includes(id))] : list;
+    const own = bot.cards ?? { red: ['outside_safe', 'reds_run_warm'], black: ['outside_safe', 'blacks_run_cold'], outside: ['outside_safe'], inside: ['fortune_bold'], lines: ['table_remembers'] }[family] ?? [];
+    const dark = bot.black ?? [];
+    const order = v.kind === 'white' ? [...own.filter(notSkipped), ...list.filter((id) => !own.includes(id))] : [...dark.filter(notSkipped), ...list.filter((id) => !dark.includes(id))];
     return v.cards.filter((c) => c.takeable && order.includes(c.id)).sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))[0] ?? null;
   };
   let pick = rank(oracleView(s));
@@ -710,6 +765,7 @@ function newMetrics() {
 function playRun(seed, bot, m, picks, firstPicks) {
   let s = createRun({ seed, chipSet: CHIPS, wheel: WHEEL, edge: EDGE, locks: LOCKS, figures: FIGURES, opened: OPENED });
   for (const id of bot.solo ?? []) s = grantTalisman(s, id);
+  if (KIT) for (const id of bot.kit ?? []) s = grantTalisman(s, id);
   m.dry = 0; // a miss streak never carries over from the last run
   let first = true;
   const log = (events) => {
@@ -796,17 +852,19 @@ function runBot(name) {
   const picks = {};
   const firstPicks = {};
   let owned = 0;
+  let deepest = 0;
   for (let i = 0; i < RUNS; i++) {
     const end = playRun(`SIM-${i}`, bot, m, picks, firstPicks);
     for (let d = 1; d <= end.stats.debtsPaid && d <= MAX_DEBT; d++) paid[d] += 1;
+    deepest = Math.max(deepest, end.stats.debtsPaid);
     owned += end.rail.length;
   }
-  return { name, paid, m, picks, firstPicks, owned: owned / RUNS };
+  return { name, paid, m, picks, firstPicks, owned: owned / RUNS, deepest };
 }
 
 // --- Report -----------------------------------------------------------------
 
-const names = args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
+const names = args.bot === 'builds' ? Object.keys(BUILDS).map((b) => `build:${b}`) : args.bot && args.bot !== true ? [args.bot] : Object.keys(BOTS);
 const setup = [`${getMaterial(CHIPS).name} chips`, `${getStartingWheel(WHEEL).name} wheel`, POOL === 'start' ? 'a new player\'s pool' : null, EDGE ? `House Edge ${EDGE}` : null, LOCKS ? `${LOCKS} locks` : null, FIGURES ? `${FIGURES} figures` : null].filter(Boolean).join(' · ');
 console.log(`${RUNS} runs per bot · Phase 7 rules (talismans, Cabinet, Bell, Leans, pity, Nudge, the Devil, Madame Zero, records, engravings, wheel work) · ${setup}${TEMPO ? ' · tempo' : ''}${NO_WHEEL ? ' · no wheel work' : ''}\n`);
 const header = ['bot'.padEnd(18), ...Array.from({ length: MAX_DEBT }, (_, i) => `debt ${i + 1}`.padStart(8)), '  items', ' pay%', ' juice', ' dry', ' bells', ' restock', ' leans', ' hops', ' devil'];
@@ -830,6 +888,8 @@ for (const r of results) {
     ].join(' '),
   );
 }
+
+console.log(`\nDeepest debt paid in any run: ${results.map((r) => `${r.name} ${r.deepest}`).join(' · ')}`);
 
 // The targets are for the best bot (doc 9.8): at each debt, the best of the
 // bots that play the House's luck, whichever that is.
