@@ -85,8 +85,9 @@ function drawNightCard(ctx, { id, cost, affordable, key, spins }) {
   const seed = 300 + key * 7;
   drawKey(ctx, String(key), seed);
   scrawlText(ctx, pkg.name, 172, 100, 44, INK.bone, { maxWidth: 270 });
-  paintSwipe(ctx, 76, 166, 210, 96, seed + 1, INK.bloodDeep, { slope: -0.06 });
-  scrawlText(ctx, String(spins), 186, 216, 112, INK.bone);
+  // The swipe is a bed under the numeral's foot, not a bar across it.
+  paintSwipe(ctx, 76, 222, 210, 62, seed + 1, INK.bloodDeep, { slope: -0.06 });
+  scrawlText(ctx, String(spins), 186, 216, 112, INK.bone, { edge: INK.soot });
   ctx.font = typedFont(34);
   ctx.fillStyle = INK.bone;
   ctx.fillText(spins === 1 ? 'spin' : 'spins', 180, 304);
@@ -117,8 +118,8 @@ function drawNightCard(ctx, { id, cost, affordable, key, spins }) {
 function drawEndCard(ctx, { line }) {
   drawKey(ctx, 'E', 391);
   scrawlText(ctx, 'End the', 180, 150, 50, INK.bone);
-  paintSwipe(ctx, 74, 186, 216, 70, 393, INK.bloodDeep, { slope: -0.05 });
-  scrawlText(ctx, 'night', 182, 216, 58, INK.bone);
+  paintSwipe(ctx, 74, 212, 216, 48, 393, INK.bloodDeep, { slope: -0.05 });
+  scrawlText(ctx, 'night', 182, 216, 58, INK.bone, { edge: INK.soot });
   ctx.fillStyle = INK.bone;
   ctx.font = typedFont(30);
   wrapText(ctx, line, 180, 318, 300, 38);
@@ -323,15 +324,17 @@ export function createTable({ materials, interaction, callbacks }) {
   placard.group.rotation.set(-0.35, -0.55, 0, 'YXZ');
   group.add(placard.group);
 
-  // The Almanac lies at the near edge, between the Bell and the chip tray (doc 7.4).
+  // The Almanac lies at the near edge between the Bell and the night cards
+  // (doc 7.4), clear of the cards' feet and the armrest.
   const almanac = createAlmanacBook({
     interaction,
     enabled: () => !locked,
     onOpen: () => callbacks.onAlmanac?.(),
     onHover: (on, ev) => callbacks.onHoverAlmanac?.(on, ev),
   });
-  almanac.group.position.set(-0.13, TOP_Y, 0.235);
-  almanac.group.rotation.y = 0.32;
+  almanac.group.position.set(-0.41, TOP_Y, 0.2);
+  almanac.group.rotation.y = 0.12;
+  almanac.group.scale.setScalar(0.88);
   group.add(almanac.group);
 
   board.userData.role = 'board';

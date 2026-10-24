@@ -10,9 +10,16 @@ export const scrawlFont = (px) => `${px}px ${SCRAWL}`;
 export const typedFont = (px) => `${px}px ${TYPED}`;
 
 /** Scrawled words, thickened with a stroke of their own colour. */
-export function scrawlText(ctx, text, x, y, px, color, { maxWidth } = {}) {
+export function scrawlText(ctx, text, x, y, px, color, { maxWidth, edge } = {}) {
   ctx.save();
   ctx.font = scrawlFont(px);
+  // A dark edge first, for words that sit on a swipe of paint.
+  if (edge) {
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = px * 0.2;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(text, x, y, maxWidth);
+  }
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
   ctx.lineWidth = px * 0.09;

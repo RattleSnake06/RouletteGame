@@ -175,6 +175,27 @@ img.mark {
   position: relative;
 }
 
+/* A swipe is a bed of paint under its words: below them in the stacking order
+   (a transform would otherwise lift it over them), and the words on it are
+   solid, since the grain's streaks let the red show through as lines. */
+.coins-row,
+.hud-payout,
+.modal-btn.primary {
+  isolation: isolate;
+}
+
+.coins-swipe,
+.payout-swipe,
+.modal-btn.primary .swipe {
+  z-index: -1;
+}
+
+.coins-num.grain,
+.hud-payout .v.grain {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 .coins-swipe {
   position: absolute;
   left: 0.44em;
@@ -1677,11 +1698,6 @@ html.text-large .hud-tip .tip-text {
   }
 }
 
-.ts-swipe {
-  font-size: calc(46 * var(--u));
-  margin-top: calc(-34 * var(--u)) !important;
-  opacity: 0.85;
-}
 
 /* Her whisper, low in the corner, one line at a time. */
 .ts-whisper {
@@ -1880,14 +1896,6 @@ html.text-large .hud-tip .tip-text {
   font-size: calc(54 * var(--u));
 }
 
-.ts-begin .ts-begin-swipe {
-  position: absolute;
-  left: -0.4em;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: calc(40 * var(--u));
-  z-index: -1;
-}
 
 .ts-back .label {
   font-size: calc(32 * var(--u));

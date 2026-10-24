@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // the table. Ringing it wakes the next talisman in line that can answer.
 // Table-local coordinates, like the rail: the table top is at y 0.95.
 
-const POS = new THREE.Vector3(-0.47, 0.95, 0.23);
+const POS = new THREE.Vector3(-0.555, 0.95, 0.23);
 
 export function createBell({ materials, interaction, callbacks = {} }) {
   const group = new THREE.Group();

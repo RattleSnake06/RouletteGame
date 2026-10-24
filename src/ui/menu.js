@@ -1,5 +1,5 @@
 import { paintChipFace } from './chipLook.js';
-import { INK, lineMark, markImg, oldTallies, swipeMark } from './marks.js';
+import { INK, lineMark, markImg, oldTallies } from './marks.js';
 
 // The main menu and the chip select (design doc 7.5, decision 26). They lie
 // over the hall in near darkness: the 3D room stays behind them, with Madame
@@ -79,14 +79,14 @@ export function createMainMenu(handlers) {
   // ---- The main menu ---------------------------------------------------------------
   const main = el('div', 'ts-main');
   const title = el('h1', 'ts-title scrawl fat', '<span>Rien ne va</span> <span class="blood">plus.</span>');
-  const swipe = markImg(swipeMark(900, 120, 66, INK.bloodDeep, { slope: -0.02 }), 'ts-swipe', 0.0125);
   const whisper = el('p', 'ts-whisper typed', WHISPERS[0]);
   const nav = el('nav', 'ts-menu');
   const item = (label, onClick) => {
     const b = el('button', 'ts-item');
     b.type = 'button';
     b.append(el('span', 'label scrawl fat', label), el('span', 'sub typed'));
-    b.append(markImg(lineMark(160, 14, label.length * 7, INK.blood, 3, { y0: 9, y1: 5, stretch: true }), 'ts-mark'));
+    // The hover and focus mark: bone, not red (the menu carries no red lines).
+    b.append(markImg(lineMark(160, 14, label.length * 7, INK.bone, 3, { y0: 9, y1: 5, stretch: true }), 'ts-mark'));
     b.addEventListener('click', onClick);
     nav.append(b);
     return b;
@@ -96,7 +96,7 @@ export function createMainMenu(handlers) {
   item('Info', () => handlers.onInfo?.());
   item('Almanac', () => handlers.onAlmanac?.());
   item('Settings', () => handlers.onSettings?.());
-  main.append(title, swipe, whisper, nav);
+  main.append(title, whisper, nav);
 
   // ---- The chip select -------------------------------------------------------------------
   const chips = el('div', 'ts-chips');
@@ -113,7 +113,6 @@ export function createMainMenu(handlers) {
   const begin = el('button', 'ts-item ts-begin');
   begin.type = 'button';
   begin.append(el('span', 'label scrawl fat', 'Begin'), el('span', 'sub typed'));
-  begin.append(markImg(swipeMark(420, 110, 71, INK.bloodDeep, { slope: -0.03 }), 'ts-begin-swipe', 0.0125));
   const chooser = (onClick) => {
     const b = el('button', 'ts-item ts-pick');
     b.type = 'button';

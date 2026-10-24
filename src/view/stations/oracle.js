@@ -25,8 +25,10 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const PLINTH = { w: 0.86, h: 0.82, d: 0.56 };
 const CASE = { w: 0.82, d: 0.5, y0: 0.85, y1: 1.78 };
 const ROOF_Y = 1.86;
-// The easel the cards stand on, along the plinth's front.
-const EASEL = { y: PLINTH.h + 0.015, z: PLINTH.d / 2 + 0.07, tilt: deg(30) };
+// The easel the cards stand on, along the plinth's front: upright enough,
+// and far enough out, that the outer cards' tops stay clear of the case's
+// corner posts (z ≤ CASE.d / 2).
+const EASEL = { y: PLINTH.h + 0.015, z: PLINTH.d / 2 + 0.11, tilt: deg(20) };
 const CARD = { w: 0.25, h: 0.34, gap: 0.04, px: 512 };
 const cardX = (i) => (i - 1) * (CARD.w + CARD.gap);
 // The slot the cards come out of, on the plinth's front under the glass.
