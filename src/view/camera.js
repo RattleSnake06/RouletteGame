@@ -17,8 +17,12 @@ export class CameraDirector {
     this._dummy = new THREE.PerspectiveCamera();
   }
 
-  /** Define or update an anchor. `kind` is 'eye' (first person) or 'wide'. */
-  setAnchor(name, { position, target, fov, kind = 'eye' }) {
+  /**
+   * Define or update an anchor. `kind` is 'eye' (first person) or 'wide';
+   * `figure` says the player's own figure is in the shot (the wide shot, the
+   * menu), not around the camera.
+   */
+  setAnchor(name, { position, target, fov, kind = 'eye', figure = kind === 'wide' }) {
     this._dummy.position.copy(position);
     this._dummy.lookAt(target);
     this.anchors.set(name, {
@@ -26,13 +30,30 @@ export class CameraDirector {
       quaternion: this._dummy.quaternion.clone(),
       fov,
       kind,
+      figure,
     });
+  }
+
+  /**
+   * Whether the player's figure should show: at an anchor that has it in the
+   * shot, from part of the way there, and until most of the way back to the
+   * eyes. It follows the camera itself, so a move cut short by another can
+   * never leave the camera inside the figure, or the figure gone from above.
+   */
+  seesFigure() {
+    const toFigure = !!this.anchors.get(this.current)?.figure;
+    const tw = this.tween;
+    if (!tw || tw.fromFigure === toFigure) return toFigure;
+    const e = easeInOut(tw.t);
+    return toFigure ? e > 0.3 : e <= 0.72;
   }
 
   /** Move to an anchor. Resolves on arrival. `onProgress(e)` gets 0..1. */
   goTo(name, { duration = 0.75, cut = false, onProgress } = {}) {
     const to = this.anchors.get(name);
     if (!to) throw new Error(`No camera anchor: ${name}`);
+    // Whether the figure showed as this move begins (mid-move, if it cuts another short).
+    const fromFigure = this.seesFigure();
     if (this.tween) this.tween.resolve();
     this.current = name;
     if (cut || this.reducedMotion || duration <= 0) {
@@ -53,6 +74,7 @@ export class CameraDirector {
         duration,
         onProgress,
         resolve,
+        fromFigure,
       };
     });
   }

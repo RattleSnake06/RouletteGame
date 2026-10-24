@@ -345,14 +345,10 @@ async function init() {
   // (for testing and sharing a seed), as it always has.
   game.boot();
   director.goTo('wide', { cut: true });
-  stage.setFigureGhost(false);
   if (!new URLSearchParams(window.location.search).get('seed')) game.showMainMenu({ cut: true });
   setTimeout(() => {
     if (director.current !== 'wide' || game.busy) return;
-    director.goTo(game.view, {
-      duration: 1.8,
-      onProgress: (e) => e > 0.75 && stage.setFigureGhost(true),
-    });
+    director.goTo(game.view, { duration: 1.8 });
     // The establishing shot shows the wheel lit; at the table it sinks into the dark.
     lighting.set(game.view);
   }, 1700);
@@ -419,6 +415,8 @@ async function init() {
 
     if (director.current === 'wide') director.parallax.lerp(spin.pointer, 1 - Math.exp(-dt * 1.5));
     director.update(dt, t);
+    // Your own figure shows only where the camera has it in the shot (camera.js).
+    stage.setFigureGhost(!director.seesFigure());
 
     const fade = Math.max(0, 1 - t / 1.4);
     post.render(t, fade * fade);

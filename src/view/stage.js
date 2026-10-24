@@ -76,7 +76,10 @@ export function createStage(canvas, { floorPixels } = {}) {
   // so the meshes themselves can leave the camera's layer altogether.
   const figureMeshes = [];
   figure.group.traverse((o) => o.isMesh && !o.userData.shadowProxy && figureMeshes.push(o));
+  let ghosted = null;
   function setFigureGhost(ghost) {
+    if (ghost === ghosted) return;
+    ghosted = ghost;
     for (const m of figureMeshes) m.layers.set(ghost ? 1 : 0);
   }
 
@@ -142,7 +145,7 @@ export function createStage(canvas, { floorPixels } = {}) {
       // The main menu: her booth from the dark, off to the right of the words.
       const menuAt = oracle.group.localToWorld(new THREE.Vector3(0.15, 1.36, 2.35));
       const menuLook = oracle.group.localToWorld(new THREE.Vector3(-0.75, 1.3, 0));
-      anchors.menu = { position: menuAt, target: menuLook, fov: THREE.MathUtils.radToDeg(Math.max(deg(40), vfovOf(deg(64), aspect))), kind: 'eye' };
+      anchors.menu = { position: menuAt, target: menuLook, fov: THREE.MathUtils.radToDeg(Math.max(deg(40), vfovOf(deg(64), aspect))), kind: 'eye', figure: true };
     }
     if (cabinet) {
       // Lean in over the counter so the price tags read on a small screen.

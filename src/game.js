@@ -341,7 +341,6 @@ export class Game {
     this.atMenu = true;
     this.setLocked(true);
     this.hud.root.classList.remove('show');
-    this.stage.setFigureGhost(false);
     this.director.goTo('menu', { duration: 1.4, cut });
     this.lighting.set('menu');
     this.menu.show({ cont: this.continueLine() });
@@ -355,7 +354,7 @@ export class Game {
     this.hud.root.classList.add('show');
     this.view = 'table';
     this.hud.setView('table');
-    this.director.goTo('table', { duration: 1.6, onProgress: (e) => e > 0.75 && this.stage.setFigureGhost(true) });
+    this.director.goTo('table', { duration: 1.6 });
     this.lighting.set('table');
     this.syncAll();
   }
@@ -763,7 +762,7 @@ export class Game {
     this.hud.setView(view);
     // The Cabinet is a longer turn than the Cage.
     // Every station is seen through your eyes: your figure fades (after the wheel-work shot from above).
-    this.director.goTo(view, { duration: view === 'cabinet' || this.director.current === 'cabinet' ? 0.75 : 0.6, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
+    this.director.goTo(view, { duration: view === 'cabinet' || this.director.current === 'cabinet' ? 0.75 : 0.6 });
     if (!this.busy) this.lighting.set(view);
     if (view === 'cabinet') this.seen.add('cabinet');
     this.updateHint();
@@ -1969,7 +1968,7 @@ export class Game {
     this.view = view;
     this.hud.setView(view);
     this.lighting.set(view);
-    this.director.goTo(view, { duration: 0.6, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
+    this.director.goTo(view, { duration: 0.6 });
     this.updateHint();
     this.updateNav();
   }
@@ -1992,7 +1991,7 @@ export class Game {
     // The wheel's bulb comes up, as for a spin, so the work shows.
     if (this.lighting.set('spin')) this.audio.clunk();
     // From above you see yourself at the table, as in a spin.
-    this.director.goTo('wide', { duration: 0.6, onProgress: (e) => e > 0.3 && this.stage.setFigureGhost(false) });
+    this.director.goTo('wide', { duration: 0.6 });
     this.hud.flavor([[workLine(works), 'bone']], 2200);
     const id = this.runId;
     clearTimeout(this.workTimer);
@@ -2215,7 +2214,6 @@ export class Game {
     const detail = events.filter((e) => e.type !== 'spin');
     const fast = this.settings.fast;
     // A spin from the close-up: the wheel has to be in view.
-    const fromFelt = this.feltZoom;
     this.leaveFelt();
     this.syncSpins();
     this.updateHint();
@@ -2233,9 +2231,10 @@ export class Game {
     this.hud.setView('table');
     if (!fast) {
       this.view = 'table';
-      this.director.goTo('wide', { duration: 1.0, onProgress: (e) => e > 0.3 && this.stage.setFigureGhost(false) });
-    } else if (this.view !== 'table' || fromFelt) {
-      // Fast spins skip the wide shot, so they must be watched from the table.
+      this.director.goTo('wide', { duration: 1.0 });
+    } else if (this.director.current !== 'table') {
+      // Fast spins skip the wide shot, so they must be watched from the
+      // table: from a station, the close-up, or wheel work seen from above.
       this.view = 'table';
       this.director.goTo('table', { duration: 0.4 });
     }
@@ -2332,7 +2331,7 @@ export class Game {
     // Attention returns to the felt; the wheel fades back into the dark slowly.
     this.lighting.set('table');
     if (!fast) {
-      await this.director.goTo('table', { duration: 0.8, onProgress: (e) => e > 0.7 && this.stage.setFigureGhost(true) });
+      await this.director.goTo('table', { duration: 0.8 });
       if (stale()) return;
     }
 

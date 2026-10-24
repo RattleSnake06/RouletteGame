@@ -65,9 +65,18 @@ const frames = (n = 2) => G((n) => new Promise((res) => {
 /** Waits for the game to finish what it is doing; a sequence that never ends is a bug. */
 async function idle(what) {
   try {
-    await page.waitForFunction(() => !window.__roulette.game.busy && !window.__roulette.director.tween, null, { timeout: 420000, polling: 250 });
+    // A run that is over (collected, or stepped out of) stays busy on purpose.
+    await page.waitForFunction(() => {
+      const g = window.__roulette.game;
+      return (!g.busy || g.state.phase === 'gameOver' || g.atMenu) && !window.__roulette.director.tween;
+    }, null, { timeout: 420000, polling: 250 });
   } catch {
-    problem(`stuck after ${what}`);
+    const at = await page.evaluate(() => {
+      const r = window.__roulette;
+      const g = r.game;
+      return `busy ${g.busy}, camera ${r.director.current}${r.director.tween ? ' (moving)' : ''}, view ${g.view}, phase ${g.state.phase}, picking ${!!g.picking}, cards ${document.querySelectorAll('.modal-backdrop:not([inert])').length}`;
+    }).catch(() => '?');
+    problem(`stuck after ${what}`, at);
     // Unstick, so the marathon can go on and find more.
     await G(() => { window.__roulette.game.busy = false; });
   }
