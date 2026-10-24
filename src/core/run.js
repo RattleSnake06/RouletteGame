@@ -4,7 +4,7 @@ import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabin
 import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman, playingRecords } from './content/index.js';
 import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
-import { debtMultiplier, debtTokensFor, nightTokensFor, startingWheel } from './house.js';
+import { debtMultiplier, debtTokensFor, hasDoubleZero, nightTokensFor, startingWheel } from './house.js';
 import { commitCtx, interestRateFor, lifecycle, openSpecials, saleValue, sources } from './effects.js';
 import { add, ceil, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
@@ -13,6 +13,7 @@ import { resolveSpin } from './resolve.js';
 import { Rng, seedStreams } from './rng.js';
 import { copyTally, emptyRoundTally, emptyTally } from './tally.js';
 import { doWork, workRefusal } from './wheelwork.js';
+import { DOUBLE_ZERO } from './wheel.js';
 
 // The run as a state machine (design doc 9.3). `act(state, action)` returns
 // a new state plus an ordered list of events for the view to play back; it
@@ -418,6 +419,8 @@ const HANDLERS = {
     if (state.fixed.includes(chipId)) return reject(state, FIXED, 'fixed');
     const kind = BET_BY_ID.get(betId).kind;
     if (isSpecial(kind) && !openSpecials(state).has(kind)) return reject(state, 'That bet is closed: something in the run must open it.', 'closed');
+    // A bet on the 00 needs a wheel that has one (the felt shows it only then).
+    if (BET_BY_ID.get(betId).numbers.includes(DOUBLE_ZERO) && !hasDoubleZero(state)) return reject(state, 'This wheel has no 00.', 'closed');
     const s = copyRun(state);
     s.placements[chipId] = betId;
     if (getMaterial(chip.material).fixed) s.fixed.push(chipId);

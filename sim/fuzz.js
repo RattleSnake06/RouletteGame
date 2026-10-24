@@ -20,6 +20,7 @@ import { canAnswer } from '../src/core/bell.js';
 import { applyRun, newProfile } from '../src/core/meta.js';
 import { gte, isBig, num, toNumber } from '../src/core/num.js';
 import { WHEEL } from '../src/core/wheelwork.js';
+import { hasDoubleZero } from '../src/core/house.js';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback) => {
@@ -197,6 +198,7 @@ function invariants(s, events) {
   for (const [chip, bet] of Object.entries(s.placements)) {
     if (!chipIds.has(chip)) out.push(`placement for a missing chip ${chip}`);
     if (!BETS.some((b) => b.id === bet)) out.push(`placement on an unknown bet ${bet}`);
+    else if (BETS.find((b) => b.id === bet).numbers.includes(37) && !hasDoubleZero(s)) out.push(`a bet on 00 without one: ${bet}`);
   }
   for (const c of s.fixed) if (!chipIds.has(c)) out.push(`fixed chip ${c} is gone`);
   const n = s.wheel.pockets.length;

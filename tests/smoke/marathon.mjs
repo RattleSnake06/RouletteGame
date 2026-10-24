@@ -51,7 +51,11 @@ await page.addInitScript(() => {
 await page.goto(`${url}?seed=MARA-${SEED}`);
 await page.waitForFunction(() => window.__roulette?.game?.state, null, { timeout: 180000 });
 
-const G = (fn, arg) => page.evaluate(fn, arg);
+// A call into the game that throws is a bug to note, not the end of the marathon.
+const G = (fn, arg) => page.evaluate(fn, arg).catch((e) => {
+  if (!/Execution context was destroyed|Target closed/.test(e.message)) problem(`threw: ${e.message.split('\n')[0]}`, e.message.split('\n').slice(1, 4).join(' | '));
+  return null;
+});
 const frames = (n = 2) => G((n) => new Promise((res) => {
   let k = 0;
   const f = () => (++k >= n ? res() : requestAnimationFrame(f));

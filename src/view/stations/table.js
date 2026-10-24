@@ -578,7 +578,9 @@ export function createTable({ materials, interaction, callbacks }) {
     for (const chip of state.chips) {
       const c = chips.get(chip.id);
       c.mesh.userData.setValue(chip.value + (chip.roundValue ?? 0));
-      const betId = state.placements[chip.id];
+      // A bet with no spot on this felt (a 00 bet on a wheel without one)
+      // cannot be drawn there: the chip waits in the tray rather than throw.
+      const betId = SPOTS.has(state.placements[chip.id]) ? state.placements[chip.id] : null;
       if (betId) {
         const n = stacks.get(betId) ?? 0;
         stacks.set(betId, n + 1);
