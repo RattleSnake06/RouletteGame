@@ -168,6 +168,11 @@ export function fortuneCtx(s, def, emit, rng, helpers) {
       }
       effect('offersEngraved');
     },
+    /** Every talisman that can come off the rail is sold at its full price ("Burn it all."). */
+    sellAll() {
+      helpers.sellAll();
+      effect('soldAll');
+    },
     /** A talisman hangs on the rail for nothing (a cursed one, from a black card). */
     hang(id) {
       const inst = helpers.hang(getTalisman(id));

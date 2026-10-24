@@ -3,7 +3,8 @@ import { devilLive } from '../devil.js';
 import { ECONOMY, interestOn, owedFor, spinCostFor } from '../economy.js';
 import { interestRateFor, omen } from '../effects.js';
 import { add, format, gt, mul, mulFloor } from '../num.js';
-import { nudgeFor, upcomingLean } from '../nudge.js';
+import { nextSpin, nudgeFor, upcomingLean } from '../nudge.js';
+import { hashSeed } from '../rng.js';
 import { neighbourIndex } from '../wheel.js';
 
 // The talismans (design doc 6.1): the first fifteen from Phase 2, the luck
@@ -82,7 +83,29 @@ const P7 = {
   loaded: 0.5, // Loaded Wheel: every red pocket + this wide
   glove: 1.5, // Croupier's Glove: sector chips ×
   snake: 2, // Snakeskin: Snake chips + Stake
+};// The builds pass (decision 32): the Pyre, and what each build lacked.
+const P8 = {
+  kindling: 2, // tokens when sold
+  urnMax: 4, // Funeral Urn: +1 Stake per talisman sold, up to
+  pyre: 0.5, // The Pyre: +× per talisman sold or used up
+  tooth: 20, // Gold Tooth: chips ×(1 + tokens ÷ this)
+  savings: { step: 0.01, max: 5 }, // Savings Book: +1% per debt paid, up to 5
+  calendar: 3, // Pocket Calendar: the marked spin pays ×
+  handBell: 1, // charges for the leftmost Bell talisman each debt
+  dice: 2, // Pair of Dice: two balls on one colour, chips ×
 };
+const burned = (state) => (state.stats.talismansSold ?? 0) + (state.stats.talismansGone ?? 0);
+const pyreMult = (state) => 1 + P8.pyre * burned(state);
+const toothMult = (state) => 1 + state.tokens / P8.tooth;
+/** The spin of tonight the Pocket Calendar marks (from 1), once the night's spins are known. */
+export function calendarSpin(state) {
+  const n = state.spinsTonight ?? 0;
+  if (!n) return null;
+  return 1 + Math.floor((hashSeed(`${state.seed}|${state.debt}|${state.round}|pocket_calendar`)[0] / 4294967296) * n);
+}
+/** Two balls this spin on the same colour (red or black). */
+const sameColour = (pockets) => ['red', 'black'].some((c) => pockets.filter((p) => p.color === c).length >= 2);
+
 const SECTOR_KINDS = ['voisins', 'tiers', 'orphelins', 'jeuZero', 'finale'];
 const INSIDE_LINES = ['split', 'street', 'corner', 'sixLine'];
 const isGreenNumber = (pocket) => pocket.color === 'green' && pocket.number !== null;
@@ -998,7 +1021,8 @@ export const TALISMAN_LIST = [
         if (ctx.self.streak) ctx.mul(coalsMult(ctx.self.streak));
       },
       afterSpin(ctx) {
-        const next = ctx.result.miss ? 0 : ctx.self.streak + 1;
+        // A miss "Hot hands." forgives neither builds nor breaks the streak.
+        const next = ctx.result.miss ? (ctx.result.forgiven ? ctx.self.streak : 0) : ctx.self.streak + 1;
         if (next !== ctx.self.streak) ctx.setData('streak', next);
       },
     },
@@ -1094,6 +1118,145 @@ export const TALISMAN_LIST = [
       },
       devilChance(ctx) {
         ctx.addChance(P7.brimstone.devil);
+      },
+    },
+  },
+  // --- The builds pass (decision 32; doc 6.1, 6.8): the Pyre, then what each build lacked
+  {
+    id: 'kindling',
+    name: 'Kindling',
+    rarity: 'common',
+    tags: ['pyre', 'tokens'],
+    text: `When sold: +${P8.kindling} tokens.`,
+    hooks: {
+      sold(ctx) {
+        if (ctx.isSelf) ctx.gainTokens(P8.kindling);
+      },
+    },
+  },
+  {
+    id: 'funeral_urn',
+    name: 'Funeral Urn',
+    rarity: 'uncommon',
+    tags: ['pyre'],
+    text: `Winning chips: +1 Stake for every talisman sold this run, up to +${P8.urnMax}.`,
+    status: (data, state) => `+${Math.min(P8.urnMax, state.stats.talismansSold ?? 0)} Stake now.`,
+    hooks: {
+      chipStake(ctx) {
+        const n = Math.min(P8.urnMax, ctx.state.stats.talismansSold ?? 0);
+        if (n) ctx.addStake(n);
+      },
+    },
+  },
+  {
+    id: 'phoenix_feather',
+    name: 'Phoenix Feather',
+    rarity: 'rare',
+    tags: ['pyre'],
+    text: 'The first talisman used up each debt comes back, fresh.',
+    revives: true,
+    copyable: false,
+    echoable: false,
+    status: (data, state) => (data.debt === state.debt ? 'Spent this debt.' : 'Ready.'),
+    hooks: {},
+  },
+  {
+    id: 'the_pyre',
+    name: 'The Pyre',
+    rarity: 'legendary',
+    tags: ['pyre'],
+    text: `Chips +×${P8.pyre} for every talisman sold or used up this run.`,
+    status: (data, state) => `×${pyreMult(state)} now (${plural(burned(state), 'talisman')} burned).`,
+    hooks: {
+      chipMult(ctx) {
+        if (burned(ctx.state)) ctx.mul(pyreMult(ctx.state));
+      },
+    },
+  },
+  {
+    id: 'pair_of_dice',
+    name: 'Pair of Dice',
+    rarity: 'uncommon',
+    tags: ['multi', 'colour'],
+    text: `Two balls on the same colour: chips pay ×${P8.dice}.`,
+    hooks: {
+      chipMult(ctx) {
+        if (sameColour(ctx.landed)) ctx.mul(P8.dice);
+      },
+    },
+  },
+  {
+    id: 'savings_book',
+    name: 'Savings Book',
+    rarity: 'uncommon',
+    tags: ['economy'],
+    text: `The Cage pays 1% more interest for every debt paid this run, up to +${P8.savings.max}%.`,
+    status: (data, state) => `+${Math.min(P8.savings.max, state.stats.debtsPaid)}% now.`,
+    hooks: {
+      interestRate(ctx) {
+        const n = Math.min(P8.savings.max, ctx.state.stats.debtsPaid);
+        if (n) ctx.addRate(n * P8.savings.step);
+      },
+    },
+  },
+  {
+    id: 'gold_tooth',
+    name: 'Gold Tooth',
+    rarity: 'legendary',
+    tags: ['tokens', 'scaling'],
+    text: `Chips pay ×(1 + your tokens ÷ ${P8.tooth}).`,
+    status: (data, state) => `×${Math.round(toothMult(state) * 100) / 100} now.`,
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.state.tokens > 0) ctx.mul(toothMult(ctx.state));
+      },
+    },
+  },
+  {
+    id: 'pocket_calendar',
+    name: 'Pocket Calendar',
+    rarity: 'rare',
+    tags: ['timing'],
+    text: `Each night it marks one of the night's spins, shown once the night is chosen: chips on that spin pay ×${P8.calendar}.`,
+    status: (data, state) => (calendarSpin(state) ? `Marks spin ${calendarSpin(state)} tonight.` : 'Marks a spin once the night is chosen.'),
+    hooks: {
+      chipMult(ctx) {
+        const mark = calendarSpin(ctx.state);
+        if (mark && nextSpin(ctx.state).ofNight === mark) ctx.mul(P8.calendar);
+      },
+    },
+  },
+  {
+    id: 'hand_bell',
+    name: 'Hand Bell',
+    rarity: 'common',
+    tags: ['active'],
+    text: `Each debt: +${P8.handBell} charge for the leftmost Bell talisman.`,
+    hooks: {
+      debtStart(ctx) {
+        ctx.chargeBell(P8.handBell);
+      },
+    },
+  },
+  {
+    id: 'racing_form',
+    name: 'Racing Form',
+    rarity: 'uncommon',
+    tags: ['special', 'wheel'],
+    unlock: { lock: 1 },
+    text: 'Opens the Neighbours on the racetrack: a number and the two pockets either side of it.',
+    opens: ['neighbours'],
+    hooks: {},
+  },
+  {
+    id: 'raven_feather',
+    name: 'Raven Feather',
+    rarity: 'uncommon',
+    tags: ['colour'],
+    text: 'Chips on Black: +1 Stake.',
+    hooks: {
+      chipStake(ctx) {
+        if (ctx.bet.kind === 'black') ctx.addStake(1);
       },
     },
   },

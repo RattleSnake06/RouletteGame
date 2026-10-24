@@ -2,10 +2,10 @@ import { BET_BY_ID, isSpecial } from './bets.js';
 import { canAnswer, ringBell } from './bell.js';
 import { TALISMAN_SLOTS, copyCabinet, emptyCabinet, restockSlots } from './cabinet.js';
 import { MATERIALS, getEngraving, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman, playingRecords } from './content/index.js';
-import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, sellValueOf, spinCostFor } from './economy.js';
+import { ECONOMY, PACKAGES, interestOn, owedFor, packageCost, priceOf, restockCost, spinCostFor } from './economy.js';
 import { devilChanceFor } from './devil.js';
 import { debtMultiplier, debtTokensFor, nightTokensFor, startingWheel } from './house.js';
-import { commitCtx, interestRateFor, lifecycle, openSpecials, sources } from './effects.js';
+import { commitCtx, interestRateFor, lifecycle, openSpecials, saleValue, sources } from './effects.js';
 import { add, ceil, gt, gte, lte, max, mul, sub } from './num.js';
 import { nudgeFor, rollDebtLeans, rollNightLean } from './nudge.js';
 import { canTake, dealCards, dealOf, fortuneCtx, rerollCost } from './oracle.js';
@@ -143,6 +143,7 @@ export function newStats() {
     bellRings: 0,
     talismansBought: 0,
     talismansSold: 0,
+    talismansGone: 0, // used up: crumbled, wilted, shattered, smashed (the Pyre counts them)
     restocksPaid: 0,
     tokensEarned: 0,
     tokensSpent: 0,
@@ -371,10 +372,10 @@ function playOn(s, id, emit, slot = 0) {
   emit({ type: 'recordPlayed', id, was, slot });
 }
 
-function sellOne(s, uid, emit) {
+function sellOne(s, uid, emit, { full = false } = {}) {
   const inst = s.rail.find((t) => t.uid === uid);
   lifecycle(s, 'sold', emit, (src) => ({ item: inst, isSelf: src.inst === inst }));
-  const refund = sellValueOf(inst.price);
+  const refund = saleValue(s, inst, { full });
   s.rail = s.rail.filter((t) => t !== inst);
   s.tokens += refund;
   s.stats.talismansSold += 1;
@@ -563,7 +564,7 @@ const HANDLERS = {
     const selling = sellUid ? state.rail.find((t) => t.uid === sellUid) : null;
     if (sellUid && !selling) throw new Error(`Unknown talisman: ${sellUid}`);
     if (selling && isCursed(selling)) return reject(state, 'It will not come off the hook.', 'cursed');
-    const refund = selling ? sellValueOf(selling.price) : 0;
+    const refund = selling ? saleValue(state, selling) : 0;
     if (state.tokens + refund < price) return reject(state, 'Not enough tokens.', 'noTokens');
     if (!def.instant && state.rail.length - (selling ? 1 : 0) >= hooksFor(state)) {
       return reject(state, 'No free hook. Sell a talisman first.', 'railFull');
@@ -695,6 +696,10 @@ const HANDLERS = {
     def.take?.(
       fortuneCtx(s, def, emit, rng, {
         hang: (talisman) => hang(s, talisman, 0, emit),
+        // "Burn it all.": every talisman that can come off is sold, at its full price.
+        sellAll: () => {
+          for (const inst of [...s.rail]) if (!isCursed(inst)) sellOne(s, inst.uid, emit, { full: true });
+        },
         // A record she gives plays at once if a slot of the gramophone is free.
         play: (record) => {
           const slot = freeSlot(s);
@@ -704,7 +709,7 @@ const HANDLERS = {
     );
     s.rng.fortunes = rng.state();
     if (Object.keys(def.hooks).length || def.opens) {
-      s.boons = [...s.boons, { uid: `b${s.nextBoonUid}`, id, data: {} }];
+      s.boons = [...s.boons, { uid: `b${s.nextBoonUid}`, id, data: def.init?.(s) ?? {} }];
       s.nextBoonUid += 1;
     }
     s.picks[id] = (s.picks[id] ?? 0) + 1;

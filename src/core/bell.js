@@ -1,5 +1,5 @@
 import { getTalisman } from './content/index.js';
-import { srcRef } from './effects.js';
+import { srcRef, useUp } from './effects.js';
 import { add } from './num.js';
 import { Rng } from './rng.js';
 import { drawPocket } from './wheel.js';
@@ -85,8 +85,7 @@ export function ringBell(draft, uid, emit, { targets = [] } = {}) {
       trigger('data', { key, amount: value });
     },
     destroySelf() {
-      draft.rail = draft.rail.filter((t) => t !== target);
-      emit({ type: 'talismanDestroyed', uid: target.uid, id: target.id, reason: 'smashed' });
+      useUp(draft, target, 'smashed', emit);
     },
   });
   return target.uid;

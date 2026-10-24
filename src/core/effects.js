@@ -1,4 +1,5 @@
 import { getEngraving, getFortune, getTalisman, playingRecords } from './content/index.js';
+import { sellValueOf } from './economy.js';
 import { add } from './num.js';
 import { hashSeed } from './rng.js';
 import { doWork, workRefusal } from './wheelwork.js';
@@ -39,6 +40,9 @@ import { doWork, workRefusal } from './wheelwork.js';
 //     ward (resolve.js)               the Devil fired: the first ward turned him away, and is
 //                                     used up once the spin is over
 //     interestRate (endNight)         ctx.addRate(r); reads ctx.rate, the rate so far
+//     forgiveMiss (resolve.js)        a spin paid nothing: ctx.forgive() keeps every streak
+//                                     alive this once (result.forgiven, "Hot hands.")
+//     debtStart may also call ctx.chargeBell(n): the leftmost Bell talisman gains n charges
 //
 // A definition may also open special bets while it acts (`opens`: kinds of
 // bet, bets.js): a talisman on the rail, a lasting card or a record.
@@ -200,6 +204,13 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
       }
       trigger('widen', { amount, count });
     },
+    /** The leftmost Bell talisman (not this one) gains `n` charges, past its usual most (Hand Bell). */
+    chargeBell(n) {
+      const inst = draft.rail.find((t) => t !== src.inst && getTalisman(t.id)?.charges);
+      if (!inst) return;
+      inst.charges = (inst.charges ?? 0) + n;
+      trigger('charge', { amount: n, target: inst.uid });
+    },
     /**
      * The talisman is used up (crumbled, wilted, shattered) and leaves the
      * rail. A Twin Mirrors' copy cannot take the mirror with it: the copy
@@ -211,11 +222,41 @@ export function commitCtx(draft, src, emit, hook, extra = {}) {
         trigger('gone', { reason });
         return;
       }
-      if (!draft.rail.includes(src.inst)) return;
-      draft.rail = draft.rail.filter((t) => t !== src.inst);
-      emit({ type: 'talismanDestroyed', uid: src.inst.uid, id: src.inst.id, reason, by: src.by?.uid ?? null });
+      useUp(draft, src.inst, reason, emit, src.by?.uid ?? null);
     },
   };
+}
+
+/**
+ * A talisman is used up: it leaves the rail, and the run counts it (the
+ * Pyre). The first one used up each debt with a Phoenix Feather on the rail
+ * comes back instead, fresh, as it was bought.
+ */
+export function useUp(draft, inst, reason, emit, by = null) {
+  if (!draft.rail.includes(inst)) return;
+  draft.stats.talismansGone = (draft.stats.talismansGone ?? 0) + 1;
+  const phoenix = draft.rail.find((t) => t !== inst && getTalisman(t.id)?.revives && t.data.debt !== draft.debt);
+  if (phoenix) {
+    const def = getTalisman(inst.id);
+    inst.data = def?.init?.() ?? {};
+    inst.charges = def?.charges?.max ?? inst.charges ?? null;
+    phoenix.data = { ...phoenix.data, debt: draft.debt };
+    emit({ type: 'trigger', src: { uid: phoenix.uid, id: phoenix.id, as: phoenix.id }, hook: 'usedUp', effect: 'revive', target: inst.uid });
+    emit({ type: 'talismanRevived', uid: inst.uid, id: inst.id, reason, by: phoenix.uid });
+    return;
+  }
+  draft.rail = draft.rail.filter((t) => t !== inst);
+  emit({ type: 'talismanDestroyed', uid: inst.uid, id: inst.id, reason, by });
+}
+
+/**
+ * What a talisman fetches when sold, in tokens: half its price as a rule,
+ * all of it from "Burn it all." (`full`), doubled while a record that pays
+ * double for sales plays (Requiem).
+ */
+export function saleValue(state, inst, { full = false } = {}) {
+  const base = full ? inst.price : sellValueOf(inst.price);
+  return playingRecords(state).some((r) => r.sellMult) ? base * 2 : base;
 }
 
 const OWN_ONLY = new Set(['purchased', 'sold']);

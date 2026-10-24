@@ -74,6 +74,8 @@ export function evaluate(state, landings) {
     },
   });
   const firstLineSeen = new Set();
+  // Every pocket a ball landed in this spin, for line hooks that compare balls (Pair of Dice).
+  const landed = landings.map((l) => state.wheel.pockets[l.pocketIndex]);
 
   for (const { ball, pocketIndex, mult: ballMult = 1 } of landings) {
     const pocket = state.wheel.pockets[pocketIndex];
@@ -149,7 +151,7 @@ export function evaluate(state, landings) {
         };
         // Chips that already paid this spin, this one aside (the Domino counts them).
         const paidBefore = firstLineSeen.size - (firstLineSeen.has(chip.id) ? 1 : 0);
-        const lineCtx = { state, ball, landing, hit, chip, bet, factors, paidBefore };
+        const lineCtx = { state, ball, landing, hit, chip, bet, factors, paidBefore, landed };
         const at = { ball, chipId: chip.id };
         // The chip's material acts first, on its own lines only (decision 26).
         const material = getMaterial(chip.material);

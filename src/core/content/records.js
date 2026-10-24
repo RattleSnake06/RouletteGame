@@ -11,6 +11,7 @@
 //   doublesDebt true: a debt it plays during owes twice as much
 //   reverse    true: the wheel turns the other way (the view)
 //   reach      pockets added to any Nudge a spin already has (nudge.js)
+//   sellMult   talismans sold while it plays fetch this many times as much (Requiem)
 //   hooks      effect hooks, as for talismans; a record acts before the rail
 
 import { SPECIAL_KINDS, isSpecial } from '../bets.js';
@@ -20,7 +21,13 @@ const RECORD = {
   boogieMax: 2, // drafted without a cap
   nocturne: 3, // drafted ×4
   twoStep: 0.6,
+  // The builds pass (decision 32)
+  stride: { stake: 1, straight: 0.5 },
+  blues: { black: 2, red: 0.5 },
 };
+const INSIDE_LINES = ['split', 'street', 'corner', 'sixLine'];
+/** A green pocket with a number (0 or 00), not the House's own (House Edge 1). */
+const greenNumber = (pocket) => pocket.color === 'green' && pocket.number !== null;
 
 const lastSpinOfNight = (state) => state.phase === 'betting' && state.spinsLeft === 1;
 
@@ -100,7 +107,8 @@ export const RECORD_LIST = [
         if (ctx.self.streak > 0) ctx.addStake(ctx.self.streak);
       },
       afterSpin(ctx) {
-        const streak = ctx.result.miss ? 0 : Math.min(RECORD.boogieMax, ctx.self.streak + 1);
+        // A miss "Hot hands." forgives keeps the streak as it was.
+        const streak = ctx.result.miss ? (ctx.result.forgiven ? ctx.self.streak : 0) : Math.min(RECORD.boogieMax, ctx.self.streak + 1);
         if (streak !== ctx.self.streak) ctx.setData('streak', streak);
       },
     },
@@ -172,6 +180,52 @@ export const RECORD_LIST = [
       },
       chipMult(ctx) {
         ctx.mul(RECORD.twoStep);
+      },
+    },
+  },
+  // --- The builds pass (decision 32; doc 6.3, 6.8) -----------------------------
+  {
+    id: 'requiem',
+    name: 'Requiem',
+    rule: 'Talismans sold while it plays fetch twice as much.',
+    tune: 'requiem',
+    sellMult: 2,
+    hooks: {},
+  },
+  {
+    id: 'stride_piano',
+    name: 'Stride Piano',
+    rule: `Splits, streets, corners and six-lines +${RECORD.stride.stake} Stake. Straight-ups pay half.`,
+    tune: 'stride',
+    hooks: {
+      chipStake(ctx) {
+        if (INSIDE_LINES.includes(ctx.bet.kind)) ctx.addStake(RECORD.stride.stake);
+      },
+      chipMult(ctx) {
+        if (ctx.bet.kind === 'straight') ctx.mul(RECORD.stride.straight);
+      },
+    },
+  },
+  {
+    id: 'bolero',
+    name: 'Bolero',
+    rule: 'When a green zero lands, every chip on the table wins.',
+    tune: 'bolero',
+    hooks: {
+      covers(ctx) {
+        if (ctx.hit.primary && greenNumber(ctx.hit.pocket)) ctx.cover();
+      },
+    },
+  },
+  {
+    id: 'midnight_blues',
+    name: 'Midnight Blues',
+    rule: `Chips pay ×${RECORD.blues.black} when a black number lands, and half when a red one does.`,
+    tune: 'blues',
+    hooks: {
+      chipMult(ctx) {
+        if (ctx.landing.color === 'black') ctx.mul(RECORD.blues.black);
+        else if (ctx.landing.color === 'red') ctx.mul(RECORD.blues.red);
       },
     },
   },

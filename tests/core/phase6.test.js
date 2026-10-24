@@ -216,7 +216,7 @@ describe('the profile', () => {
     const s = run();
     let r = applyRun(p, s, [{ type: 'lockOpened', lock: 1 }, { type: 'goalReached', debt: 4, edge: 0 }]);
     p = r.profile;
-    expect(r.news).toEqual([{ kind: 'lock', lock: 1, wheels: ['american'], slot: false, content: ['snakeskin', 'croupiers_glove', 'neighbours_talk', 'habanera'] }, { kind: 'edge', level: 1 }]);
+    expect(r.news).toEqual([{ kind: 'lock', lock: 1, wheels: ['american'], slot: false, content: ['snakeskin', 'croupiers_glove', 'racing_form', 'neighbours_talk', 'habanera'] }, { kind: 'edge', level: 1 }]);
     expect(wheelChoices(p).filter((w) => w.unlocked).map((w) => w.id)).toEqual(['european', 'american']);
     // The goal at a level below the top opens nothing.
     r = applyRun({ ...p, edge: 3 }, { ...s, edge: 1 }, [{ type: 'goalReached', debt: 4, edge: 1 }]);

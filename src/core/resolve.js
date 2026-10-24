@@ -204,7 +204,10 @@ export function resolveSpin(s, emit) {
     bonusCoins: plan?.bonusCoins ?? 0,
     bonusTokens: plan?.bonusTokens ?? 0,
     miss,
+    forgiven: false,
   };
+  // A miss may be forgiven once ("Hot hands."): streak keepers then hold their streak.
+  if (miss) lifecycle(s, 'forgiveMiss', emit, { result, forgive: () => (result.forgiven = true) });
   lifecycle(s, 'afterSpin', emit, { result });
   for (const src of wards) if (s.rail.includes(src.inst)) src.as.hooks.ward(commitCtx(s, src, emit, 'ward'));
   return result;

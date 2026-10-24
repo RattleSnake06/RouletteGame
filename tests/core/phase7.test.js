@@ -200,7 +200,7 @@ describe('the Vault and the feats open new content (decision 29)', () => {
     for (let i = 0; i < 2000; i++) for (const slot of rollTalismanSlots([], rng)) expect(gated.has(slot.id)).toBe(false);
     expect(runOptions(newProfile()).opened).toEqual([]);
     const p = { ...newProfile(), locks: 2, achievements: ['same_again'] };
-    expect(runOptions(p).opened.sort()).toEqual(['croupiers_glove', 'habanera', 'hot_coals', 'neighbours_talk', 'snakeskin', 'two_step']);
+    expect(runOptions(p).opened.sort()).toEqual(['croupiers_glove', 'habanera', 'hot_coals', 'neighbours_talk', 'racing_form', 'snakeskin', 'two_step']);
     const opened = createRun({ seed: 'GATES', ...runOptions(p) });
     let seen = false;
     const r2 = new Rng(hashSeed('gates-open'));
@@ -208,10 +208,10 @@ describe('the Vault and the feats open new content (decision 29)', () => {
     expect(seen).toBe(true);
   });
 
-  it('the pool holds 60+ talismans, 25 cards and 12 records, every family at every rarity', () => {
+  it('the pool holds 60+ talismans, 25+ cards and 12+ records, every family at every rarity', () => {
     expect(TALISMANS.length).toBeGreaterThanOrEqual(60);
-    expect(FORTUNES).toHaveLength(25);
-    expect(RECORDS).toHaveLength(12);
+    expect(FORTUNES.length).toBeGreaterThanOrEqual(25);
+    expect(RECORDS.length).toBeGreaterThanOrEqual(12);
     const families = { colour: ['colour'], hunting: ['luck'], wheel: ['wheel', 'special'], table: ['inside'], streaks: ['streaks'], zero: ['zero'], multi: ['multi'], economy: ['economy'], devil: ['devil', 'risk', 'safety'] };
     for (const [family, tags] of Object.entries(families)) {
       for (const rarity of ['common', 'uncommon', 'rare', 'legendary']) {

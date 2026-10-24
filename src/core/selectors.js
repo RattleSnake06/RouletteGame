@@ -1,9 +1,9 @@
 import { bellQueue, canAnswer } from './bell.js';
 import { betCovers, betOf } from './bets.js';
 import { RECORDS, getEnhancement, getEngraving, getFortune, getMaterial, getOddity, getRecord, getTalisman, isOffered } from './content/index.js';
-import { ECONOMY, RARITY, priceOf, sellValueOf } from './economy.js';
+import { ECONOMY, RARITY, priceOf } from './economy.js';
 import { devilChanceFor, devilLive } from './devil.js';
-import { copyTarget, echoTarget, openSpecials, sources } from './effects.js';
+import { copyTarget, echoTarget, openSpecials, saleValue, sources } from './effects.js';
 import { ballsFor } from './resolve.js';
 import { nudgeFor } from './nudge.js';
 import { evaluate } from './payout.js';
@@ -43,7 +43,7 @@ export function railView(state) {
       maxCharges: def?.charges?.max ?? null,
       status: def?.status ? def.status(inst.data, state, inst) : null,
       cursed: !!def?.cursed,
-      sellValue: def?.cursed ? null : sellValueOf(inst.price),
+      sellValue: def?.cursed ? null : saleValue(state, inst),
       copying: target?.id ?? null,
       echoing: echo?.id ?? null,
       dim: !acts,

@@ -12,6 +12,7 @@
 //   take      (ctx) => its one-off effect, through the oracle's ctx (oracle.js)
 //   hooks     effects that last the rest of the run, as for talismans; a taken
 //             card with hooks stays as a boon and acts before the rail
+//   init      (state) => the boon's data when it is taken (its debt, its spins)
 //
 // Cards that need later systems (the Neighbours bet) wait for their phase
 // (decision 22); "Ask the figures" sends one away since Phase 6. The two bet-level cards came with
@@ -36,6 +37,10 @@ const REMOVE = { op: 'remove', on: 'pocket' };
 const canWork = (state, work) => workTargets(state, work).length > 0;
 const zeroPocket = (state) => state.wheel.pockets.find((p) => p.number === 0);
 const OUTSIDE = ['dozen', 'column', 'red', 'black', 'odd', 'even', 'low', 'high'];
+const INSIDE_LINES = ['split', 'street', 'corner', 'sixLine'];
+const tonight = (state) => `${state.debt}.${state.round}`;
+const STREAK_KEEPERS = ['hot_coals'];
+const keepsStreaks = (state) => state.rail.some((t) => STREAK_KEEPERS.includes(t.id)) || state.records.includes('boogie_woogie');
 
 // Tuned with the simulator (doc 9.8): a card a debt is worth a lot, because
 // most of them last the run.
@@ -52,6 +57,9 @@ const FORTUNE = {
   devilsHand: 0.01,
   breaks: 2,
   breakTokens: 4,
+  // The builds pass (decision 32)
+  spareBalls: 5,
+  compound: 0.03,
 };
 
 export const FORTUNE_LIST = [
@@ -375,6 +383,93 @@ export const FORTUNE_LIST = [
     take(ctx) {
       ctx.workRandom(REMOVE, FORTUNE.breaks);
       ctx.gainTokens(FORTUNE.breakTokens);
+    },
+  },
+  // --- The builds pass (decision 32; doc 6.2, 6.8) -----------------------------
+  {
+    id: 'burn_it_all',
+    kind: 'black',
+    rarity: 'rare',
+    text: 'Burn it all.',
+    effect: 'Every talisman that can come off your rail is sold, for all it cost.',
+    lore: 'ASHES PAY THEIR WAY',
+    requires: (state) => state.rail.some((t) => !getTalisman(t.id)?.cursed),
+    take(ctx) {
+      ctx.sellAll();
+    },
+  },
+  {
+    id: 'table_remembers',
+    kind: 'white',
+    rarity: 'legendary',
+    maxPicks: 1,
+    text: 'The table remembers.',
+    effect: 'Splits, streets, corners and six-lines go up a level: each pays a quarter of its base odds more, for the rest of the run.',
+    lore: 'EVERY LINE A NAME',
+    take(ctx) {
+      ctx.levelUp(INSIDE_LINES);
+    },
+  },
+  {
+    id: 'hot_hands',
+    kind: 'white',
+    rarity: 'uncommon',
+    maxPicks: 1,
+    text: 'Hot hands.',
+    effect: 'For the rest of the run, the first spin each night that pays nothing does not break a streak (Hot Coals, Boogie-Woogie).',
+    lore: 'THE HEAT DOES NOT FORGET',
+    requires: keepsStreaks,
+    hooks: {
+      forgiveMiss(ctx) {
+        if (ctx.self.night === tonight(ctx.state)) return;
+        ctx.forgive();
+        ctx.setData('night', tonight(ctx.state));
+      },
+    },
+  },
+  {
+    id: 'spare_ball',
+    kind: 'white',
+    rarity: 'common',
+    text: 'A spare ball.',
+    effect: `A second ball on each of your next ${FORTUNE.spareBalls} spins.`,
+    lore: 'SHE KEEPS ONE IN HER SLEEVE',
+    init: () => ({ left: FORTUNE.spareBalls }),
+    hooks: {
+      balls(ctx) {
+        if (ctx.self.left > 0) ctx.addBall();
+      },
+      afterSpin(ctx) {
+        if (ctx.self.left > 0) ctx.setData('left', ctx.self.left - 1);
+      },
+    },
+  },
+  {
+    id: 'compound_interest',
+    kind: 'white',
+    rarity: 'uncommon',
+    maxPicks: 2,
+    text: 'Compound interest.',
+    effect: `The Cage pays ${Math.round(FORTUNE.compound * 100)}% more interest, for the rest of the run.`,
+    lore: 'MONEY BREEDS IN THE DARK',
+    hooks: {
+      interestRate(ctx) {
+        ctx.addRate(FORTUNE.compound);
+      },
+    },
+  },
+  {
+    id: 'night_is_young',
+    kind: 'white',
+    rarity: 'uncommon',
+    text: 'The night is young.',
+    effect: '+1 spin on every night of this debt that has spins.',
+    lore: 'DAWN CAN WAIT',
+    init: (state) => ({ debt: state.debt }),
+    hooks: {
+      nightSpins(ctx) {
+        if (ctx.self.debt === ctx.state.debt) ctx.addSpins(1);
+      },
     },
   },
 ];
