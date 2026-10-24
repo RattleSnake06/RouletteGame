@@ -22,8 +22,10 @@ const HOOK_STEP = 0.16;
 const PAD_Z = 0.03; // a charm's tap pad, this far in front of it
 const HOOKS = 6;
 const MAX_HOOKS = 8;
-// More hooks crowd closer, so the outer ones stay clear of the plaques.
-const SPAN = 0.875;
+// Up to eight hooks keep a charm's full share (44 px on the smallest phone,
+// doc 9.10): the hooks spread out to the posts, and the plaques stand
+// outside them.
+const SPAN = 1.12;
 const stepFor = (hooks) => Math.min(HOOK_STEP, SPAN / Math.max(1, hooks - 1));
 
 function canvasTexture(w, h) {
@@ -169,7 +171,7 @@ export function createRail({ materials, interaction, makeCharm, callbacks = {} }
     const t = canvasTexture(256, 112);
     const mat = new THREE.MeshStandardMaterial({ map: t.tex, metalness: 0.55, roughness: 0.45, emissive: 0xffd9a0, emissiveIntensity: 0 });
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.115, 0.05, 0.004), [brass, brass, brass, brass, mat, brass]);
-    plate.position.set(sx * (POST_X - 0.068), TOP + 0.075, RAIL_Z + 0.014);
+    plate.position.set(sx * (POST_X + 0.12), TOP + 0.075, RAIL_Z + 0.014);
     plate.rotation.y = -sx * 0.18;
     plate.userData.role = 'plaque';
     plate.userData.plaque = key;
