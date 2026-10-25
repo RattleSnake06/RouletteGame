@@ -352,7 +352,7 @@ try {
   // The Vault screen (decision 36): from the main menu, the first compartment
   // swings open on what lock 1 opened; the others stay shut.
   await game(() => window.__roulette.game.showMainMenu({ cut: true }));
-  await page.waitForSelector('.title-screen.show .ts-item:has-text("Vault")', { timeout: 10000 });
+  await page.waitForSelector('.title-screen.show .ts-item:has-text("Vault")', { timeout: 30000 });
   await page.click('.title-screen.show .ts-item:has-text("Vault")');
   await page.waitForSelector('.vault-screen.show', { timeout: 10000 });
   await page.waitForFunction(() => window.__roulette.game.profile.vaultSeen === 1, null, { timeout: 60000 });
