@@ -15,7 +15,8 @@
     "sim": "node sim/run-sim.js",
     "smoke": "node tests/smoke/smoke.mjs",
     "layout": "node tests/smoke/layout.mjs",
-    "touch": "node tests/smoke/touch.mjs"
+    "touch": "node tests/smoke/touch.mjs",
+    "store-art": "node store/art.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

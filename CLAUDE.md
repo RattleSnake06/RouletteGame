@@ -2,8 +2,8 @@
 
 A roulette roguelike with the feel of Clover Pit (dark, diegetic, debt-driven),
 built on roulette's own mechanics. Three.js + Vite. Developed in the browser,
-shipping first on phones (App Store and Play Store, wrapped with Capacitor) and
-second on Steam (Electron).
+shipping first on Android through Google Play (wrapped with Capacitor; the App
+Store waits, decision 38) and second on Steam (Electron).
 
 ## The design doc is the source of truth
 
@@ -114,7 +114,11 @@ Capacitor 8 wraps the web build for Android (`android/`, app id
 (native saves read before boot by `platform.ready()`, back, pause and
 resume, haptics), and every push builds a debug APK on GitHub Actions
 (`.github/workflows/android.yml`) attached to the "Android test build"
-pre-release. iOS, the audio session and store signing are next. Player
+pre-release. Decision 38: Google Play only for now, the App Store waits.
+`store/PLAY.md` has the listing and the Play Console's answers, `site/` the
+privacy policy (GitHub Pages), `npm run store-art` renders the store graphics
+into `store/out/` (not kept), and `.github/workflows/play.yml` builds the
+signed release bundle from the upload-key secrets. Player
 text is plain English (decision 34): say "paint gold", not "gild". **Ask the
 owner before building any new build or piece.** `npm run sim -- --bot
 builds` plays one bot per build (`--kit` hangs its core from the first

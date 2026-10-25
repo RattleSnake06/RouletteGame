@@ -27,6 +27,17 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The Google Play upload key, handed to the build by GitHub secrets
+        // (.github/workflows/play.yml) and never kept in the repository.
+        // Without it there is no signed release build.
+        if (System.getenv("UPLOAD_KEYSTORE")) {
+            release {
+                storeFile file(System.getenv("UPLOAD_KEYSTORE"))
+                storePassword System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("UPLOAD_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
@@ -35,6 +46,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("UPLOAD_KEYSTORE")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

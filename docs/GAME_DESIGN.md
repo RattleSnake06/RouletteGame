@@ -2266,8 +2266,10 @@ expensive.
   attaches it to the **Android test build** pre-release, which installs on a
   phone with no store and no account; it is signed with the repository's
   own debug key (`android/app/debug.keystore`), so each build installs over
-  the last and keeps its saves, and numbered by the run. The iOS project,
-  the audio session, store signing and the listings come next.
+  the last and keeps its saves, and numbered by the run. The no-internet
+  manifest (the game never goes online; vibration is its only permission)
+  and store signing came with the store pieces (below); the iPhone app
+  waits (decision 38).
 - **Performance** (M2): a phone quality preset (render scale, shadows, the
   procedural textures cached), holding 60 fps on a mid-range phone without
   overheating, and loading in a few seconds. *Phase 8:* the preset and the
@@ -2283,6 +2285,21 @@ expensive.
   rating for simulated gambling (likely 17+ on the App Store); a privacy policy
   (the game collects nothing) and store listings with screenshots and a
   trailer. Game Center and Play Games achievements are optional (M4).
+  *Decision 38:* Google Play only for now; the App Store waits. *As built:*
+  `store/PLAY.md` holds the listing (name, short and full description,
+  category), the Play Console's policy answers (content rating, target
+  audience 18 and over, Data safety: nothing collected or shared), the
+  pricing warning (a free app cannot become paid) and the steps for the
+  upload key and the first upload. The privacy policy and a one-page site
+  are `site/`, published by GitHub Pages (`.github/workflows/pages.yml`).
+  `npm run store-art` (`store/art.mjs`) renders the graphics from the game
+  in headless Chromium into `store/out/`, which is not kept (no image files
+  in the repository): eight 1920 × 1080 screenshots of a 960 × 540 phone
+  screen, the 1024 × 500 feature graphic and the 512 px icon from the
+  launcher icon's vector paths. The signed bundle is
+  `.github/workflows/play.yml`, run by hand: it builds an `.aab` with the
+  upload key from four repository secrets and keeps it as the run's
+  artifact.
 
 **Steam (second platform)**
 
@@ -2327,7 +2344,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **6. Meta** (done; decision 29) | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** (done; decision 30) | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
 | **8. Polish** (built; decision 31) | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game (to be confirmed by a playtest; on the owner's Android phone Low and Medium run smoothly, High a little choppy) |
-| **9. Store releases** (under way: the Android shell and test builds, decision 37) | Capacitor builds for iOS and Android (M3: native saves, pause and resume, haptics, the orientation lock, the audio session); Game Center and Play Games (M4, optional); App Store and Play Store listings, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset) | The game installs from TestFlight and a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
+| **9. Store releases** (under way: the Android shell, test builds and the Play Store pieces, decisions 37 and 38) | The Capacitor build for Android (M3: native saves, pause and resume, haptics, the orientation lock); Play Games achievements (M4, optional); the Play Store listing, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset). The iPhone app (Capacitor for iOS, TestFlight, Game Center, the audio session's silent switch) waits (decision 38) | The game installs from a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
 
 ### Phase 1 breakdown
 
@@ -2540,3 +2557,4 @@ Built (decision 30), in two halves:
 | 35 | Sculpted people | **The figure and Madame Zero are sculpted from distance fields and meshed in the browser**, at the owner's request to make them look like 3D models rather than shapes: still no model files. The figure now stands with his hands in his pockets, in a loosened tie; Madame Zero keeps her look and the composition of the owner's reference (her head held at her waist, her hands to its sides), and her head turns a third of a radian at most. (8.1, 8.5, 9.9) |
 | 36 | The Vault screen | **Vault on the main menu** shows the Vault's four compartments, at the owner's request: shut ones with their padlocks and the debt that opens each, open ones standing ajar on what their lock opened (its starting wheel, the gramophone's second slot, its talismans, cards and records). A compartment opened since the last visit drops its padlock and swings open the first time it is seen; tapping one explains what it holds. Only the main menu has it. (7.1, 7.5, 9.9) |
 | 37 | Phase 9, the phone shell first | **Capacitor for Android first, with an automatic test build**, at the owner's request, so the game can be played on the owner's Android phone before any store account exists: app id **com.gabe.riennevaplus** (chosen by the owner); a debug APK built by GitHub Actions on every push and attached to a pre-release, signed with a debug key kept in the repository so each build installs over the last and keeps its saves. Native saves, back, pause and resume, haptics (with a Vibration setting), the landscape lock and hidden system bars come with it; iOS, the audio session and store signing follow. (9.2, 9.10, 10) |
+| 38 | Which phone store | **Google Play only for now**, at the owner's word: the App Store waits, and with it the iOS project, TestFlight, Game Center and the audio session's silent switch. Phase 9 prepares the Play listing, the privacy policy (published by GitHub Pages), store graphics rendered from the game and a signed release bundle, then the Steam build. Decisions 6 and 18 keep phones first; only the second store is set aside. (9.10, 10) |

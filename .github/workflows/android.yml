@@ -6,6 +6,12 @@ name: Android test build
 
 on:
   push:
+    # Words and the site change nothing in the app.
+    paths-ignore:
+      - 'site/**'
+      - 'store/**'
+      - 'docs/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:

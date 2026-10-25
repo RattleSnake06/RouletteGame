@@ -1,0 +1,39 @@
+/* The game's site: dark like the hall, system fonts only, so the page
+   itself loads nothing from anyone. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0909;
+  --ink: #ede5d3;
+  --dim: #b3a993;
+  --rule: rgba(237, 229, 211, 0.16);
+  --blood: #dc2a33;
+  --brass: #c49a52;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0 auto;
+  max-width: 44rem;
+  padding: 3rem max(1.25rem, env(safe-area-inset-right)) 4rem max(1.25rem, env(safe-area-inset-left));
+  color: var(--ink);
+  background: var(--bg);
+  font: 1.05rem/1.65 Georgia, 'Times New Roman', serif;
+}
+h1 {
+  margin: 0 0 0.25rem;
+  font: italic 700 clamp(2rem, 7vw, 3.2rem)/1.1 Georgia, serif;
+  color: var(--blood);
+}
+h2 {
+  margin: 2.2rem 0 0.5rem;
+  font: 600 0.85rem/1.3 'Courier New', monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+p, li { color: var(--dim); }
+strong { color: var(--ink); font-weight: 600; }
+a { color: var(--ink); }
+.lede { font-size: 1.15rem; color: var(--ink); }
+.meta { font: 0.85rem/1.5 'Courier New', monospace; color: var(--dim); }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 2.5rem 0 1rem; }
