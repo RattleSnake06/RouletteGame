@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BET_KINDS, getBet } from './core/bets.js';
 import { ACHIEVEMENTS, contentName, getEnhancement, getFortune, getMaterial, getOddity, getRecord, getStartingWheel, getTalisman } from './core/content/index.js';
-import { almanacView, applyRun, chipSets, edgeChoices, endRun, endlessOpen, goalFor, isUnlocked, markTaught, runOptions, serializeProfile, standingFigures, wheelChoices } from './core/meta.js';
+import { almanacView, applyRun, chipSets, edgeChoices, endRun, endlessOpen, goalFor, isUnlocked, markTaught, markVaultSeen, runOptions, serializeProfile, standingFigures, vaultView, wheelChoices } from './core/meta.js';
 import { nightTokensFor } from './core/house.js';
 import { ECONOMY } from './core/economy.js';
 import { add, format, gt, gte, isBig, isZero, sub } from './core/num.js';
@@ -16,6 +16,7 @@ import { workRefusal } from './core/wheelwork.js';
 import { playPayout } from './playback.js';
 import { showAlmanac } from './ui/almanac.js';
 import { showGuide } from './ui/guide.js';
+import { shutLine, showVaultScreen } from './ui/vault.js';
 import { TIPS } from './ui/tips.js';
 import { showModal } from './ui/hud.js';
 import { bellNote, betNote, boardNote, cardNote, chalkboardNote, chartNote, crankNote, devilNote, gramophoneNote, leverNote, placardNote, plaqueNote, slotNote, talismanNote } from './ui/notes.js';
@@ -320,6 +321,46 @@ export class Game {
     if (this.almanac) return;
     const names = (id) => getMaterial(id)?.id === id ? getMaterial(id).name : (contentName(id) ?? id);
     this.almanac = showAlmanac(almanacView(this.profile), { names, onClose: () => (this.almanac = null) });
+  }
+
+  /** The Vault screen (doc 7.1, decision 36), from the main menu: what each lock has opened. */
+  openVault() {
+    if (this.vaultScreen) return;
+    this.vaultScreen = showVaultScreen(vaultView(this.profile), {
+      sound: { clunk: () => this.audio.clunk(), open: () => this.audio.work(true) },
+      onSeen: () => {
+        this.profile = markVaultSeen(this.profile);
+        this.saveProfile();
+      },
+      onDetails: (lock) => this.vaultCompartment(lock),
+      onClose: () => (this.vaultScreen = null),
+    });
+  }
+
+  /** One compartment's card: what it holds, or, while shut, what opens it. */
+  vaultCompartment(l) {
+    this.audio.card();
+    if (!l.open) {
+      const others = l.contents.filter((c) => c.kind !== 'wheel' && c.kind !== 'slot').length;
+      const slot = l.contents.some((c) => c.kind === 'slot');
+      showModal({
+        kicker: 'The Vault',
+        title: `Lock ${l.lock} is shut`,
+        lines: [shutLine(l), `Inside: a starting wheel${slot ? ', a second slot for the gramophone' : ''} and ${others} new thing${others === 1 ? '' : 's'} for the House to offer.`],
+        actions: [{ label: 'Close', primary: true }],
+      });
+      return;
+    }
+    const KIND = { wheel: 'starting wheel', slot: 'the gramophone', talisman: 'talisman', fortune: 'card', record: 'record' };
+    showModal({
+      kicker: 'The Vault',
+      title: `Lock ${l.lock} is open`,
+      lines: [
+        'Choose the wheel on the chip select. The rest can turn up in any new run.',
+        ...l.contents.map((c) => `<b>${escapeHtml(c.name)}</b> (${c.kind === 'fortune' ? `${c.black ? 'black' : 'white'} card` : KIND[c.kind]}): ${escapeHtml(c.text)}`),
+      ],
+      actions: [{ label: 'Close', primary: true }],
+    });
   }
 
   // ---- The main menu and the chip select (doc 7.5) ---------------------------

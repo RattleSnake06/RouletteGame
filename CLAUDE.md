@@ -103,7 +103,11 @@ Phoenix Feather catches the first each debt), and each build got the piece
 it lacked. Decision 33 gave the Bell, Sectors, Zero and Timing a
 legendary multiplier each (the Carillon, the Tote Board, the Patience Jar,
 the Grandfather Clock, one per Vault lock), and the interest build stays as
-the way deep into Endless: 83 talismans, 31 cards, 16 records. Player
+the way deep into Endless: 83 talismans, 31 cards, 16 records. Decision 36
+put **Vault** on the main menu (`ui/vault.js`, `vaultView` in
+`core/meta.js`): four compartments, each opened by its lock and showing
+what it opened; one opened since the last visit drops its padlock and swings
+open (`vaultSeen` in the profile). Player
 text is plain English (decision 34): say "paint gold", not "gild". **Ask the
 owner before building any new build or piece.** `npm run sim -- --bot
 builds` plays one bot per build (`--kit` hangs its core from the first
@@ -219,7 +223,8 @@ change.
   is the meta profile, `game.openAlmanac()`, `game.chooseWheel()`,
   `game.chooseEdge()` and `game.stepOut()` drive Phase 6's screens;
   `game.openGuide()` opens the Info book and `game.openSettings()` the
-  settings; `game.showTip(id)` shows a first-time tip (they fade after 14 s,
+  settings; `game.openVault()` the Vault screen (`game.vaultScreen` while it
+  is up, its compartments `.vault-box[data-lock="1"]`…); `game.showTip(id)` shows a first-time tip (they fade after 14 s,
   which is a few frames in software WebGL, so show one just before a
   screenshot); `game.chooseGoal()` picks Endless once `profile.vault` is set, and
   `game.placeChip(id, 'neighbours:17')` opens the racetrack's number

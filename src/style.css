@@ -2263,6 +2263,267 @@ html.text-large .hud-tip .tip-text {
   justify-content: space-between;
 }
 
+/* ---- The Vault screen (doc 7.1, decision 36) ---- */
+
+.vault-card {
+  width: min(980px, 100%);
+  height: min(100%, 600px);
+  align-self: center;
+}
+
+/* The iron door's face: four compartments in a row, rivets along its edges. */
+.vault-face {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(8px, 1.6vw, 18px);
+  margin-top: 6px;
+  padding: clamp(14px, 2.4vw, 26px) clamp(10px, 2vw, 22px);
+  border-radius: 6px;
+  background:
+    radial-gradient(circle, #5c4d3a 0 2px, transparent 2.6px) 0 4px / 24px 10px repeat-x,
+    radial-gradient(circle, #5c4d3a 0 2px, transparent 2.6px) 0 calc(100% - 4px) / 24px 10px repeat-x,
+    linear-gradient(160deg, #2b2621 0%, #1b1815 55%, #23201c 100%);
+  box-shadow: inset 0 0 0 2px #3a332b, inset 0 0 40px rgba(0, 0, 0, 0.7), 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* Once the Vault itself has opened, its brass catches a little more light. */
+.vault-face.ajar {
+  box-shadow: inset 0 0 0 2px #5c4a2e, inset 0 0 40px rgba(0, 0, 0, 0.7), 0 0 50px rgba(196, 154, 82, 0.14);
+}
+
+/* A compartment: the velvet inside, with its door hinged on the left. */
+.vault-box {
+  position: relative;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: var(--bone);
+  text-align: left;
+  cursor: pointer;
+  /* Seen from the hinge, an open door stays a narrow strip inside its own
+     compartment instead of swinging over the next one. */
+  perspective: 2200px;
+  perspective-origin: 0% 50%;
+  background: linear-gradient(180deg, #1f0d0e, #110707);
+  box-shadow: inset 0 0 0 2px #0a0807, inset 0 8px 18px rgba(0, 0, 0, 0.9);
+}
+
+.vault-box:focus-visible {
+  outline: 1px dashed var(--bone-faint);
+  outline-offset: 3px;
+}
+
+.vb-inside {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 10px 10px calc(8px + 13%);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.5s ease 0.4s;
+}
+
+.vault-box.open .vb-inside {
+  opacity: 1;
+}
+
+.vb-item {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: clamp(11px, 1.35vw, 14px);
+  line-height: 1.25;
+}
+
+.vb-item .typed {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* What each thing is, at a glance: a wheel, a charm, a card, a record, a slot. */
+.vb-item .g {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  transform: translateY(1px);
+}
+
+.g-wheel {
+  border-radius: 50%;
+  background: conic-gradient(#b3262c 0 25%, #111 0 50%, #b3262c 0 75%, #111 0);
+  box-shadow: 0 0 0 1px var(--brass);
+}
+
+.vb-item .g-talisman {
+  background: var(--brass);
+  transform: translateY(1px) rotate(45deg) scale(0.82);
+}
+
+.g-fortune {
+  width: 7px;
+  border-radius: 1px;
+  background: var(--bone);
+}
+
+.g-fortune.black {
+  background: #000;
+  box-shadow: 0 0 0 1px var(--bone-dim);
+}
+
+.g-record {
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--blood) 0 28%, #050404 34%);
+  box-shadow: 0 0 0 1px #4a4137;
+}
+
+.g-slot {
+  border-radius: 50%;
+  border: 2px solid var(--brass);
+  box-sizing: border-box;
+}
+
+.vb-door {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12% 6% 10%;
+  border-radius: 4px;
+  pointer-events: none;
+  transform-origin: left center;
+  transition: transform 0.9s cubic-bezier(0.3, 0.1, 0.2, 1), filter 0.9s ease;
+  background:
+    radial-gradient(circle, #6b5a44 0 2px, transparent 2.6px) 7px 7px / 10px 10px no-repeat,
+    radial-gradient(circle, #6b5a44 0 2px, transparent 2.6px) calc(100% - 7px) 7px / 10px 10px no-repeat,
+    radial-gradient(circle, #6b5a44 0 2px, transparent 2.6px) 7px calc(100% - 7px) / 10px 10px no-repeat,
+    radial-gradient(circle, #6b5a44 0 2px, transparent 2.6px) calc(100% - 7px) calc(100% - 7px) / 10px 10px no-repeat,
+    linear-gradient(165deg, #3a342d, #24201c 60%, #2d2823);
+  box-shadow: inset 0 0 0 1px #4a4137, inset 0 0 0 6px #1f1b17, inset 0 0 0 7px #4a4137, 0 4px 10px rgba(0, 0, 0, 0.6);
+}
+
+.vault-box.open .vb-door {
+  transform: rotateY(-84deg);
+  filter: brightness(0.45);
+}
+
+/* The door's back is bare iron: its plate and words face the wall now. */
+.vb-door > * {
+  transition: opacity 0.3s ease 0.2s;
+}
+
+.vault-box.open .vb-door > * {
+  opacity: 0;
+}
+
+/* A compartment's card on top: the Vault steps back so the card reads clearly. */
+.vault-screen .vault-card {
+  transition: opacity 0.25s ease;
+}
+
+.vault-screen:has(~ .modal-backdrop.show) .vault-card {
+  opacity: 0.12;
+}
+
+.vault-box.shut:hover .vb-door {
+  filter: brightness(1.15);
+}
+
+.vb-plate {
+  padding: 1px 10px;
+  border-radius: 2px;
+  font: 600 clamp(14px, 2vw, 22px) Oswald, 'Arial Narrow', sans-serif;
+  letter-spacing: 0.08em;
+  color: #2a1d0c;
+  background: linear-gradient(#d8b46a, #9c7536);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* The padlock: a brass shackle over a brass body with its keyhole. */
+.vb-lock {
+  position: relative;
+  width: 34px;
+  height: 44px;
+}
+
+.vb-lock::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 0;
+  width: 20px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 4px solid #a98443;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  transition: transform 0.25s ease;
+}
+
+.vb-lock::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 34px;
+  height: 26px;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 50% 40%, #1a120a 0 3px, transparent 3.6px),
+    linear-gradient(#1a120a, #1a120a) 50% 68% / 2px 7px no-repeat,
+    linear-gradient(180deg, #e0bd72 0 10%, #b48b45 50%, #7d5d2a);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.vault-box.unlocking .vb-lock::before {
+  transform: translateY(-7px);
+}
+
+.vault-box.unlocking .vb-lock {
+  animation: vb-fall 0.6s 0.2s ease-in forwards;
+}
+
+@keyframes vb-fall {
+  to {
+    transform: translateY(160%) rotate(28deg);
+    opacity: 0;
+  }
+}
+
+.vault-box.open .vb-lock {
+  opacity: 0;
+}
+
+.vb-hint {
+  font-size: clamp(11px, 1.3vw, 14px);
+  color: var(--bone-dim);
+  text-align: center;
+}
+
+.vault-foot {
+  margin: 10px 2px 0;
+  font-size: 14px;
+  color: var(--bone-dim);
+}
+
+.vault-foot b {
+  color: var(--bone);
+  font-weight: 400;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vb-door,
+  .vb-inside {
+    transition: none;
+  }
+}
+
 .ts-pick {
   flex-direction: column;
   align-items: flex-start;

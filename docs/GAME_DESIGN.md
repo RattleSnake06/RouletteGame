@@ -1309,6 +1309,27 @@ card for a lock or a feat names what it opened.
 A run keeps what was open when it began (`opened` in the run), so a feat
 earned mid-run opens its talisman for the next.
 
+**The Vault screen** (*decision 36*, asked for by the owner). **Vault** on
+the main menu opens the iron door's face over the hall (`ui/vault.js`, on
+`core/meta.js` `vaultView`): four compartments in a row, I to IV, riveted
+iron with a brass number plate. A shut one hangs a brass padlock and says
+the debt that opens it ("Pay debt 5"); an open one stands ajar, its door
+swung back on its left hinge, on what its lock opened: the starting wheel,
+the gramophone's second slot (lock 2), then the lock's talismans, cards and
+records, each with a mark for its kind (a little wheel, a brass diamond, a
+white or black card, a record, a brass ring). A compartment the player has
+not yet watched open (`vaultSeen` in the profile, below the open locks)
+starts shut: its padlock jumps and drops with a clunk, then its door swings
+open, one compartment after another; the profile keeps it seen once all
+have opened (a screen closed early plays them again next time; with reduced
+motion they are simply open). Tapping a compartment opens its card: an open
+one names each thing it holds and what it does; a shut one says what opens
+it and how many things wait inside, without naming them. Under the
+compartments a line names the next step: "Pay debt 6, your goal, and lock
+III falls open" (the goal is always the next lock's debt), then "All four
+locks are open. Pay debt 8 or later and the Vault itself opens", and once
+it has, the room behind the door and Endless on the chip select.
+
 ### 7.2 Starting wheels and House Edge
 
 Both are chosen on the chip select (7.5), each from a list that shows the
@@ -1394,7 +1415,8 @@ starting wheel and the House Edge (7.2). It names the run's goal.
   given up from the menu's Play, which asks.
 
 *Phase 8 (decision 31):* the menu reads Continue, Play, **Info**, Almanac and
-Settings; on a short screen the items go two to a row. **Info** opens a book
+Settings; on a short screen the items go two to a row. *Decision 36* adds
+**Vault** after Info (7.1): Continue, Play, Info, Vault, Almanac, Settings. **Info** opens a book
 on the Almanac's card, "How to play" (`ui/guide.js`): a page each for the
 idea and the goal, nights and the Cage, bets (and the racetrack), luck
 (Nudge, the Lean, pity), the Devil, talismans with the Cabinet and the Bell,
@@ -2151,7 +2173,9 @@ play back strictly left to right. Every hook that changes something emits a
   starting wheel's order for Neighbours; a version 8 run opens nothing new);
   the profile as version 2, and a version 1 profile opens the locks its
   furthest debt would have. Phase 7 adds the deepest endless run to the
-  profile's ledger (missing reads as none).
+  profile's ledger (missing reads as none), and decision 36 the Vault
+  compartments watched open (`vaultSeen`, missing reads as none, so an
+  older profile's open compartments swing open once).
 - **Performance:**
   - Procedural textures currently take 1–2 s at load. Move generation to a Web
     Worker with OffscreenCanvas and cache the results.
@@ -2487,3 +2511,4 @@ Built (decision 30), in two halves:
 | 33 | The weak builds | **One legendary multiplier each for the Bell, Sectors, Zero and Timing**, after the simulator's build bots showed them with little of their own: **the Carillon** (chips +×1 for every ring answered this debt), **the Tote Board** (racetrack chips ×1 for each different racetrack bet with chips), **the Patience Jar** (+×0.5 for every spin since a green zero, paid on the next) and **the Grandfather Clock** (chips +×0.5 for every spin already played tonight), each opening with one of the Vault's locks (1 the Tote Board, 2 the Carillon, 3 the Patience Jar, 4 the Grandfather Clock) so a first run's Cabinet stays as tuned. **The interest build stays as it is**, the way deep into Endless. All chosen by the owner. Outcome after the simulator: the four kits pay debt 4 in 53–100% of runs (3–23% before); debts 5–8 at 9.5/4.6/2.4/1.2% with everything open (3,000 runs), inside the gentle tail; debts 1–4 unchanged. (6.1, 6.8, 7.1, 9.8) |
 | 34 | Plain words | **Player-facing text uses plain English and says directly what each thing does**, at the owner's request: "gild" reads as "paint gold" (a gold pocket, platinum when painted gold twice), "chisel" as remove, "stamp" as change a pocket's number, "+0.5 wide" as half a pocket wider, and the Bell talismans start "Ring the Bell (twice a debt):". Renamed: Gilder's Knife → **Gold Brush**, Usurer's Seal → **Moneylender's Seal**, Brass Shim → **Brass Wedge**, the Gilded pocket → **Gold**, the Gilded wheel → **Golden**, the Gilt engraving → **Rich**. Ids (`gild`, `gilded`, `gilt`, `usurers_seal`…) and the rules are unchanged, so saves carry over; this doc keeps "gild" for the wheel-work op. (6.1–6.7, 7.2) |
 | 35 | Sculpted people | **The figure and Madame Zero are sculpted from distance fields and meshed in the browser**, at the owner's request to make them look like 3D models rather than shapes: still no model files. The figure now stands with his hands in his pockets, in a loosened tie; Madame Zero keeps her look and the composition of the owner's reference (her head held at her waist, her hands to its sides), and her head turns a third of a radian at most. (8.1, 8.5, 9.9) |
+| 36 | The Vault screen | **Vault on the main menu** shows the Vault's four compartments, at the owner's request: shut ones with their padlocks and the debt that opens each, open ones standing ajar on what their lock opened (its starting wheel, the gramophone's second slot, its talismans, cards and records). A compartment opened since the last visit drops its padlock and swings open the first time it is seen; tapping one explains what it holds. Only the main menu has it. (7.1, 7.5, 9.9) |

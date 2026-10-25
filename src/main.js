@@ -205,6 +205,7 @@ async function init() {
     onContinue: () => game.continueRun(),
     onPlay: () => game.playFromMenu(),
     onInfo: () => game.openGuide(),
+    onVault: () => game.openVault(),
     onAlmanac: () => game.openAlmanac(),
     onSettings: () => game.openSettings(),
     onWheel: () => game.chooseWheel(),

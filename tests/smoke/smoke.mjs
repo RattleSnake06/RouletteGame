@@ -349,6 +349,24 @@ try {
   const won = await game(() => ({ outcome: window.__roulette.game.state.outcome?.reason, figures: window.__roulette.game.profile.figures.length, edge: window.__roulette.game.profile.edge }));
   check(s.phase === 'gameOver' && won.outcome === 'left' && won.figures === 2 && won.edge === 1, 'stepping out of the light won the run, left no figure and opened House Edge 1');
 
+  // The Vault screen (decision 36): from the main menu, the first compartment
+  // swings open on what lock 1 opened; the others stay shut.
+  await game(() => window.__roulette.game.showMainMenu({ cut: true }));
+  await page.waitForSelector('.title-screen.show .ts-item:has-text("Vault")', { timeout: 10000 });
+  await page.click('.title-screen.show .ts-item:has-text("Vault")');
+  await page.waitForSelector('.vault-screen.show', { timeout: 10000 });
+  await page.waitForFunction(() => window.__roulette.game.profile.vaultSeen === 1, null, { timeout: 60000 });
+  const vault = await game(() => [...document.querySelectorAll('.vault-box')].map((b) => [b.classList.contains('open'), b.querySelectorAll('.vb-item').length]));
+  check(JSON.stringify(vault) === JSON.stringify([[true, 7], [false, 0], [false, 0], [false, 0]]), `the Vault screen shows lock 1 open on what it opened, the rest shut (${JSON.stringify(vault)})`);
+  await page.click('.vault-box[data-lock="1"]');
+  await page.waitForSelector('.modal-backdrop.show:not(.vault-screen) .modal-title', { timeout: 10000 });
+  const compartment = await page.textContent('.modal-backdrop.show:not(.vault-screen) .modal-card');
+  check(/Lock 1 is open/.test(compartment) && /American wheel/.test(compartment) && /Habanera/.test(compartment), 'a compartment\'s card names what it holds');
+  await page.click('.modal-backdrop.show:not(.vault-screen) .modal-btn.primary');
+  await page.click('.vault-screen .alm-close');
+  await page.waitForFunction(() => !document.querySelector('.vault-screen') && !window.__roulette.game.vaultScreen, null, { timeout: 10000 });
+  check(true, 'the Vault screen closes back to the main menu');
+
   check(problems.length === 0, `no page or console errors${problems.length ? `: ${problems.join('; ')}` : ''}`);
   console.log('Smoke test passed.');
 } catch (e) {

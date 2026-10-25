@@ -187,8 +187,30 @@ for (const size of SIZES) {
     document.querySelector('.modal-backdrop.show .modal-btn.primary')?.click();
     window.__roulette.game.showMainMenu({ cut: true });
   });
+  // The Vault screen (decision 36): four shut compartments, then two locks
+  // swinging open, and a compartment's card.
+  await at('the Vault, shut', 'menu', () => {
+    const g = window.__roulette.game;
+    g.profile = { ...g.profile, locks: 0, vaultSeen: 0, vault: false };
+    g.openVault();
+  });
+  await at('the Vault, two locks opening', 'menu', () => {
+    const g = window.__roulette.game;
+    g.vaultScreen?.close();
+    g.profile = { ...g.profile, locks: 2, vaultSeen: 0 };
+    g.openVault();
+  });
+  await at('a compartment of the Vault', 'menu', () => document.querySelector('.vault-box[data-lock="1"]')?.click());
+  await at('the Vault open', 'menu', () => {
+    const g = window.__roulette.game;
+    document.querySelector('.modal-backdrop.show:not(.vault-screen) .modal-btn.primary')?.click();
+    g.vaultScreen?.close();
+    g.profile = { ...g.profile, locks: 4, vaultSeen: 4, vault: true };
+    g.openVault();
+  });
   await at('chip select', 'menu', () => {
     const g = window.__roulette.game;
+    g.vaultScreen?.close();
     // Two locks and a House Edge open: the wheel and the edge can be chosen.
     g.profile = { ...g.profile, unlocked: ['normal', 'clay', 'bone'], best: { normal: 4 }, locks: 2, edge: 2 };
     g.openChipSelect();

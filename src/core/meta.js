@@ -1,5 +1,6 @@
 import { ACHIEVEMENTS, EDGES, ENGRAVINGS, ENHANCEMENTS, FORTUNES, MATERIALS, MAX_EDGE, ODDITIES, RECORDS, STARTING_WHEELS, TALISMANS } from './content/index.js';
 import { deserialize, max, serialize } from './num.js';
+import { VAULT, lockDebt } from './run.js';
 
 // What carries over between runs (design doc 7, decisions 26 and 29), saved
 // apart from the run (as 'profile', through src/platform/):
@@ -9,6 +10,8 @@ import { deserialize, max, serialize } from './num.js';
 //   locks, vault     the Vault's open padlocks (they open starting wheels and
 //                    the gramophone's second slot, and move the goal), and
 //                    whether the Vault itself has opened
+//   vaultSeen        how many of those compartments the player has watched
+//                    swing open on the Vault screen (decision 36)
 //   edge             the highest House Edge level open: reaching the goal at
 //                    a level opens the next
 //   figures          the runs that ended without stepping out: they stand in
@@ -38,6 +41,7 @@ export function newProfile() {
     best: {},
     locks: 0,
     vault: false,
+    vaultSeen: 0,
     edge: 0,
     figures: [{ ...STRANGER }],
     taught: [],
@@ -122,6 +126,38 @@ export function markTaught(profile, id) {
   const taught = profile.taught ?? [];
   return taught.includes(id) ? profile : { ...profile, taught: [...taught, id] };
 }
+
+// --- The Vault screen (doc 7.1, decision 36) ---------------------------------
+
+/** What lock `lock` opens: its starting wheel, the gramophone's second slot (lock 2), then its talismans, cards and records. */
+function lockContents(lock) {
+  const gated = (list) => list.filter((d) => d.unlock?.lock === lock);
+  return [
+    ...STARTING_WHEELS.filter((w) => w.lock === lock).map((w) => ({ kind: 'wheel', id: w.id, name: `The ${w.name} wheel`, text: `${w.upside} ${w.downside}` })),
+    ...(lock === 2 ? [{ kind: 'slot', id: 'gramophone_slot', name: 'A second gramophone slot', text: 'The gramophone plays two records at once, and both their rules count.' }] : []),
+    ...gated(TALISMANS).map((d) => ({ kind: 'talisman', id: d.id, name: d.name, text: d.text, rarity: d.rarity })),
+    ...gated(FORTUNES).map((d) => ({ kind: 'fortune', id: d.id, name: d.text, text: d.effect, black: d.kind === 'black' })),
+    ...gated(RECORDS).map((d) => ({ kind: 'record', id: d.id, name: d.name, text: d.rule })),
+  ];
+}
+
+/**
+ * The Vault screen: its four compartments, each with the debt that opens it,
+ * whether it is open, whether the player has yet to watch it open (`fresh`),
+ * and what lies inside. A shut one's contents are for counting, not showing.
+ */
+export function vaultView(profile) {
+  const seen = Math.min(profile.vaultSeen ?? 0, profile.locks);
+  const locks = Array.from({ length: VAULT.locks }, (_, i) => {
+    const lock = i + 1;
+    const open = profile.locks >= lock;
+    return { lock, open, fresh: open && lock > seen, debt: lockDebt(lock), contents: lockContents(lock) };
+  });
+  return { locks, open: profile.locks, vault: profile.vault, goal: goalFor(profile), vaultDebt: VAULT.baseGoal + VAULT.locks };
+}
+
+/** The player has watched every open compartment swing open (the same profile when they already had). */
+export const markVaultSeen = (profile) => ((profile.vaultSeen ?? 0) >= profile.locks ? profile : { ...profile, vaultSeen: profile.locks });
 
 /** Endless (doc 7.1): a run with no goal, once the Vault has opened. */
 export const endlessOpen = (profile) => profile.vault;
@@ -342,10 +378,12 @@ export function deserializeProfile(json) {
     const st = { ...emptyStats(), ...(data.stats ?? {}) };
     const stats = Object.fromEntries(Object.entries(emptyStats()).map(([k]) => [k, k === 'bestSpin' ? money(st[k]) : count(st[k])]));
     const figures = Array.isArray(data.figures) ? data.figures.filter((f) => f && typeof f === 'object' && Number.isInteger(f.debt)).slice(-FIGURES.kept) : base.figures;
+    const locks = count(data.locks, 4);
     return {
       ...base,
-      locks: count(data.locks, 4),
+      locks,
       vault: data.vault === true,
+      vaultSeen: Math.min(count(data.vaultSeen, 4), locks),
       edge: count(data.edge, MAX_EDGE),
       figures,
       taught: strings(data.taught),

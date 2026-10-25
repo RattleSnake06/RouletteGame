@@ -61,7 +61,7 @@ function chipStack(set, w = 168, h = 96) {
 }
 
 /**
- * handlers: { onContinue, onPlay, onInfo, onAlmanac, onSettings, onBegin(setId),
+ * handlers: { onContinue, onPlay, onInfo, onVault, onAlmanac, onSettings, onBegin(setId),
  * onBack, onWheel, onEdge, onGoal }. The chip select also chooses the starting wheel
  * and the House Edge (doc 7.2): each a button that opens its list, shown once
  * the Vault or a win has opened more than one.
@@ -94,6 +94,7 @@ export function createMainMenu(handlers) {
   const cont = item('Continue', () => handlers.onContinue?.());
   const playBtn = item('Play', () => handlers.onPlay?.());
   item('Info', () => handlers.onInfo?.());
+  item('Vault', () => handlers.onVault?.());
   item('Almanac', () => handlers.onAlmanac?.());
   item('Settings', () => handlers.onSettings?.());
   main.append(title, whisper, nav);

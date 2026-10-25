@@ -175,6 +175,7 @@ export const GUIDE = [
     sections: [
       ['The Vault', [
         'At the back of the hall stands an iron door with four padlocks. Pay debt 4 and the first falls open; each later debt opens the next. Every lock moves your goal one debt further and opens a starting wheel and new talismans, cards or records. Pay debt 8 with all four open and the Vault opens.',
+        '<b>Vault</b> on the main menu shows its four compartments. Each lock you open swings one open, with what that lock opened inside; tap a compartment to read about each thing.',
       ]],
       ['Chips, wheels and the House Edge', [
         'Pay debt 4 with a chip set and the next set unlocks: Clay, Bone, Glass, then Gold, each with its own rule. Locks open the American, Golden, Bone and Mirror wheels. Reaching your goal at the hardest <b>House Edge</b> open opens the next level, five in all, each making the House harder.',
