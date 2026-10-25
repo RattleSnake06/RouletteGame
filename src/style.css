@@ -261,7 +261,9 @@ img.mark {
   display: flex;
   align-items: flex-end;
   gap: 0.6em;
-  margin: 0.26em 0 0 0.1em;
+  /* Scrawl's 2, 4 and 5 hang far below its line (a 2 by four tenths of the
+     figure's size): the night's tally sits clear of the deepest of them. */
+  margin: 1.1em 0 0 0.1em;
   font-size: calc(17 * var(--u));
   min-height: 1.4em;
 }
