@@ -350,8 +350,11 @@ try {
   check(s.phase === 'gameOver' && won.outcome === 'left' && won.figures === 2 && won.edge === 1, 'stepping out of the light won the run, left no figure and opened House Edge 1');
 
   // The Vault screen (decision 36): from the main menu, the first compartment
-  // swings open on what lock 1 opened; the others stay shut.
-  await game(() => window.__roulette.game.showMainMenu({ cut: true }));
+  // swings open on what lock 1 opened; the others stay shut. The way there is
+  // the player's: Begin again on the card, then back from the chip select.
+  await page.click('.modal-backdrop.show button:has-text("Begin again")');
+  await page.waitForSelector('.title-screen.show .ts-chips:not([hidden])', { timeout: 30000 });
+  await page.click('.title-screen.show .ts-back');
   await page.waitForSelector('.title-screen.show .ts-item:has-text("Vault")', { timeout: 30000 });
   await page.click('.title-screen.show .ts-item:has-text("Vault")');
   await page.waitForSelector('.vault-screen.show', { timeout: 10000 });
