@@ -2271,8 +2271,11 @@ expensive.
 - **Performance** (M2): a phone quality preset (render scale, shadows, the
   procedural textures cached), holding 60 fps on a mid-range phone without
   overheating, and loading in a few seconds. *Phase 8:* the preset and the
-  floor's worker and cache are built (9.9); the frame rate waits for a
-  device.
+  floor's worker and cache are built (9.9). *Phase 9:* on the owner's
+  Android phone (the first test build), Low and Medium run smoothly and
+  High is a little choppy; the safe areas, the vibration, the pause and
+  resume (sound stops and comes back) and the saves (a run carries on after
+  the app is closed) all held.
 - **Price:** a one-time purchase. Premium: no ads, no in-app purchases, no
   accounts.
 - **Store side** (M5, Phase 9): Apple's developer program ($99 a year, and
@@ -2323,7 +2326,7 @@ Each phase ends with something playable. "Done when" is the bar for moving on.
 | **5. Building the wheel** (done; decisions 27, 28) | Wheel generated from pocket data; widen, repaint, duplicate, remove, enhancements; chip materials; oddities; stats board | A late wheel looks visibly different and the chalkboard explains it |
 | **6. Meta** (done; decision 29) | Vault locks and moving goal; leave or continue; ending stub; figures in the dark; Almanac; saves; starting wheels; House Edge levels | A lost run leaves a figure; a won run unlocks something |
 | **7. Content and balance** (done; decision 30) | 60+ talismans, 25 fortunes, 12 records; simulator tuning; endless mode with big numbers | Simulator curves hit their targets; each build family has an item at every rarity |
-| **8. Polish** (built; decision 31) | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game (to be confirmed by a playtest; 60 fps to be measured on a phone) |
+| **8. Polish** (built; decision 31) | Audio pass, first-debt teaching, settings and accessibility, phone performance (M2: a quality preset, cached textures, 60 fps on a mid-range phone), optional crunch filter | A new player finishes debt 1 without reading anything outside the game (to be confirmed by a playtest; on the owner's Android phone Low and Medium run smoothly, High a little choppy) |
 | **9. Store releases** (under way: the Android shell and test builds, decision 37) | Capacitor builds for iOS and Android (M3: native saves, pause and resume, haptics, the orientation lock, the audio session); Game Center and Play Games (M4, optional); App Store and Play Store listings, age rating and privacy policy (M5); then the Electron build for Steam (steamworks.js, gamepad and Steam Input, a Deck preset) | The game installs from TestFlight and a Play test track, saves natively and plays start to finish by touch; the Steam build runs and saves on Windows and Steam Deck |
 
 ### Phase 1 breakdown
@@ -2454,7 +2457,8 @@ Built (decision 31):
    (9.9).
 6. Checked by `npm run layout` (now also Settings, the Info book and large
    text), `npm run touch` and `npm run smoke`. Still open: a playtest with a
-   new player for the done-when, and frame rate on a real mid-range phone.
+   new player for the done-when. The frame rate was checked in Phase 9 on
+   the owner's Android phone: Low and Medium smooth, High a little choppy.
 
 ### Phase 7 breakdown
 

@@ -95,8 +95,9 @@ effects levels, large text, graphics quality (Low is the phone preset), the
 crunch filter (off by default) and tips; one-time tips in the room for the
 first debt (`ui/tips.js`, kept in `profile.taught`); a synthesised audio
 pass; and the floor painted in a worker and kept in IndexedDB
-(`view/floor.js`). Still open: a playtest with a new player, and frame rate
-on a real phone. The builds pass (decision 32) is done: doc 6.8 names every
+(`view/floor.js`). Still open: a playtest with a new player. On the owner's
+Android phone (the first test build) Low and Medium run smoothly and High is
+a little choppy; safe areas, vibration, pause and resume and saves held. The builds pass (decision 32) is done: doc 6.8 names every
 build (engine, pieces, endgame), the Pyre was added (talismans sold or used
 up feed it; `useUp` in `core/effects.js` is the one used-up path, and the
 Phoenix Feather catches the first each debt), and each build got the piece
