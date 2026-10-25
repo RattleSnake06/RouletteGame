@@ -95,9 +95,33 @@ if (section('phone')) {
     await shot(page, frames, 'phone-1', 14);
   }
 
+  // The menus next, while the hall is still untouched (no cards dealt yet).
+  if (wanted('phone-7')) {
+    // The Vault, three compartments open on what their locks opened.
+    await G(() => {
+      const g = window.__roulette.game;
+      g.profile = { ...g.profile, locks: 3, vaultSeen: 3, edge: 2, unlocked: ['normal', 'clay', 'bone', 'glass'] };
+      g.showMainMenu({ cut: true });
+      g.openVault();
+    });
+    await shot(page, frames, 'phone-7', 14);
+    await G(() => window.__roulette.game.vaultScreen?.close());
+  }
+
+  if (wanted('phone-8')) {
+    // The chip select: every set and starting wheel open.
+    await G(() => {
+      const g = window.__roulette.game;
+      g.profile = { ...g.profile, unlocked: ['normal', 'clay', 'bone', 'glass', 'gold'], best: { normal: 6, clay: 4, bone: 5, glass: 4, gold: 2 }, locks: 4, vault: true, edge: 3 };
+      g.openChipSelect();
+    });
+    await shot(page, frames, 'phone-8', 12);
+  }
+
   // A run under way: a long night, six charms on the rail, chips on the felt
   // and the House about to lean.
-  await G(() => {
+  const inRun = ['phone-2', 'phone-3', 'phone-4', 'phone-5', 'phone-6'].some(wanted);
+  if (inRun) await G(() => {
     const r = window.__roulette;
     const g = r.game;
     if (g.atMenu) g.leaveMenu();
@@ -170,27 +194,6 @@ if (section('phone')) {
     await G(() => window.__roulette.game.zoomFelt(false));
   }
 
-  if (wanted('phone-7')) {
-    // The Vault, three compartments open on what their locks opened.
-    await G(() => {
-      const g = window.__roulette.game;
-      g.profile = { ...g.profile, locks: 3, vaultSeen: 3, edge: 2, unlocked: ['normal', 'clay', 'bone', 'glass'] };
-      g.showMainMenu({ cut: true });
-      g.openVault();
-    });
-    await shot(page, frames, 'phone-7', 14);
-    await G(() => window.__roulette.game.vaultScreen?.close());
-  }
-
-  if (wanted('phone-8')) {
-    // The chip select: every set and starting wheel open.
-    await G(() => {
-      const g = window.__roulette.game;
-      g.profile = { ...g.profile, unlocked: ['normal', 'clay', 'bone', 'glass', 'gold'], best: { normal: 6, clay: 4, bone: 5, glass: 4, gold: 2 }, locks: 4, vault: true, edge: 3 };
-      g.openChipSelect();
-    });
-    await shot(page, frames, 'phone-8', 12);
-  }
   await ctx.close();
 }
 
