@@ -25,12 +25,12 @@ function pacing(steps, fast) {
 }
 
 /**
- * deps: { table, rail, hud, audio, screenPosition }
+ * deps: { table, rail, hud, audio, haptic, screenPosition }
  * `alive()` turning false (a new run began) stops the playback where it is.
  * Returns the running coin total when it is done.
  */
 export async function playPayout(deps, events, { fast, coinsBefore, alive = () => true }) {
-  const { table, rail, hud, audio, screenPosition } = deps;
+  const { table, rail, hud, audio, haptic, screenPosition } = deps;
   events = events.filter((e) => !(e.type === 'trigger' && SHOWN_BEFORE.has(e.hook)));
   const steps = events.filter((e) => e.type === 'trigger' || e.type === 'chipPaid');
   const pace = pacing(steps, fast);
@@ -86,6 +86,7 @@ export async function playPayout(deps, events, { fast, coinsBefore, alive = () =
     if (e.type === 'chipPaid') {
       table.glowChip(e.chipId);
       audio.coin(wins);
+      haptic?.('medium');
       const quarter = e.hit.mult < 1 ? ' ×¼' : '';
       popAt(table.chipWorldPosition(e.chipId), `+${format(e.amount)}${quarter}`, 'win');
       running = add(running, e.amount);

@@ -43,13 +43,16 @@ function introPower(t) {
 }
 
 async function init() {
+  // The phone app reads its saves from native storage before anything else (doc 9.10).
+  await platform.ready?.();
   await loadFonts();
   // Touch screens get touch hints, bigger targets and no key caps (doc 9.10).
   const touch = isTouchScreen();
   document.documentElement.classList.toggle('touch', touch);
 
   // Text, levels, graphics and the crunch filter are Phase 8's (doc 8.7, 9.10).
-  const settings = loadSettings({ muted: false, fast: false, flashes: true, music: 1, effects: 1, text: 'normal', quality: 'high', crunch: false, tips: true });
+  // The phone app starts on the phone preset (Low); the player can raise it.
+  const settings = loadSettings({ muted: false, fast: false, flashes: true, music: 1, effects: 1, text: 'normal', quality: platform.native ? 'low' : 'high', crunch: false, tips: true, haptics: true });
   const canvas = document.getElementById('scene');
   // The phone preset paints the floor at half size (a change shows from the next launch).
   const stage = createStage(canvas, { floorPixels: settings.quality === 'low' ? 1024 : 2048 });
@@ -322,8 +325,21 @@ async function init() {
     e.currentTarget.blur();
     game.zoomFelt(false);
   });
-  // Back leaves the felt close-up first, then opens the menu.
-  platform.onBack?.(() => (modalOpen() && !game.menuClose) || game.back() || input.emit('menu'));
+  // Back leaves the felt close-up first, then opens the menu. It returns
+  // false only on the main menu, where the phone app goes to the background.
+  platform.onBack?.(() => {
+    if ((modalOpen() && !game.menuClose) || game.back()) return true;
+    if (game.atMenu) return false;
+    input.emit('menu');
+    return true;
+  });
+  // The phone app in the background: the run is saved and the sound stops (doc 9.10).
+  platform.onPause?.(() => {
+    game.save();
+    game.saveProfile();
+    audio.suspend();
+  });
+  platform.onResume?.(() => audio.resume());
   // Browsers only allow sound after a gesture.
   const wake = () => audio.start();
   window.addEventListener('pointerdown', wake);

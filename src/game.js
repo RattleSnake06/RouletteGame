@@ -452,11 +452,24 @@ export class Game {
         { label: 'Crunch', keepOpen: true, value: () => (this.settings.crunch ? 'on' : 'off'), onClick: () => this.toggleCrunch() },
         { label: 'Flashing lights', keepOpen: true, value: () => (this.settings.flashes ? 'on' : 'off'), onClick: () => this.toggleFlashes() },
         { label: 'Tips', keepOpen: true, value: () => (this.settings.tips ? 'on' : 'off'), onClick: () => this.toggleTips() },
+        // Only where the platform can buzz (the phone app, doc 9.10).
+        ...(this.platform.haptics ? [{ label: 'Vibration', keepOpen: true, value: () => (this.settings.haptics !== false ? 'on' : 'off'), onClick: () => this.toggleHaptics() }] : []),
       ],
     });
   }
 
   /** The first-time tips (doc 8.4): off hides the one showing and keeps the rest away. */
+  /** A light buzz on a hop or a payout, where the platform has haptics and the player wants them. */
+  haptic(kind) {
+    if (this.settings.haptics !== false) this.platform.haptic?.(kind);
+  }
+
+  toggleHaptics() {
+    this.settings.haptics = this.settings.haptics === false;
+    this.saveSettings();
+    if (this.settings.haptics) this.haptic('medium');
+  }
+
   toggleTips() {
     this.settings.tips = !this.settings.tips;
     if (!this.settings.tips) this.hideTip();
@@ -2378,7 +2391,7 @@ export class Game {
 
     if (!result.miss) this.hud.strikeCoins();
     await playPayout(
-      { table: this.table, rail: this.rail, hud: this.hud, audio: this.audio, screenPosition: (w) => this.screenPosition(w) },
+      { table: this.table, rail: this.rail, hud: this.hud, audio: this.audio, haptic: (kind) => this.haptic(kind), screenPosition: (w) => this.screenPosition(w) },
       detail,
       { fast, coinsBefore: result.devil ? 0 : coinsBefore, alive: () => !stale() },
     );
@@ -2460,6 +2473,7 @@ export class Game {
         onHop: () => {
           this.sparks.burst(anim.ball.getWorldPosition(this._ballAt), luck.kind);
           this.audio.hop(luck.kind, step);
+          this.haptic('light');
           step += 1;
         },
       });

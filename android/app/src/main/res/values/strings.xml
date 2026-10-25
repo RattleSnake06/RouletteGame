@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Rien Ne Va Plus</string>
+    <string name="title_activity_main">Rien Ne Va Plus</string>
+    <string name="package_name">com.gabe.riennevaplus</string>
+    <string name="custom_url_scheme">com.gabe.riennevaplus</string>
+</resources>

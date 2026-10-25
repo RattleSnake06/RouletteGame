@@ -22,6 +22,14 @@ npm run dev      # http://localhost:5173
 hosted from any folder). Add `?seed=ABCD-EFGH` to the URL to start a specific
 seed; it only applies when no run is in progress.
 
+## On an Android phone
+
+Every push builds an Android test version (GitHub Actions, `.github/workflows/android.yml`).
+On the phone, open this repository's **Releases**, find **Android test build**,
+download the `.apk`, open it and allow your browser to install apps when
+asked. No store and no account are needed, and a newer build installs over the
+old one and keeps your saves. Android 7 or newer.
+
 ## How to play
 
 1. **Choose the night:** a long night (7 spins), a short night (3 spins and a

@@ -18,6 +18,11 @@
     "touch": "node tests/smoke/touch.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/preferences": "^8.0.1",
     "@fontsource/mansalva": "^5.3.0",
     "@fontsource/oswald": "^5.3.0",
     "@fontsource/rock-salt": "^5.3.0",
@@ -26,6 +31,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "playwright-core": "1.56",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"

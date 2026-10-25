@@ -1,0 +1,16 @@
+{
+  "appId": "com.gabe.riennevaplus",
+  "appName": "Rien Ne Va Plus",
+  "webDir": "dist",
+  "backgroundColor": "#000000",
+  "android": {
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "SystemBars": {
+      "hidden": true,
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

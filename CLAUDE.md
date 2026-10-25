@@ -107,7 +107,13 @@ the way deep into Endless: 83 talismans, 31 cards, 16 records. Decision 36
 put **Vault** on the main menu (`ui/vault.js`, `vaultView` in
 `core/meta.js`): four compartments, each opened by its lock and showing
 what it opened; one opened since the last visit drops its padlock and swings
-open (`vaultSeen` in the profile). Player
+open (`vaultSeen` in the profile). Phase 9 is under way (decision 37):
+Capacitor 8 wraps the web build for Android (`android/`, app id
+`com.gabe.riennevaplus`); `src/platform/native.js` is the phone's adapter
+(native saves read before boot by `platform.ready()`, back, pause and
+resume, haptics), and every push builds a debug APK on GitHub Actions
+(`.github/workflows/android.yml`) attached to the "Android test build"
+pre-release. iOS, the audio session and store signing are next. Player
 text is plain English (decision 34): say "paint gold", not "gild". **Ask the
 owner before building any new build or piece.** `npm run sim -- --bot
 builds` plays one bot per build (`--kit` hangs its core from the first
@@ -156,6 +162,10 @@ change.
   record and oddity through the real flows) and `npm run tour` (each card,
   oddity and talisman once). The browser ones take `CHROME_PATH` and run slowly
   in software WebGL; run at most two at once on four cores.
+- Android: `npm run build && npx cap sync android` copies the web build into
+  `android/`; the APK itself is built on GitHub Actions (this container cannot
+  reach the Android SDK's host, dl.google.com). Keep the project free of image
+  files: the launcher icon and splash are vector drawables.
 - In the dev build, `window.__roulette.debug` has `addCoins(n)`, `addTokens(n)`,
   `grant(id)` (hang a talisman for free, cursed ones included), `lean(n)` (a
   Lean on the next spin), `misses(n)` (to try pity), and `devil()` / `calm()`

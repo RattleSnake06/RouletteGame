@@ -25,6 +25,16 @@ export class WheelAudio {
     this.gramophone?.play(this.tune);
   }
 
+  /** The app went to the background: every sound stops, the gramophone's too. */
+  suspend() {
+    this.ctx?.suspend().catch(() => {});
+  }
+
+  /** Back from the background. If the system wants a tap first, the next tap's start() resumes it. */
+  resume() {
+    if (this.ctx?.state === 'suspended') this.ctx.resume().catch(() => {});
+  }
+
   // Must be called from a user gesture (browsers block audio until then).
   start() {
     if (this.ctx) {
